@@ -14,8 +14,9 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
-import FormField, { inputClasses, selectClasses } from '../../ui/FormField';
-import { RadioGroup, RadioGroupItem } from '../../ui/RadioGroup';
+// Fixed import paths: changed from ../../ui to ../ui
+import FormField, { inputClasses, selectClasses } from '../ui/FormField';
+import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
 
 // Import new Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
@@ -24,7 +25,6 @@ import PropertyFinancials from './property/PropertyFinancials';
 import PropertyLocation from './property/PropertyLocation';
 import PropertyMedia from './property/PropertyMedia';
 import LocationPickerModal from '../shared/LocationPickerModal';
-// NEW: Import Cloudinary uploader
 import { uploadToCloudinary } from '../../lib/cloudinary';
 
 // Define form data structure export for consistency
@@ -229,8 +229,6 @@ const PropertyFormPage: React.FC = () => {
             }
 
             // 2. Handle Gallery Uploads
-            // Map through galleryImages. If there is a corresponding file in galleryImageFiles, upload it.
-            // Otherwise, it's an existing URL, keep it.
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
