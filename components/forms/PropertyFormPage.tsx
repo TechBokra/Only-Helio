@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -13,8 +14,8 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
-import FormField, { inputClasses } from '../ui/FormField';
-import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
+import FormField, { inputClasses, selectClasses } from '../../ui/FormField';
+import { RadioGroup, RadioGroupItem } from '../../ui/RadioGroup';
 
 // Import new Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
@@ -23,15 +24,8 @@ import PropertyFinancials from './property/PropertyFinancials';
 import PropertyLocation from './property/PropertyLocation';
 import PropertyMedia from './property/PropertyMedia';
 import LocationPickerModal from '../shared/LocationPickerModal';
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
+// NEW: Import Cloudinary uploader
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 // Define form data structure export for consistency
 export interface PropertyFormData {
@@ -86,15 +80,22 @@ const PropertyFormPage: React.FC = () => {
     const methods = useForm<PropertyFormData>();
     const { handleSubmit, setValue, reset, watch } = methods;
     
+    // Image State
     const [mainImage, setMainImage] = useState<string>('');
+    const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+    
     const [galleryImages, setGalleryImages] = useState<string[]>([]);
+    const [galleryImageFiles, setGalleryImageFiles] = useState<(File | null)[]>([]);
+
     const [isMapOpen, setIsMapOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const partnerProjects = useMemo(() => (projects || []).filter(p => p.partnerId === currentUser?.id), [projects, currentUser]);
     const watchContactMethod = watch('contactMethod');
 
     const handleNavigationSuccess = (property?: Property) => {
         queryClient.invalidateQueries({ queryKey: ['allProperties'] });
+        queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
         queryClient.invalidateQueries({ queryKey: [`partner-properties-${currentUser?.id}`] });
         if (propertyId) {
             queryClient.invalidateQueries({ queryKey: [`property-${propertyId}`] });
@@ -148,8 +149,13 @@ const PropertyFormPage: React.FC = () => {
                     contactMethod: prop.contactMethod || 'platform',
                     ownerPhone: prop.ownerPhone || '',
                 } as any);
+                
                 setMainImage(prop.imageUrl);
-                setGalleryImages(prop.gallery);
+                setMainImageFile(null);
+                
+                setGalleryImages(prop.gallery || []);
+                setGalleryImageFiles(new Array(prop.gallery?.length || 0).fill(null));
+                
             } else if (propertyId && !isLoadingContext) {
                 const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/properties' : '/dashboard/properties';
                 navigate(redirectPath);
@@ -172,28 +178,36 @@ const PropertyFormPage: React.FC = () => {
                 priceNumeric: 0,
                 title: { ar: '', en: '' }, description: { ar: '', en: '' }, address: { ar: '', en: '' }
             });
+            setMainImage('');
+            setMainImageFile(null);
+            setGalleryImages([]);
+            setGalleryImageFiles([]);
         }
     }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext]);
     
     // Image Handlers
-    const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const base64 = await fileToBase64(e.target.files[0]);
-            setMainImage(base64);
+            const file = e.target.files[0];
+            setMainImageFile(file);
+            setMainImage(URL.createObjectURL(file));
         }
     };
 
-    const handleGalleryImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleGalleryImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const files = Array.from(e.target.files);
-            const base64Promises = files.map((file: File) => fileToBase64(file));
-            const base64Images = await Promise.all(base64Promises);
-            setGalleryImages(prev => [...prev, ...base64Images]);
+            const files: File[] = Array.from(e.target.files);
+            // Append new previews
+            const newPreviews = files.map(file => URL.createObjectURL(file));
+            setGalleryImages(prev => [...prev, ...newPreviews]);
+            // Append new files to the tracking array
+            setGalleryImageFiles(prev => [...prev, ...files]);
         }
     };
 
     const removeGalleryImage = (index: number) => {
         setGalleryImages(prev => prev.filter((_, i) => i !== index));
+        setGalleryImageFiles(prev => prev.filter((_, i) => i !== index));
     };
     
     const handleLocationSelect = (loc: { lat: number, lng: number }) => {
@@ -205,46 +219,72 @@ const PropertyFormPage: React.FC = () => {
     const onSubmit = async (formData: PropertyFormData) => {
         if (!currentUser || !('type' in currentUser) || !amenities) return;
         
-        const priceNumeric = Number(formData.priceNumeric) || 0;
-        const formattedPriceAr = `${priceNumeric.toLocaleString('ar-EG')} ج.م`;
-        const formattedPriceEn = `EGP ${priceNumeric.toLocaleString('en-US')}`;
+        setIsUploading(true);
 
-        const pricePerMeterNumeric = Math.round(priceNumeric / (Number(formData.area) || 1));
-        const pricePerMeter = formData.status?.en === 'For Sale' && pricePerMeterNumeric > 0 ? {
-            ar: `${pricePerMeterNumeric.toLocaleString('ar-EG')} ج.م/م²`,
-            en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
-        } : undefined;
+        try {
+            // 1. Handle Main Image Upload
+            let finalMainImage = mainImage;
+            if (mainImageFile) {
+                finalMainImage = await uploadToCloudinary(mainImageFile);
+            }
 
-        const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
-            ...formData,
-            status: { 
-                en: formData.status.en as 'For Sale' | 'For Rent', 
-                ar: formData.status.ar as 'للبيع' | 'إيجار' 
-            },
-            isInCompound: formData.isInCompound === 'true',
-            realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'true',
-            installmentsAvailable: formData.installmentsAvailable === 'true',
-            delivery: {
-                isImmediate: formData.delivery?.isImmediate === 'true',
-                date: formData.delivery?.isImmediate !== 'true' ? formData.delivery.date : undefined,
-            },
-            partnerId: propertyId ? properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id : currentUser.id,
-            price: { ar: formattedPriceAr, en: formattedPriceEn },
-            priceNumeric,
-            pricePerMeter,
-            imageUrl: mainImage,
-            gallery: galleryImages,
-            listingStatus: formData.listingStatus as any,
-            type: { en: formData.type.en as any, ar: formData.type.ar },
-            beds: formData.beds || 0,
-            baths: formData.baths || 0,
-            floor: formData.floor
-        };
-        
-        if (propertyId) {
-            updateMutation.mutate({ propertyId, updates: propertyData });
-        } else {
-            addMutation.mutate(propertyData);
+            // 2. Handle Gallery Uploads
+            // Map through galleryImages. If there is a corresponding file in galleryImageFiles, upload it.
+            // Otherwise, it's an existing URL, keep it.
+            const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
+                const file = galleryImageFiles[index];
+                if (file) {
+                    return await uploadToCloudinary(file);
+                }
+                return img;
+            }));
+
+            const priceNumeric = Number(formData.priceNumeric) || 0;
+            const formattedPriceAr = `${priceNumeric.toLocaleString('ar-EG')} ج.م`;
+            const formattedPriceEn = `EGP ${priceNumeric.toLocaleString('en-US')}`;
+
+            const pricePerMeterNumeric = Math.round(priceNumeric / (Number(formData.area) || 1));
+            const pricePerMeter = formData.status?.en === 'For Sale' && pricePerMeterNumeric > 0 ? {
+                ar: `${pricePerMeterNumeric.toLocaleString('ar-EG')} ج.م/م²`,
+                en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
+            } : undefined;
+
+            const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
+                ...formData,
+                status: { 
+                    en: formData.status.en as 'For Sale' | 'For Rent', 
+                    ar: formData.status.ar as 'للبيع' | 'إيجار' 
+                },
+                isInCompound: formData.isInCompound === 'true',
+                realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'true',
+                installmentsAvailable: formData.installmentsAvailable === 'true',
+                delivery: {
+                    isImmediate: formData.delivery?.isImmediate === 'true',
+                    date: formData.delivery?.isImmediate !== 'true' ? formData.delivery.date : undefined,
+                },
+                partnerId: propertyId ? properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id : currentUser.id,
+                price: { ar: formattedPriceAr, en: formattedPriceEn },
+                priceNumeric,
+                pricePerMeter,
+                imageUrl: finalMainImage,
+                gallery: finalGalleryImages,
+                listingStatus: formData.listingStatus as any,
+                type: { en: formData.type.en as any, ar: formData.type.ar },
+                beds: formData.beds || 0,
+                baths: formData.baths || 0,
+                floor: formData.floor
+            };
+            
+            if (propertyId) {
+                updateMutation.mutate({ propertyId, updates: propertyData });
+            } else {
+                addMutation.mutate(propertyData);
+            }
+        } catch (error) {
+            console.error("Error uploading images:", error);
+            showToast("Failed to upload images. Please try again.", "error");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -255,7 +295,7 @@ const PropertyFormPage: React.FC = () => {
         return <UpgradeNotice />;
     }
     
-    const isSubmitting = addMutation.isPending || updateMutation.isPending;
+    const isSubmitting = addMutation.isPending || updateMutation.isPending || isUploading;
 
     return (
         <div>
@@ -326,7 +366,7 @@ const PropertyFormPage: React.FC = () => {
 
                     <div className="flex justify-end pt-4 pb-12">
                         <Button type="submit" isLoading={isSubmitting} size="lg" className="px-12">
-                            {td.saveProperty}
+                            {isSubmitting ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...') : td.saveProperty}
                         </Button>
                     </div>
                 </form>

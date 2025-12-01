@@ -7,10 +7,6 @@ import { filterProperties } from '../utils/propertyFilters';
 
 // Helper to get partner info (could be optimized with joins later)
 const populatePropertyDetails = async (property: Property): Promise<Property> => {
-    // In a real Supabase query, we would use .select('*, partners(*)') to join.
-    // For now, we'll return as is, or fetch partner separately if needed.
-    // To keep it fast, let's rely on the basic data first.
-    
     if (supabase && property.partnerId) {
          const { data: partner } = await supabase.from('partners').select('name, image_url').eq('id', property.partnerId).single();
          if (partner) {
@@ -51,11 +47,8 @@ export const getPaginatedProperties = async (options: {
   filters: PropertyFiltersType;
   disablePagination?: boolean;
 }): Promise<{ properties: Property[]; total: number }> => {
-    // For now, fetch all and filter client-side to maintain complex filter logic
-    // without writing complex SQL queries immediately.
     const allProps = await getAllProperties();
     
-    // Apply existing filter logic
     const activeProps = allProps.filter(p => p.listingStatus === 'active');
     const filtered = filterProperties(activeProps, options.filters);
     const total = filtered.length;
@@ -92,7 +85,7 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
     const dbData = {
         partner_id: property.partnerId,
-        project_id: property.projectId,
+        project_id: property.projectId || null,
         title_ar: property.title.ar,
         title_en: property.title.en,
         description_ar: property.description.ar,
@@ -122,7 +115,6 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         delivery_date: property.delivery.date,
         contact_method: property.contactMethod,
         owner_phone: property.ownerPhone,
-        // JSON fields
         amenities: property.amenities, 
         installments: property.installments
     };
@@ -138,10 +130,10 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
 };
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property> => {
-    // Fully Map Partial<Property> to DB columns
+    // Fully Map Partial<Property> to DB columns for update
     const dbUpdates: any = {};
 
-    // Basic Info
+    // Basic Info & Metrics
     if (updates.priceNumeric !== undefined) dbUpdates.price = updates.priceNumeric;
     if (updates.area !== undefined) dbUpdates.area = updates.area;
     if (updates.beds !== undefined) dbUpdates.beds = updates.beds;
@@ -150,28 +142,28 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
 
     // Localized Texts
     if (updates.title) {
-        if (updates.title.ar) dbUpdates.title_ar = updates.title.ar;
-        if (updates.title.en) dbUpdates.title_en = updates.title.en;
+        if (updates.title.ar !== undefined) dbUpdates.title_ar = updates.title.ar;
+        if (updates.title.en !== undefined) dbUpdates.title_en = updates.title.en;
     }
     if (updates.description) {
-        if (updates.description.ar) dbUpdates.description_ar = updates.description.ar;
-        if (updates.description.en) dbUpdates.description_en = updates.description.en;
+        if (updates.description.ar !== undefined) dbUpdates.description_ar = updates.description.ar;
+        if (updates.description.en !== undefined) dbUpdates.description_en = updates.description.en;
     }
     if (updates.address) {
-        if (updates.address.ar) dbUpdates.address_ar = updates.address.ar;
-        if (updates.address.en) dbUpdates.address_en = updates.address.en;
+        if (updates.address.ar !== undefined) dbUpdates.address_ar = updates.address.ar;
+        if (updates.address.en !== undefined) dbUpdates.address_en = updates.address.en;
     }
     if (updates.type) {
-        if (updates.type.ar) dbUpdates.type_ar = updates.type.ar;
-        if (updates.type.en) dbUpdates.type_en = updates.type.en;
+        if (updates.type.ar !== undefined) dbUpdates.type_ar = updates.type.ar;
+        if (updates.type.en !== undefined) dbUpdates.type_en = updates.type.en;
     }
     if (updates.status) {
-        if (updates.status.ar) dbUpdates.status_ar = updates.status.ar;
-        if (updates.status.en) dbUpdates.status_en = updates.status.en;
+        if (updates.status.ar !== undefined) dbUpdates.status_ar = updates.status.ar;
+        if (updates.status.en !== undefined) dbUpdates.status_en = updates.status.en;
     }
     if (updates.finishingStatus) {
-        if (updates.finishingStatus.ar) dbUpdates.finishing_status_ar = updates.finishingStatus.ar;
-        if (updates.finishingStatus.en) dbUpdates.finishing_status_en = updates.finishingStatus.en;
+        if (updates.finishingStatus.ar !== undefined) dbUpdates.finishing_status_ar = updates.finishingStatus.ar;
+        if (updates.finishingStatus.en !== undefined) dbUpdates.finishing_status_en = updates.finishingStatus.en;
     }
 
     // JSON Fields
@@ -197,6 +189,9 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
         if (updates.delivery.isImmediate !== undefined) dbUpdates.delivery_immediate = updates.delivery.isImmediate;
         if (updates.delivery.date !== undefined) dbUpdates.delivery_date = updates.delivery.date;
     }
+    
+    // Relations
+    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId || null;
 
     // Contact
     if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
