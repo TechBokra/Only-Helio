@@ -1,7 +1,7 @@
 
 // Cloudinary Configuration
 // We are hardcoding these temporarily to ensure functionality in the dev/preview environment.
-const CLOUD_NAME = 'onlyhelio'; // Changed to lowercase to prevent "Unknown API Key" errors
+const CLOUD_NAME = 'onlyhelio'; // Must be lowercase for API URLs
 const UPLOAD_PRESET = 'onlyhelio_uploads';
 
 interface CloudinaryResponse {
@@ -21,6 +21,8 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     // Note: We do NOT append api_key for unsigned uploads.
 
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
+    console.log(`[Cloudinary] Uploading to ${url} with preset: ${UPLOAD_PRESET}`);
 
     try {
         const response = await fetch(url, {

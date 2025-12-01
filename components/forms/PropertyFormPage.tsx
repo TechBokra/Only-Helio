@@ -226,8 +226,8 @@ const PropertyFormPage: React.FC = () => {
             if (mainImageFile) {
                 try {
                     finalMainImage = await uploadToCloudinary(mainImageFile);
-                } catch (e) {
-                    throw new Error("Failed to upload main image. Please check your connection.");
+                } catch (e: any) {
+                    throw new Error(`Main image upload failed: ${e.message}`);
                 }
             }
 
@@ -237,8 +237,9 @@ const PropertyFormPage: React.FC = () => {
                 if (file) {
                      try {
                         return await uploadToCloudinary(file);
-                    } catch (e) {
-                        throw new Error(`Failed to upload gallery image ${index + 1}.`);
+                    } catch (e: any) {
+                        // Provide context about which image failed
+                        throw new Error(`Gallery image ${index + 1}: ${e.message}`);
                     }
                 }
                 return img;
@@ -287,6 +288,7 @@ const PropertyFormPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Error uploading images:", error);
+            // Display the actual error message from Cloudinary/Network
             const errorMessage = error?.message || "Failed to upload images. Please try again.";
             showToast(`Upload Error: ${errorMessage}`, "error");
         } finally {
