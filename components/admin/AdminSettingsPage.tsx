@@ -34,7 +34,8 @@ const AdminSettingsPage: React.FC = () => {
                         anonKey: siteContent.externalConfig?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwY3B5eG1ucWZmY21laHBma2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NjQyODksImV4cCI6MjA4MDE0MDI4OX0.HMa2X03op-grt2TM8-omgubclObxkm4NIPehL6XZ4KI'
                     },
                     cloudinary: {
-                        cloudName: siteContent.externalConfig?.cloudinary?.cloudName || 'Onlyhelio',
+                        // Updated with real credentials from screenshot
+                        cloudName: siteContent.externalConfig?.cloudinary?.cloudName || 'dwg0hr34g',
                         apiKey: siteContent.externalConfig?.cloudinary?.apiKey || '532568532962456',
                         apiSecret: siteContent.externalConfig?.cloudinary?.apiSecret || 'TG_wSAPS32Qv1gB2M19qmda9uII',
                         uploadPreset: siteContent.externalConfig?.cloudinary?.uploadPreset || 'onlyhelio_uploads'

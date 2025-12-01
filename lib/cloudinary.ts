@@ -1,7 +1,7 @@
 
 // Cloudinary Configuration
-// We are hardcoding these temporarily to ensure functionality in the dev/preview environment.
-const CLOUD_NAME = 'onlyhelio'; // Must be lowercase for API URLs
+// Updated based on dashboard screenshot provided by user
+const CLOUD_NAME = 'dwg0hr34g'; 
 const UPLOAD_PRESET = 'onlyhelio_uploads';
 
 interface CloudinaryResponse {
