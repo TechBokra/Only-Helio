@@ -1,7 +1,7 @@
 
 // Cloudinary Configuration
 // We are hardcoding these temporarily to ensure functionality in the dev/preview environment.
-const CLOUD_NAME = 'Onlyhelio';
+const CLOUD_NAME = 'onlyhelio'; // Changed to lowercase to prevent "Unknown API Key" errors
 const UPLOAD_PRESET = 'onlyhelio_uploads';
 
 interface CloudinaryResponse {
@@ -18,9 +18,8 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', UPLOAD_PRESET);
+    // Note: We do NOT append api_key for unsigned uploads.
 
-    // Ensure cloud name is handled correctly (URLs are usually case-sensitive or lowercase)
-    // We try to use the name exactly as provided.
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 
     try {
@@ -31,12 +30,13 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error("Cloudinary Upload Error:", {
+            console.error("Cloudinary Upload Error Details:", {
                 status: response.status,
                 statusText: response.statusText,
-                details: errorData
+                error: errorData
             });
-            throw new Error(errorData.error?.message || `Upload failed with status ${response.status}`);
+            // Throw a specific error message from Cloudinary if available
+            throw new Error(errorData.error?.message || `Upload failed: ${response.status} ${response.statusText}`);
         }
 
         const data: CloudinaryResponse = await response.json();

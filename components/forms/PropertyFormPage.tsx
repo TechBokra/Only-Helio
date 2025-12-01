@@ -14,10 +14,10 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
-import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
+import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 
-// Import new Sub-components
+// Import Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
 import PropertySpecs from './property/PropertySpecs';
 import PropertyFinancials from './property/PropertyFinancials';
@@ -224,14 +224,22 @@ const PropertyFormPage: React.FC = () => {
             // 1. Handle Main Image Upload
             let finalMainImage = mainImage;
             if (mainImageFile) {
-                finalMainImage = await uploadToCloudinary(mainImageFile);
+                try {
+                    finalMainImage = await uploadToCloudinary(mainImageFile);
+                } catch (e) {
+                    throw new Error("Failed to upload main image. Please check your connection.");
+                }
             }
 
             // 2. Handle Gallery Uploads
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
-                    return await uploadToCloudinary(file);
+                     try {
+                        return await uploadToCloudinary(file);
+                    } catch (e) {
+                        throw new Error(`Failed to upload gallery image ${index + 1}.`);
+                    }
                 }
                 return img;
             }));
@@ -279,7 +287,7 @@ const PropertyFormPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Error uploading images:", error);
-            const errorMessage = error?.message || "Failed to upload images. Please check your connection.";
+            const errorMessage = error?.message || "Failed to upload images. Please try again.";
             showToast(`Upload Error: ${errorMessage}`, "error");
         } finally {
             setIsUploading(false);
