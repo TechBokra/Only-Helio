@@ -18,7 +18,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { commonSchemas } from '../../utils/validation';
-import { fileToBase64 } from '../../utils/fileUtils';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 // Validation Schema using centralized utils
 const registerSchema = z.object({
@@ -64,6 +64,7 @@ const RegisterPage: React.FC = () => {
     
     const [currentStep, setCurrentStep] = useState(1);
     const [formSubmitted, setFormSubmitted] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     
     const [companyType, setCompanyType] = useState<PartnerType | ''>('');
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | ''>('');
@@ -105,46 +106,57 @@ const RegisterPage: React.FC = () => {
             return;
         }
         
-        const logoBase64 = await fileToBase64(logoFile);
-        let docsBase64: OfficialDocument[] = [];
-        if (docFiles) {
-             const filesArray = Array.from(docFiles);
-             const filePromises = filesArray.map(async (file: File) => ({
-                fileName: file.name,
-                fileContent: await fileToBase64(file)
-            }));
-            docsBase64 = await Promise.all(filePromises);
-        }
-        
-        const finalData = {
-            companyType,
-            subscriptionPlan: selectedPlan,
-            ...data,
-            logo: logoBase64,
-            documents: docsBase64,
-            managementContacts: [] 
-        };
+        try {
+            setIsUploading(true);
+            
+            // 1. Upload Logo to Cloudinary
+            const logoUrl = await uploadToCloudinary(logoFile);
+            
+            // 2. Upload Documents to Cloudinary (Parallel)
+            let docsUrls: OfficialDocument[] = [];
+            if (docFiles) {
+                 const filesArray = Array.from(docFiles);
+                 const filePromises = filesArray.map(async (file: File) => ({
+                    fileName: file.name,
+                    fileContent: await uploadToCloudinary(file) // Returns URL
+                }));
+                docsUrls = await Promise.all(filePromises);
+            }
+            
+            const finalData = {
+                companyType,
+                subscriptionPlan: selectedPlan,
+                ...data,
+                logo: logoUrl,
+                documents: docsUrls,
+                managementContacts: [] 
+            };
 
-        const typeKey = companyType as string;
-        const planKey = selectedPlan as string;
-        const price = PLAN_PRICES[typeKey]?.[planKey] || 0;
+            const typeKey = companyType as string;
+            const planKey = selectedPlan as string;
+            const price = PLAN_PRICES[typeKey]?.[planKey] || 0;
 
-        if (price > 0) {
-             navigate('/payment', { 
-                state: { 
-                    amount: price,
-                    description: `Partner Subscription: ${companyType} (${selectedPlan})`,
-                    type: 'subscription_fee',
-                    userId: data.contactEmail, 
-                    userName: data.companyName,
-                    data: finalData
-                } 
-            });
-        } else {
-            mutation.mutate({
-                requesterInfo: { name: data.contactName, phone: data.contactPhone, email: data.contactEmail },
-                payload: finalData,
-            });
+            if (price > 0) {
+                 navigate('/payment', { 
+                    state: { 
+                        amount: price,
+                        description: `Partner Subscription: ${companyType} (${selectedPlan})`,
+                        type: 'subscription_fee',
+                        userId: data.contactEmail, 
+                        userName: data.companyName,
+                        data: finalData
+                    } 
+                });
+            } else {
+                mutation.mutate({
+                    requesterInfo: { name: data.contactName, phone: data.contactPhone, email: data.contactEmail },
+                    payload: finalData,
+                });
+            }
+        } catch (error) {
+            showToast("Error uploading files. Please try again.", "error");
+        } finally {
+            setIsUploading(false);
         }
     };
     
@@ -284,7 +296,7 @@ const RegisterPage: React.FC = () => {
 
                                 <div className="mt-12 flex justify-between">
                                     <Button type="button" variant="secondary" onClick={prevStep}>{t_page.back}</Button>
-                                    <Button type="submit" isLoading={mutation.isPending}>
+                                    <Button type="submit" isLoading={mutation.isPending || isUploading}>
                                         {selectedPlan && companyType && PLAN_PRICES[companyType]?.[selectedPlan] > 0 
                                             ? (language === 'ar' ? 'متابعة للدفع' : 'Proceed to Payment') 
                                             : t_page.submitRequest}

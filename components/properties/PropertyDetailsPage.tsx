@@ -111,7 +111,8 @@ const PropertyDetailsPage: React.FC = () => {
     
     const pageTitle = `${property.title[language]} | ONLY HELIO`;
     const pageDescription = property.description[language].substring(0, 160);
-    const amenityKeys = property.amenities[language];
+    // Safely access amenities, defaulting to empty array if language key is missing
+    const amenityKeys = property.amenities?.[language] || [];
     const allImages = [property.imageUrl, ...property.gallery].filter(Boolean);
 
 

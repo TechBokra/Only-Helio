@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,20 +9,12 @@ import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '.
 import { getPlans } from '../services/plans';
 import { useLanguage } from '../components/shared/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { uploadToCloudinary } from '../lib/cloudinary';
 
 const purposeOptions = [
     { en: 'For Sale', ar: 'للبيع' },
     { en: 'For Rent', ar: 'إيجار' },
 ] as const;
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 export const useAddPropertyForm = () => {
     const { language, t } = useLanguage();
@@ -40,6 +30,7 @@ export const useAddPropertyForm = () => {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [formSubmitted, setFormSubmitted] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     
     // Data Fetching
     const { data: propertyTypes, isLoading: isLoadingPropTypes } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
@@ -52,7 +43,6 @@ export const useAddPropertyForm = () => {
     const { register, handleSubmit, watch, setValue, formState: { errors }, reset, getValues } = useForm({
         defaultValues: {
             customerName: '', customerPhone: '', contactTime: '',
-            // title: { ar: '', en: '' }, // Removed titles as they are now handled by admin
             description: { ar: '', en: '' },
             propertyType: '', finishingStatus: '', area: '', price: '',
             bedrooms: '', bathrooms: '', floor: '', address: '',
@@ -166,7 +156,7 @@ export const useAddPropertyForm = () => {
     
     // Form submission
     const onSubmit = async (formData: any) => {
-        // Check ownership confirmation from hook state if not passed in formData
+        // Check ownership confirmation
         const isOwner = formData.isOwner || getValues('isOwner');
         if (!isOwner) {
             showToast(t_page.errors.mustBeOwner, 'error');
@@ -178,85 +168,87 @@ export const useAddPropertyForm = () => {
             return;
         }
         
-        // Mandatory Image Check
         if (images.length === 0) {
             showToast(language === 'ar' ? 'يرجى رفع صورة واحدة على الأقل' : 'Please upload at least one image', 'error');
             return;
         }
 
-        // Merge data from DynamicForm (formData) with hook state (images, location, etc)
-        // Note: DynamicForm fields use 'key', so ensure keys match.
-        // We fallback to hook state if DynamicForm data is missing specific fields (e.g. if they are custom inputs)
+        try {
+            setIsUploading(true);
+            // Upload images to Cloudinary
+            const imageUrls = await Promise.all(images.map(file => uploadToCloudinary(file)));
+            
+            const lat = formData.latitude || getValues('latitude');
+            const lng = formData.longitude || getValues('longitude');
+            
+            const propertyDetails = {
+                purpose: purposeOptions.find(o => o.en === purpose)!,
+                title: { ar: 'عقار جديد (في انتظار العنوان)', en: 'New Property (Pending Title)' },
+                description: { ar: formData['description.ar'] || '', en: formData['description.en'] || '' },
+                propertyType: (propertyTypes || []).find(o => o.en === formData.propertyType)!,
+                finishingStatus: (finishingStatuses || []).find(o => o.en === formData.finishingStatus)!,
+                area: parseInt(formData.area),
+                price: parseInt(formData.price),
+                bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
+                bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+                floor: formData.floor ? parseInt(formData.floor) : undefined,
+                address: formData.address,
+                amenities: formData.amenities || getValues('amenities'),
+                location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+                isInCompound: formData.isInCompound === 'yes',
+                deliveryType: formData.deliveryType,
+                deliveryMonth: formData.deliveryMonth,
+                deliveryYear: formData.deliveryYear,
+                hasInstallments: formData.hasInstallments === 'yes',
+                realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'yes',
+                downPayment: formData.downPayment ? parseInt(formData.downPayment) : undefined,
+                monthlyInstallment: formData.monthlyInstallment ? parseInt(formData.monthlyInstallment) : undefined,
+                years: formData.years ? parseInt(formData.years) : undefined,
+                listingStartDate: formData.listingStartDate,
+                listingEndDate: formData.listingEndDate,
+                contactMethod: cooperationType === 'commission' ? 'platform' : (formData.contactMethod || getValues('contactMethod')),
+                ownerPhone: formData.ownerPhone || getValues('ownerPhone'),
+            };
+            
+            if (cooperationType === 'paid_listing') {
+                const planDetails = plansForPurpose['paid_listing'];
+                const planPriceString = planDetails?.[language]?.price || "0";
+                const priceNumeric = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
 
-        const imageBase64Strings = await Promise.all(images.map(file => fileToBase64(file)));
-        
-        // Ensure lat/lng are present
-        const lat = formData.latitude || getValues('latitude');
-        const lng = formData.longitude || getValues('longitude');
-        
-        const propertyDetails = {
-            purpose: purposeOptions.find(o => o.en === purpose)!,
-            // Set default pending titles as they are managed by admin later
-            title: { ar: 'عقار جديد (في انتظار العنوان)', en: 'New Property (Pending Title)' },
-            description: { ar: formData['description.ar'] || '', en: formData['description.en'] || '' },
-            propertyType: (propertyTypes || []).find(o => o.en === formData.propertyType)!,
-            finishingStatus: (finishingStatuses || []).find(o => o.en === formData.finishingStatus)!,
-            area: parseInt(formData.area),
-            price: parseInt(formData.price),
-            bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
-            bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
-            floor: formData.floor ? parseInt(formData.floor) : undefined,
-            address: formData.address,
-            amenities: formData.amenities || getValues('amenities'), // Amenities might be handled by custom UI
-            location: { lat: parseFloat(lat), lng: parseFloat(lng) },
-            isInCompound: formData.isInCompound === 'yes',
-            deliveryType: formData.deliveryType,
-            deliveryMonth: formData.deliveryMonth,
-            deliveryYear: formData.deliveryYear,
-            hasInstallments: formData.hasInstallments === 'yes',
-            realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'yes',
-            downPayment: formData.downPayment ? parseInt(formData.downPayment) : undefined,
-            monthlyInstallment: formData.monthlyInstallment ? parseInt(formData.monthlyInstallment) : undefined,
-            years: formData.years ? parseInt(formData.years) : undefined,
-            listingStartDate: formData.listingStartDate,
-            listingEndDate: formData.listingEndDate,
-            contactMethod: cooperationType === 'commission' ? 'platform' : (formData.contactMethod || getValues('contactMethod')),
-            ownerPhone: formData.ownerPhone || getValues('ownerPhone'),
-        };
-        
-        if (cooperationType === 'paid_listing') {
-            const planDetails = plansForPurpose['paid_listing'];
-            const planPriceString = planDetails?.[language]?.price || "0";
-            const priceNumeric = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
-
-            navigate('/payment', { 
-                state: { 
-                    amount: priceNumeric,
-                    description: `Property Listing Fee: ${propertyDetails.title.en || 'New Property'}`,
-                    type: 'listing_fee',
-                    userId: formData.customerPhone, 
-                    userName: formData.customerName,
-                    data: {
-                        requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
-                        payload: {
-                            contactTime: formData.contactTime,
-                            cooperationType: cooperationType,
-                            propertyDetails,
-                            images: imageBase64Strings,
+                setIsUploading(false);
+                navigate('/payment', { 
+                    state: { 
+                        amount: priceNumeric,
+                        description: `Property Listing Fee: ${propertyDetails.title.en || 'New Property'}`,
+                        type: 'listing_fee',
+                        userId: formData.customerPhone, 
+                        userName: formData.customerName,
+                        data: {
+                            requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
+                            payload: {
+                                contactTime: formData.contactTime,
+                                cooperationType: cooperationType,
+                                propertyDetails,
+                                images: imageUrls, // Send URLs instead of Base64
+                            }
                         }
+                    } 
+                });
+            } else {
+                mutation.mutate({
+                    requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
+                    payload: {
+                        contactTime: formData.contactTime,
+                        cooperationType: cooperationType,
+                        propertyDetails,
+                        images: imageUrls, // Send URLs instead of Base64
                     }
-                } 
-            });
-        } else {
-            mutation.mutate({
-                requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
-                payload: {
-                    contactTime: formData.contactTime,
-                    cooperationType: cooperationType,
-                    propertyDetails,
-                    images: imageBase64Strings,
-                }
-            });
+                });
+                setIsUploading(false);
+            }
+        } catch (error) {
+            setIsUploading(false);
+            showToast("Error uploading images. Please check your connection.", "error");
         }
     };
 
@@ -270,7 +262,6 @@ export const useAddPropertyForm = () => {
         isLocationModalOpen,
         imagePreviews,
         
-        // Handlers
         nextStep,
         prevStep,
         handlePurposeSelect,
@@ -282,17 +273,13 @@ export const useAddPropertyForm = () => {
         handleLocationSelect,
         resetForm,
 
-        // React Hook Form methods
         register,
         handleSubmit: handleSubmit(onSubmit),
         watch,
         setValue,
         errors,
-        
-        // Exposed raw submit for external callers (DynamicForm)
         onSubmit,
 
-        // Watchers
         watchPropertyType,
         watchAmenities,
         availableAmenities,
@@ -301,6 +288,6 @@ export const useAddPropertyForm = () => {
         propertyTypes,
         finishingStatuses,
         
-        isSubmitting: mutation.isPending,
+        isSubmitting: mutation.isPending || isUploading,
     };
 };

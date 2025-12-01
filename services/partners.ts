@@ -1,290 +1,233 @@
 
-// Note: This is a mock API. In a real application, these functions would make network requests
-// to a backend service. The data is modified in-memory for simulation purposes.
+import { supabase } from '../lib/supabase';
+import { partnersData as initialPartnersData } from '../data/partners'; // Keep as fallback/seeder source
+import type { Partner, AdminPartner, PartnerStatus, PartnerRequest, PartnerType, SubscriptionPlan } from '../types';
+import { mapPartnerFromDB } from '../utils/supabaseMapper';
+import { Role } from '../types';
 
-import { partnersData as initialPartnersData } from '../data/partners';
-import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType, SubscriptionPlan, PartnerDisplayType } from '../types';
-import { mapPartnerTypeToRole } from '../data/permissions';
-import { addNotification } from './notifications';
-import { arTranslations, enTranslations } from '../data/translations';
+// --- SUPABASE IMPLEMENTATION ---
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let partnersData: Omit<Partner, 'name' | 'description' | 'role'>[] = [...initialPartnersData];
+export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
+    if (!supabase) return [];
+    
+    try {
+        const { data, error } = await supabase
+            .from('partners')
+            .select('*');
 
+        if (error) {
+            console.warn('Supabase: Error fetching partners, falling back to local data:', error.message);
+            // Fallback to local data for smoother dev experience if DB is empty/broken
+            return initialPartnersData.map(p => ({...p, name: (p as any).name || '', description: (p as any).description || '', role: Role.AGENCY_PARTNER} as unknown as AdminPartner));
+        }
+        
+        if (!data || data.length === 0) {
+            return [];
+        }
 
-const SIMULATED_DELAY = 300;
-
-const getPartnerTranslations = () => {
-    return {
-        ar: arTranslations.partnerInfo,
-        en: enTranslations.partnerInfo
-    };
+        return data.map(mapPartnerFromDB);
+    } catch (e) {
+        console.error("Critical error in getAllPartnersForAdmin:", e);
+        return [];
+    }
 };
 
-export const getAllPartners = async (): Promise<Partner[]> => {
-    const translations = getPartnerTranslations();
-    return partnersData.map(basePartner => {
-        const trans = (translations.en as any)[basePartner.id] || { name: basePartner.id, description: '' };
-        return {
-            ...basePartner,
-            ...trans,
-            role: mapPartnerTypeToRole(basePartner.type)
-        } as Partner;
-    });
-};
+export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
+    if (!supabase) return undefined;
 
-export const getAllPartnersForAdmin = (): Promise<AdminPartner[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const translations = getPartnerTranslations();
-            
-            const result = partnersData.map(basePartner => {
-                 const enTrans = (translations.en as any)[basePartner.id] || { name: basePartner.id, description: '' };
-                 const arTrans = (translations.ar as any)[basePartner.id] || { name: basePartner.id, description: '' };
-                 return {
-                     ...basePartner,
-                     name: enTrans.name,
-                     description: enTrans.description,
-                     nameAr: arTrans.name,
-                     descriptionAr: arTrans.description,
-                     role: mapPartnerTypeToRole(basePartner.type)
-                 } as AdminPartner;
-            });
-            resolve(result);
-        }, SIMULATED_DELAY);
-    });
-};
+    try {
+        const { data, error } = await supabase
+            .from('partners')
+            .select('*')
+            .eq('id', id)
+            .single();
 
-export const getPartnerById = (id: string): Promise<Partner | undefined> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const basePartner = partnersData.find(p => p.id === id);
-      if (!basePartner) {
-        resolve(undefined);
-        return;
-      }
-      
-      const translations = getPartnerTranslations();
-      const enTrans = (translations.en as any)[basePartner.id] || { name: basePartner.id, description: '' };
-      resolve({
-          ...basePartner,
-          ...enTrans,
-          role: mapPartnerTypeToRole(basePartner.type)
-      } as Partner);
-    }, SIMULATED_DELAY);
-  });
+        if (error || !data) return undefined;
+        return mapPartnerFromDB(data);
+    } catch (e) {
+        console.error("Error in getPartnerById:", e);
+        return undefined;
+    }
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    const basePartner = partnersData.find(p => p.email.toLowerCase() === email.toLowerCase());
-    if (!basePartner) return undefined;
+    if (!supabase) return undefined;
 
-    const translations = getPartnerTranslations();
-    const enTrans = (translations.en as any)[basePartner.id] || { name: basePartner.id, description: '' };
-    return {
-        ...basePartner,
-        ...enTrans,
-        role: mapPartnerTypeToRole(basePartner.type)
-    } as Partner;
-};
+    try {
+        const { data, error } = await supabase
+            .from('partners')
+            .select('*')
+            .ilike('email', email) // Case-insensitive
+            .maybeSingle(); // Changed from single() to maybeSingle() to avoid error on not found
 
-export const updatePartner = (id: string, updates: {
-    nameAr: string;
-    nameEn: string;
-    descriptionAr: string;
-    descriptionEn: string;
-    imageUrl?: string;
-}): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // This is now a critical limitation of the mock. In a real app, you'd post this to a server
-            // which would update the database, and the data would be refetched.
-            // For now, we cannot update the imported translations directly.
-            // We will just update the partnerData for image changes.
-            console.warn("Mock API: Partner text content (name, description) stored in translation files cannot be updated at runtime in this demo.");
-
-            let found = false;
-            if (updates.imageUrl) {
-                const partnerIndex = partnersData.findIndex(p => p.id === id);
-                if (partnerIndex > -1) {
-                    const partner = partnersData[partnerIndex] as any;
-                    if (partner.imageUrl !== updates.imageUrl) {
-                        partner.imageUrl = updates.imageUrl;
-                        if (updates.imageUrl.includes('unsplash.com')) {
-                             const url = new URL(updates.imageUrl);
-                            url.searchParams.set('w', '480'); partner.imageUrl_small = url.toString();
-                            url.searchParams.set('w', '800'); partner.imageUrl_medium = url.toString();
-                            url.searchParams.set('w', '1200'); partner.imageUrl_large = url.toString();
-                        } else {
-                            partner.imageUrl_small = updates.imageUrl;
-                            partner.imageUrl_medium = updates.imageUrl;
-                            partner.imageUrl_large = updates.imageUrl;
-                        }
-                    }
-                    found = true;
-                }
-            }
-            resolve(found);
-        }, 300);
-    });
-};
-
-const updatePartnerProperty = (id: string, property: keyof Partner, value: any): boolean => {
-    const partnerIndex = partnersData.findIndex(p => p.id === id);
-    if (partnerIndex > -1) {
-        (partnersData[partnerIndex] as any)[property] = value;
-        return true;
+        if (error || !data) return undefined;
+        return mapPartnerFromDB(data);
+    } catch (e) {
+        console.error("Error in getPartnerByEmail:", e);
+        return undefined;
     }
-    return false;
 };
 
-export const updatePartnerStatus = (id: string, status: PartnerStatus): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(updatePartnerProperty(id, 'status', status)), 300);
-    });
+// --- WRITE OPERATIONS ---
+
+export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
+    // Map frontend fields to DB fields
+    const dbUpdates: any = {};
+    if (updates.nameEn) dbUpdates.name = updates.nameEn;
+    if (updates.nameAr) dbUpdates.name_ar = updates.nameAr;
+    if (updates.descriptionEn) dbUpdates.description_en = updates.descriptionEn;
+    if (updates.descriptionAr) dbUpdates.description_ar = updates.descriptionAr;
+    if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+    if (updates.subscriptionPlan) dbUpdates.subscription_plan = updates.subscriptionPlan;
+    if (updates.subscriptionEndDate) dbUpdates.subscription_end_date = updates.subscriptionEndDate;
+    if (updates.displayType) dbUpdates.display_type = updates.displayType;
+    if (updates.contactMethods) dbUpdates.contact_methods = updates.contactMethods;
+    if (updates.status) dbUpdates.status = updates.status;
+    if (updates.type) dbUpdates.type = updates.type;
+    if (updates.email) dbUpdates.email = updates.email;
+
+    const { error } = await supabase!
+        .from('partners')
+        .update(dbUpdates)
+        .eq('id', id);
+
+    return !error;
 };
 
-export const updatePartnerDisplayType = (id: string, displayType: Partner['displayType']): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(updatePartnerProperty(id, 'displayType', displayType)), 300);
-    });
+export const updatePartnerStatus = async (id: string, status: PartnerStatus): Promise<boolean> => {
+    const { error } = await supabase!
+        .from('partners')
+        .update({ status })
+        .eq('id', id);
+    return !error;
 };
 
-export const updatePartnerAdmin = (id: string, updates: Partial<Pick<AdminPartner, 'subscriptionPlan' | 'subscriptionEndDate' | 'contactMethods'>>): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            let success = false;
-            const partnerIndex = partnersData.findIndex(p => p.id === id);
-            if (partnerIndex > -1) {
-                const partner = partnersData[partnerIndex];
-                 partnersData[partnerIndex] = { ...partner, ...updates };
-                 success = true;
-            }
-            resolve(success);
-        }, 300);
-    });
+export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPartner> => {
+    const { data, error } = await supabase!
+        .from('partners')
+        .insert([{
+            name: partnerData.companyName,
+            name_ar: partnerData.companyName, // Default AR name to EN
+            description_en: partnerData.description,
+            email: partnerData.contactEmail,
+            type: partnerData.companyType,
+            status: 'active',
+            subscription_plan: partnerData.subscriptionPlan,
+            role: getRoleForType(partnerData.companyType),
+            image_url: partnerData.logo
+        }])
+        .select()
+        .single();
+    if (error) throw error;
+    return mapPartnerFromDB(data);
 };
 
-export const upgradePartnerPlan = (id: string, newPlan: SubscriptionPlan): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const partnerIndex = partnersData.findIndex(p => p.id === id);
-            if (partnerIndex > -1) {
-                partnersData[partnerIndex].subscriptionPlan = newPlan;
-                // Extend for 1 year from now for simplicity
-                const nextYear = new Date();
-                nextYear.setFullYear(nextYear.getFullYear() + 1);
-                partnersData[partnerIndex].subscriptionEndDate = nextYear.toISOString();
-                
-                addNotification({
-                    userId: id,
-                    message: {
-                        ar: `تهانينا! تم ترقية باقتك بنجاح إلى ${newPlan}.`,
-                        en: `Congratulations! Your plan has been upgraded to ${newPlan}.`
-                    },
-                    link: '/dashboard/subscription'
-                });
-
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, 300);
-    });
+export const deletePartner = async (id: string): Promise<boolean> => {
+    const { error } = await supabase!
+        .from('partners')
+        .delete()
+        .eq('id', id);
+    return !error;
 };
 
-export const addPartner = (request: PartnerRequest): Promise<Partner> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(async () => {
-            console.warn("Mock API: Adding a partner in this demo does not persist their translations in the source files. This is a runtime addition only.");
-            
-            const { companyName, companyType, description, logo, contactEmail, subscriptionPlan } = request;
-            const newPartnerId = `partner-${Date.now()}`;
-
-            const newPartnerBaseData: Omit<Partner, 'name' | 'description' | 'role'> = {
-                id: newPartnerId,
-                imageUrl: logo || 'https://via.placeholder.com/150', // Provide default if undefined
-                email: contactEmail,
-                password: 'password123', 
-                type: companyType,
-                status: 'active' as PartnerStatus,
-                subscriptionPlan: subscriptionPlan,
-                displayType: 'standard', 
-            };
-            partnersData.push(newPartnerBaseData);
-            
-            const newPartner: Partner = {
-                ...newPartnerBaseData,
-                name: companyName,
-                description: description,
-                role: mapPartnerTypeToRole(companyType)
-            };
-
-            addNotification({
-                userId: newPartner.id,
-                message: {
-                    ar: "مرحباً بك! تم الموافقة على حساب الشراكة الخاص بك.",
-                    en: "Welcome! Your partner account has been approved.",
-                },
-                link: '/dashboard',
-            });
-
-            resolve(newPartner);
-        }, SIMULATED_DELAY);
+export const updatePartnerAdmin = async (id: string, updates: Partial<AdminPartner>): Promise<AdminPartner> => {
+    // Re-map AdminPartner partial to DB columns for updatePartner
+    await updatePartner(id, {
+        nameEn: updates.name,
+        nameAr: updates.nameAr,
+        descriptionEn: updates.description,
+        descriptionAr: updates.descriptionAr,
+        ...updates
     });
+    
+    const updated = await getPartnerById(id);
+    if (!updated) throw new Error("Partner not found after update");
+    return updated as AdminPartner;
 };
 
-export const addInternalUser = (userData: { name: string, nameAr: string, email: string, password?: string, type: PartnerType }): Promise<AdminPartner> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(async () => {
-             console.warn("Mock API: Adding an internal user does not persist their translations in the source files. This is a runtime addition only.");
+export const addInternalUser = async (userData: { name: string, nameAr: string, email: string, password?: string, type: PartnerType }): Promise<AdminPartner> => {
+    const { data, error } = await supabase!
+       .from('partners')
+       .insert([{
+           name: userData.name,
+           name_ar: userData.nameAr,
+           email: userData.email,
+           password: userData.password || 'password123', 
+           type: userData.type,
+           role: getRoleForType(userData.type),
+           status: 'active'
+       }])
+       .select()
+       .single();
+   if (error) throw error;
+   return mapPartnerFromDB(data);
+}
 
-            const newUserId = `user-${Date.now()}`;
-            const newPartnerBaseData = {
-                id: newUserId,
-                imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto.format&fit=crop',
-                email: userData.email,
-                password: userData.password || 'password123',
-                type: userData.type,
-                status: 'active' as PartnerStatus,
-                subscriptionPlan: 'basic' as SubscriptionPlan,
-                subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                displayType: 'standard' as PartnerDisplayType,
-            };
-            partnersData.push(newPartnerBaseData);
-            
-            const partner = await getPartnerById(newUserId);
-            resolve(partner as AdminPartner);
-        }, SIMULATED_DELAY);
-    });
-};
+// Alias for generic user update
+export const updateUser = async (id: string, updates: any): Promise<boolean> => {
+    return updatePartner(id, updates);
+}
 
-export const updateUser = (userId: string, updates: { name: string, nameAr: string, email: string, type: PartnerType, status: PartnerStatus }): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-            console.warn("Mock API: Updating user translations does not persist in source files.");
-            const partnerIndex = partnersData.findIndex(p => p.id === userId);
-            if (partnerIndex > -1) {
-                partnersData[partnerIndex] = { ...partnersData[partnerIndex], email: updates.email, type: updates.type, status: updates.status };
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
-};
+export const upgradePartnerPlan = async (partnerId: string, newPlan: SubscriptionPlan): Promise<boolean> => {
+    const { error } = await supabase!
+        .from('partners')
+        .update({ subscription_plan: newPlan })
+        .eq('id', partnerId);
+    return !error;
+}
 
-export const deletePartner = (userId: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-             console.warn("Mock API: Deleting a user does not remove them from source files.");
-            const initialLength = partnersData.length;
-            partnersData = partnersData.filter(p => p.id !== userId);
-            if (partnersData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
+function getRoleForType(type: PartnerType): Role {
+    switch (type) {
+        case 'admin': return Role.SUPER_ADMIN;
+        case 'developer': return Role.DEVELOPER_PARTNER;
+        case 'finishing': return Role.FINISHING_PARTNER;
+        case 'agency': return Role.AGENCY_PARTNER;
+        
+        case 'decoration_manager': return Role.DECORATION_MANAGER;
+        case 'platform_finishing_manager': return Role.PLATFORM_FINISHING_MANAGER;
+        case 'finishing_market_manager': return Role.FINISHING_MARKET_MANAGER;
+        case 'platform_real_estate_manager': return Role.PLATFORM_REAL_ESTATE_MANAGER;
+        case 'real_estate_market_manager': return Role.REAL_ESTATE_MARKET_MANAGER;
+        
+        case 'partner_relations_manager': return Role.PARTNER_RELATIONS_MANAGER;
+        case 'content_manager': return Role.CONTENT_MANAGER;
+
+        case 'service_manager': return Role.SERVICE_MANAGER;
+        case 'customer_relations_manager': return Role.CUSTOMER_RELATIONS_MANAGER;
+        case 'listings_manager': return Role.LISTINGS_MANAGER;
+        
+        default: return Role.AGENCY_PARTNER; 
+    }
+}
+
+// --- SEEDING HELPER (Exported for use in Admin) ---
+export const seedPartnersToSupabase = async () => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    
+    console.log("Starting seeding partners...");
+    const mappedData = initialPartnersData.map(p => {
+        const source = p as any;
+        const calculatedRole = source.role || getRoleForType(p.type);
+        
+        return {
+            id: p.id, 
+            email: p.email,
+            name: source.name || p.id, 
+            name_ar: source.nameAr || source.name || p.id,
+            description_en: source.description || '',
+            description_ar: source.descriptionAr || source.description || '',
+            image_url: p.imageUrl,
+            type: p.type,
+            role: calculatedRole,
+            status: p.status,
+            subscription_plan: p.subscriptionPlan,
+            contact_methods: p.contactMethods
+        };
     });
+
+    const { error } = await supabase.from('partners').upsert(mappedData);
+    if (error) {
+        throw new Error(`Failed to seed partners: ${error.message}`);
+    }
+    return true;
 };

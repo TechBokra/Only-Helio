@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -23,8 +22,8 @@ const LoginPage: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const handleLoginAndRedirect = async (emailToLogin: string) => {
-        const user = await login(emailToLogin, 'password');
+    const processLogin = async (emailInput: string, passwordInput: string) => {
+        const user = await login(emailInput, passwordInput);
 
         if (user) {
             const permissions = rolePermissions.get(user.role) || [];
@@ -44,14 +43,16 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        await handleLoginAndRedirect(email);
+        // FIX: Now passing the 'password' state variable instead of hardcoded string
+        await processLogin(email, password);
         setLoading(false);
     };
 
     const handleQuickLogin = async (emailToLogin: string) => {
         setError('');
         setLoading(emailToLogin);
-        await handleLoginAndRedirect(emailToLogin);
+        // Quick login buttons still use the default demo password
+        await processLogin(emailToLogin, 'password');
         setLoading(false);
     };
 

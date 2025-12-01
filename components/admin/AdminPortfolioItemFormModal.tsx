@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Language, PortfolioItem } from '../../types';
@@ -13,21 +10,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
 import { useToast } from '../shared/ToastContext';
+// CHANGED: Import Cloudinary
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface AdminPortfolioItemFormModalProps {
     itemToEdit?: PortfolioItem;
     onClose: () => void;
     onSave: () => void;
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 const AdminPortfolioItemFormModal: React.FC<AdminPortfolioItemFormModalProps> = ({ itemToEdit, onClose, onSave }) => {
     const { language, t } = useLanguage();
@@ -49,6 +39,7 @@ const AdminPortfolioItemFormModal: React.FC<AdminPortfolioItemFormModalProps> = 
 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(itemToEdit?.imageUrl || null);
+    const [isUploading, setIsUploading] = useState(false);
     
     useEffect(() => {
         if (decorationCategories && decorationCategories.length > 0 && !formData.categoryId) {
@@ -93,37 +84,46 @@ const AdminPortfolioItemFormModal: React.FC<AdminPortfolioItemFormModalProps> = 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsUploading(true);
 
-        let imageSrc = itemToEdit?.imageUrl || '';
-        if (imageFile) {
-            imageSrc = await fileToBase64(imageFile);
-        }
-        
-        const selectedCategory = decorationCategories?.find(c => c.id === formData.categoryId);
-        if (!selectedCategory) {
-            showToast("Please select a valid category.", "error");
-            return;
-        }
+        try {
+            let imageSrc = itemToEdit?.imageUrl || '';
+            if (imageFile) {
+                // CHANGED: Upload to Cloudinary
+                imageSrc = await uploadToCloudinary(imageFile);
+            }
+            
+            const selectedCategory = decorationCategories?.find(c => c.id === formData.categoryId);
+            if (!selectedCategory) {
+                showToast("Please select a valid category.", "error");
+                return;
+            }
 
-        const dataToSave = {
-            title: formData.title,
-            partnerId: 'admin-user',
-            category: selectedCategory.name,
-            imageUrl: imageSrc,
-            alt: formData.title.en || 'Decoration work',
-            price: formData.price ? parseInt(String(formData.price), 10) : undefined,
-            dimensions: formData.dimensions || undefined,
-            availability: formData.availability as 'In Stock' | 'Made to Order',
-        };
+            const dataToSave = {
+                title: formData.title,
+                partnerId: 'admin-user',
+                category: selectedCategory.name,
+                imageUrl: imageSrc,
+                alt: formData.title.en || 'Decoration work',
+                price: formData.price ? parseInt(String(formData.price), 10) : undefined,
+                dimensions: formData.dimensions || undefined,
+                availability: formData.availability as 'In Stock' | 'Made to Order',
+            };
 
-        if (itemToEdit) {
-            updateMutation.mutate({ id: itemToEdit.id, updates: dataToSave });
-        } else {
-            addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
+            if (itemToEdit) {
+                updateMutation.mutate({ id: itemToEdit.id, updates: dataToSave });
+            } else {
+                addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
+            }
+        } catch (error) {
+            console.error("Failed to save portfolio item", error);
+            showToast("Error uploading image", "error");
+        } finally {
+            setIsUploading(false);
         }
     };
     
-    const isLoading = addMutation.isPending || updateMutation.isPending;
+    const isLoading = addMutation.isPending || updateMutation.isPending || isUploading;
 
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center p-4 animate-fadeIn" onClick={onClose}>

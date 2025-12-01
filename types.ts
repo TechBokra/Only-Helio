@@ -2,6 +2,7 @@
 
 
 
+
 // ... (Keep existing types)
 
 export type Language = 'ar' | 'en';
@@ -360,6 +361,22 @@ export interface PaymentConfiguration {
     };
 }
 
+export interface ExternalIntegrationsConfig {
+    supabase?: {
+        url: string;
+        anonKey: string;
+    };
+    cloudinary?: {
+        cloudName: string;
+        apiKey: string;
+        apiSecret: string;
+        uploadPreset: string;
+    };
+    vercel?: {
+        projectUrl: string;
+    };
+}
+
 export interface SiteContent {
     logoUrl?: string;
     locationPickerMapUrl?: string;
@@ -372,6 +389,7 @@ export interface SiteContent {
         targetEmail?: string;
     };
     paymentConfiguration?: PaymentConfiguration;
+    externalConfig?: ExternalIntegrationsConfig;
     hero: {
         ar: { title: string; subtitle: string };
         en: { title: string; subtitle: string };

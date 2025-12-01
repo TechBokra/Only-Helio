@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -11,17 +10,9 @@ import { updatePartner } from '../../services/partners';
 import { useToast } from '../shared/ToastContext';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 const textareaClasses = `${inputClasses} min-h-[120px]`;
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 const DashboardProfilePage: React.FC = () => {
     const { language, t } = useLanguage();
@@ -34,6 +25,7 @@ const DashboardProfilePage: React.FC = () => {
     
     const [logoPreview, setLogoPreview] = useState<string | null>('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const mutation = useMutation({
         mutationFn: (data: { id: string, updates: any }) => updatePartner(data.id, data.updates),
@@ -72,20 +64,28 @@ const DashboardProfilePage: React.FC = () => {
     const onSubmit = async (data: any) => {
         if (!currentUser || !('type' in currentUser)) return;
 
-        let imageUrl = currentUser.imageUrl;
-        if (logoFile) {
-            imageUrl = await fileToBase64(logoFile);
-        }
-        
-        const updates = {
-            nameAr: data.nameAr,
-            nameEn: data.nameEn,
-            descriptionAr: data.descriptionAr,
-            descriptionEn: data.descriptionEn,
-            imageUrl: imageUrl,
-        };
+        try {
+            setIsUploading(true);
+            let imageUrl = currentUser.imageUrl;
+            
+            if (logoFile) {
+                imageUrl = await uploadToCloudinary(logoFile);
+            }
+            
+            const updates = {
+                nameAr: data.nameAr,
+                nameEn: data.nameEn,
+                descriptionAr: data.descriptionAr,
+                descriptionEn: data.descriptionEn,
+                imageUrl: imageUrl,
+            };
 
-        mutation.mutate({ id: currentUser.id, updates });
+            mutation.mutate({ id: currentUser.id, updates });
+        } catch (error) {
+            showToast("Failed to upload logo", "error");
+        } finally {
+            setIsUploading(false);
+        }
     };
     
     if (authLoading || !currentUser || !('type' in currentUser)) return null;
@@ -134,7 +134,7 @@ const DashboardProfilePage: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <Button type="submit" isLoading={mutation.isPending}>
+                            <Button type="submit" isLoading={mutation.isPending || isUploading}>
                                 {t_dash.saveChanges}
                             </Button>
                         </div>

@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllPartnersForAdmin, updatePartnerAdmin } from '../../../services/partners';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { useToast } from '../../shared/ToastContext';
-import { AdminPartner, PartnerType } from '../../../types';
+import { AdminPartner } from '../../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import { Input } from '../../ui/Input';
 import { Select } from '../../ui/Select';
@@ -59,12 +59,17 @@ const AdminInquiryManagementPage: React.FC = () => {
         }
     });
 
-    const handleToggle = (partner: AdminPartner, method: 'whatsapp' | 'phone' | 'form') => {
-        const currentMethods = partner.contactMethods || {
-            whatsapp: { enabled: false, number: '' },
-            phone: { enabled: false, number: '' },
-            form: { enabled: true },
+    // Helper to ensure contact methods always exist with default values
+    const getSafeContactMethods = (p: AdminPartner) => {
+        return {
+            whatsapp: p.contactMethods?.whatsapp || { enabled: false, number: '' },
+            phone: p.contactMethods?.phone || { enabled: false, number: '' },
+            form: p.contactMethods?.form || { enabled: true },
         };
+    };
+
+    const handleToggle = (partner: AdminPartner, method: 'whatsapp' | 'phone' | 'form') => {
+        const currentMethods = getSafeContactMethods(partner);
         const newMethods = {
             ...currentMethods,
             [method]: { ...currentMethods[method], enabled: !currentMethods[method].enabled },
@@ -88,7 +93,7 @@ const AdminInquiryManagementPage: React.FC = () => {
                     {isLoading ? (
                         <TableRow><TableCell colSpan={5} className="text-center p-8">Loading...</TableCell></TableRow>
                     ) : items.map(p => {
-                        const methods = p.contactMethods || { whatsapp: { enabled: false, number: '' }, phone: { enabled: false, number: '' }, form: { enabled: true } };
+                        const methods = getSafeContactMethods(p);
                         return (
                             <TableRow key={p.id}>
                                 <TableCell>
@@ -171,7 +176,7 @@ const AdminInquiryManagementPage: React.FC = () => {
     );
 
     const renderCard = (p: AdminPartner) => {
-        const methods = p.contactMethods || { whatsapp: { enabled: false, number: '' }, phone: { enabled: false, number: '' }, form: { enabled: true } };
+        const methods = getSafeContactMethods(p);
         return (
             <Card key={p.id}>
                 <CardContent className="p-4 space-y-4">

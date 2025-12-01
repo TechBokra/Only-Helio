@@ -15,7 +15,8 @@ import { Select } from '../ui/Select';
 import { Checkbox } from '../ui/Checkbox';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { PATTERNS, MESSAGES, CONFIG } from '../../utils/validation';
-import { fileToBase64 } from '../../utils/fileUtils';
+// CHANGED: Import Cloudinary uploader instead of fileUtils
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface DynamicFormProps {
     slug: string;
@@ -58,6 +59,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = methods;
 
+    // CHANGED: Upload to Cloudinary instead of Base64
     const processFiles = async (formData: FieldValues, fields: FormFieldDefinition[]) => {
         const processedData = { ...formData };
         const fileFields = fields.filter(f => f.type === 'file');
@@ -65,7 +67,13 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         for (const field of fileFields) {
             const fileList = formData[field.key];
             if (fileList && fileList.length > 0) {
-                processedData[field.key] = await fileToBase64(fileList[0]);
+                try {
+                    // Upload the first file
+                    processedData[field.key] = await uploadToCloudinary(fileList[0]);
+                } catch (error) {
+                    console.error(`Failed to upload file for ${field.key}`, error);
+                    throw new Error(language === 'ar' ? 'فشل رفع الملف' : 'File upload failed');
+                }
             } else {
                 delete processedData[field.key];
             }
@@ -147,7 +155,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             }
         } catch (error) {
             console.error("Form processing error:", error);
-            showToast("Error processing form data", "error");
+            showToast("Error processing form data (Check file uploads)", "error");
         }
     };
 
