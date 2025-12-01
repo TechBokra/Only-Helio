@@ -232,16 +232,19 @@ const PropertyFormPage: React.FC = () => {
             }
 
             // 2. Handle Gallery Uploads
+            // Map over galleryImages (which contains both existing URLs and local previews)
+            // We use galleryImageFiles (which contains null for existing, File for new) to decide what to upload
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
                      try {
                         return await uploadToCloudinary(file);
                     } catch (e: any) {
-                        // Provide context about which image failed
-                        throw new Error(`Gallery image ${index + 1}: ${e.message}`);
+                        // Provide detailed context about which image failed
+                        throw new Error(`Gallery image ${index + 1} failed: ${e.message}`);
                     }
                 }
+                // If no file, it's an existing image URL, return as is
                 return img;
             }));
 
@@ -288,7 +291,6 @@ const PropertyFormPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Error uploading images:", error);
-            // Display the actual error message from Cloudinary/Network
             const errorMessage = error?.message || "Failed to upload images. Please try again.";
             showToast(`Upload Error: ${errorMessage}`, "error");
         } finally {

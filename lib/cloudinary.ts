@@ -20,9 +20,10 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     formData.append('upload_preset', UPLOAD_PRESET);
     // Note: We do NOT append api_key for unsigned uploads.
 
+    // Using 'auto' resource type to handle images and potentially other file types flexibly
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 
-    console.log(`[Cloudinary] Uploading to ${url} with preset: ${UPLOAD_PRESET}`);
+    console.log(`[Cloudinary] Uploading file: ${file.name} (${file.size} bytes) to ${url}`);
 
     try {
         const response = await fetch(url, {
@@ -42,6 +43,7 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
         }
 
         const data: CloudinaryResponse = await response.json();
+        console.log(`[Cloudinary] Upload success: ${data.secure_url}`);
         return data.secure_url;
     } catch (error: any) {
         console.error('Network/Upload Error in uploadToCloudinary:', error);
