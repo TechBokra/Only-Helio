@@ -25,7 +25,7 @@ export const getAllProperties = async (): Promise<Property[]> => {
         .select('*');
 
     if (error) {
-        console.error("Error fetching properties:", error);
+        console.error("Error fetching properties:", JSON.stringify(error, null, 2));
         return [];
     }
 

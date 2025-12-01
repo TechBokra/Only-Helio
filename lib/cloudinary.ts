@@ -1,12 +1,8 @@
 
 // Cloudinary Configuration
-// In production, these should be set in Vercel Environment Variables
-
-// Safely access environment variables
-const env = (import.meta as any).env || {};
-
-const CLOUD_NAME = env.VITE_CLOUDINARY_CLOUD_NAME || 'Onlyhelio'; 
-const UPLOAD_PRESET = env.VITE_CLOUDINARY_UPLOAD_PRESET || 'onlyhelio_uploads';
+// We are hardcoding these temporarily to ensure functionality in the dev/preview environment.
+const CLOUD_NAME = 'Onlyhelio';
+const UPLOAD_PRESET = 'onlyhelio_uploads';
 
 interface CloudinaryResponse {
     secure_url: string;
@@ -23,21 +19,30 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     formData.append('file', file);
     formData.append('upload_preset', UPLOAD_PRESET);
 
+    // Ensure cloud name is handled correctly (URLs are usually case-sensitive or lowercase)
+    // We try to use the name exactly as provided.
+    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
     try {
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        const response = await fetch(url, {
             method: 'POST',
             body: formData,
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Failed to upload image');
+            console.error("Cloudinary Upload Error:", {
+                status: response.status,
+                statusText: response.statusText,
+                details: errorData
+            });
+            throw new Error(errorData.error?.message || `Upload failed with status ${response.status}`);
         }
 
         const data: CloudinaryResponse = await response.json();
         return data.secure_url;
-    } catch (error) {
-        console.error('Error uploading to Cloudinary:', error);
-        throw error;
+    } catch (error: any) {
+        console.error('Network/Upload Error in uploadToCloudinary:', error);
+        throw new Error(error.message || 'Failed to upload image to Cloudinary');
     }
 };

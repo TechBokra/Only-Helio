@@ -14,7 +14,6 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
-// Fixed import paths: changed from ../../ui to ../ui
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
 
@@ -278,9 +277,10 @@ const PropertyFormPage: React.FC = () => {
             } else {
                 addMutation.mutate(propertyData);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error uploading images:", error);
-            showToast("Failed to upload images. Please try again.", "error");
+            const errorMessage = error?.message || "Failed to upload images. Please check your connection.";
+            showToast(`Upload Error: ${errorMessage}`, "error");
         } finally {
             setIsUploading(false);
         }
