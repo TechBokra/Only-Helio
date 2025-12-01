@@ -90,9 +90,6 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 // --- Write Operations ---
 
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
-    // Simplification: We are not handling all nested relations (amenities) perfectly here for the mock DB
-    // In a real implementation, you would insert into 'properties' then into 'amenities_on_properties'
-    
     const dbData = {
         partner_id: property.partnerId,
         project_id: property.projectId,
@@ -106,6 +103,8 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_ar: property.type.ar,
         status_en: property.status.en,
         status_ar: property.status.ar,
+        finishing_status_en: property.finishingStatus?.en,
+        finishing_status_ar: property.finishingStatus?.ar,
         price: property.priceNumeric,
         area: property.area,
         beds: property.beds,
@@ -119,6 +118,10 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         installments_available: property.installmentsAvailable,
         is_in_compound: property.isInCompound,
         real_estate_finance_available: property.realEstateFinanceAvailable,
+        delivery_immediate: property.delivery.isImmediate,
+        delivery_date: property.delivery.date,
+        contact_method: property.contactMethod,
+        owner_phone: property.ownerPhone,
         // JSON fields
         amenities: property.amenities, 
         installments: property.installments
@@ -135,16 +138,69 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
 };
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property> => {
-    // Map Partial<Property> to DB columns
+    // Fully Map Partial<Property> to DB columns
     const dbUpdates: any = {};
-    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
-    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
-    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
+
+    // Basic Info
+    if (updates.priceNumeric !== undefined) dbUpdates.price = updates.priceNumeric;
+    if (updates.area !== undefined) dbUpdates.area = updates.area;
+    if (updates.beds !== undefined) dbUpdates.beds = updates.beds;
+    if (updates.baths !== undefined) dbUpdates.baths = updates.baths;
+    if (updates.floor !== undefined) dbUpdates.floor = updates.floor;
+
+    // Localized Texts
     if (updates.title) {
         if (updates.title.ar) dbUpdates.title_ar = updates.title.ar;
         if (updates.title.en) dbUpdates.title_en = updates.title.en;
     }
-    // Add other fields as needed
+    if (updates.description) {
+        if (updates.description.ar) dbUpdates.description_ar = updates.description.ar;
+        if (updates.description.en) dbUpdates.description_en = updates.description.en;
+    }
+    if (updates.address) {
+        if (updates.address.ar) dbUpdates.address_ar = updates.address.ar;
+        if (updates.address.en) dbUpdates.address_en = updates.address.en;
+    }
+    if (updates.type) {
+        if (updates.type.ar) dbUpdates.type_ar = updates.type.ar;
+        if (updates.type.en) dbUpdates.type_en = updates.type.en;
+    }
+    if (updates.status) {
+        if (updates.status.ar) dbUpdates.status_ar = updates.status.ar;
+        if (updates.status.en) dbUpdates.status_en = updates.status.en;
+    }
+    if (updates.finishingStatus) {
+        if (updates.finishingStatus.ar) dbUpdates.finishing_status_ar = updates.finishingStatus.ar;
+        if (updates.finishingStatus.en) dbUpdates.finishing_status_en = updates.finishingStatus.en;
+    }
+
+    // JSON Fields
+    if (updates.location) dbUpdates.location = updates.location;
+    if (updates.amenities) dbUpdates.amenities = updates.amenities;
+    if (updates.installments) dbUpdates.installments = updates.installments;
+    if (updates.gallery) dbUpdates.gallery = updates.gallery;
+
+    // Media
+    if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+
+    // Booleans & Status
+    if (updates.installmentsAvailable !== undefined) dbUpdates.installments_available = updates.installmentsAvailable;
+    if (updates.isInCompound !== undefined) dbUpdates.is_in_compound = updates.isInCompound;
+    if (updates.realEstateFinanceAvailable !== undefined) dbUpdates.real_estate_finance_available = updates.realEstateFinanceAvailable;
+    
+    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
+    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
+    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
+
+    // Delivery
+    if (updates.delivery) {
+        if (updates.delivery.isImmediate !== undefined) dbUpdates.delivery_immediate = updates.delivery.isImmediate;
+        if (updates.delivery.date !== undefined) dbUpdates.delivery_date = updates.delivery.date;
+    }
+
+    // Contact
+    if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
+    if (updates.ownerPhone) dbUpdates.owner_phone = updates.ownerPhone;
     
     const { data, error } = await supabase!
         .from('properties')
