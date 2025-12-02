@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPartner, SubscriptionPlan, PartnerDisplayType } from '../../../types';
@@ -25,7 +24,7 @@ const AdminPartnerEditModal: React.FC<AdminPartnerEditModalProps> = ({ partner, 
 
     const [plan, setPlan] = useState<SubscriptionPlan>(partner.subscriptionPlan);
     const [endDate, setEndDate] = useState(partner.subscriptionEndDate?.split('T')[0] || '');
-    const [displayType, setDisplayType] = useState<PartnerDisplayType>(partner.displayType);
+    const [displayType, setDisplayType] = useState<PartnerDisplayType>(partner.displayType || 'standard');
     
     const { data: plansData } = useQueryClient().getQueryData(['plans']) as { data: any };
     const availablePlans = plansData?.[partner.type] ? Object.keys(plansData[partner.type]) : [];
