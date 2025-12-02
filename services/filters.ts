@@ -1,3 +1,4 @@
+
 import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenities } from '../data/filterOptions';
 import type { FilterOption } from '../types';
 
@@ -17,7 +18,7 @@ export const getAllAmenities = (): Promise<FilterOption[]> => new Promise(res =>
 const mutateOptions = (
     dataType: 'propertyType' | 'finishingStatus' | 'amenity',
     operation: 'add' | 'update' | 'delete',
-    item?: FilterOption | Omit<FilterOption, 'id'>,
+    item?: FilterOption | Partial<FilterOption>,
     itemId?: string
 ) => {
     let dataArray: FilterOption[];
@@ -31,14 +32,19 @@ const mutateOptions = (
         setTimeout(() => {
             switch (operation) {
                 case 'add':
-                    const newItem: FilterOption = { ...item as Omit<FilterOption, 'id'>, id: `${dataType}-${Date.now()}` };
+                    const newItem: FilterOption = { 
+                        ...(item as FilterOption), 
+                        id: `${dataType}-${Date.now()}`,
+                        en: item?.en || '',
+                        ar: item?.ar || ''
+                    };
                     dataArray.push(newItem);
                     resolve(newItem);
                     break;
                 case 'update':
                     const index = dataArray.findIndex(i => i.id === (item as FilterOption).id);
                     if (index > -1) {
-                        dataArray[index] = item as FilterOption;
+                        dataArray[index] = { ...dataArray[index], ...(item as FilterOption) };
                         resolve(dataArray[index]);
                     } else {
                         resolve(null);

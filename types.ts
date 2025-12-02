@@ -207,9 +207,18 @@ export interface Lead {
     messages: LeadMessage[];
     assignedTo?: string;
     partnerName?: string;
+    referenceImage?: string; // Added for custom requests
 }
 
-export type RequestType = 'LEAD' | 'PARTNER_APPLICATION' | 'PROPERTY_LISTING_REQUEST' | 'CONTACT_MESSAGE' | 'PROPERTY_INQUIRY';
+// Changed from type union to enum for value usage
+export enum RequestType {
+    LEAD = 'LEAD',
+    PARTNER_APPLICATION = 'PARTNER_APPLICATION',
+    PROPERTY_LISTING_REQUEST = 'PROPERTY_LISTING_REQUEST',
+    CONTACT_MESSAGE = 'CONTACT_MESSAGE',
+    PROPERTY_INQUIRY = 'PROPERTY_INQUIRY'
+}
+
 export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'approved' | 'rejected' | 'assigned' | 'in-progress' | 'closed';
 
 export interface RequesterInfo {
@@ -280,6 +289,7 @@ export interface AddPropertyRequest {
     status: RequestStatus;
     createdAt: string;
     managerId?: string;
+    contactTime?: string; // Added
 }
 
 export interface PartnerRequest {

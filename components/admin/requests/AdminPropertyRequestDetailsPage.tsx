@@ -57,10 +57,13 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                     },
                     address: { en: pd.address || '', ar: pd.address || '' },
                     location: pd.location || { lat: 30.0, lng: 31.0 },
-                    status: pd.purpose || { en: 'For Sale', ar: 'للبيع' },
+                    status: { 
+                        en: (pd.purpose?.en || 'For Sale') as 'For Sale' | 'For Rent', 
+                        ar: (pd.purpose?.ar || 'للبيع') as 'للبيع' | 'إيجار'
+                    },
                     type: { 
-                        en: (getEn(pd.propertyType) || 'Apartment') as any, 
-                        ar: getAr(pd.propertyType) || 'شقة' 
+                        en: (getEn(pd.propertyType) || 'Apartment') as string, 
+                        ar: (getAr(pd.propertyType) || 'شقة') as string
                     },
                     finishingStatus: pd.finishingStatus ? { 
                         en: getEn(pd.finishingStatus), 
@@ -83,7 +86,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                     isInCompound: !!pd.isInCompound,
                     delivery: { 
                         isImmediate: pd.deliveryType === 'immediate', 
-                        date: pd.deliveryType === 'future' ? `${pd.deliveryYear}-${pd.deliveryMonth}` : undefined
+                        date: pd.deliveryType === 'future' ? `${pd.deliveryMonth}/${pd.deliveryYear}` : undefined
                     },
                     installmentsAvailable: !!pd.hasInstallments,
                     installments: pd.hasInstallments ? {
