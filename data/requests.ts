@@ -14,6 +14,7 @@ export let requestsData: Request[] = [
         },
         status: 'new',
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         id: `req-${Date.now() + 2}`,
@@ -30,6 +31,7 @@ export let requestsData: Request[] = [
         },
         status: 'new',
         createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
+        updatedAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
     },
     {
         id: `req-${Date.now() + 3}`,
@@ -46,6 +48,7 @@ export let requestsData: Request[] = [
         },
         status: 'new',
         createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(), // 10 mins ago
+        updatedAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
     },
     {
         id: `req-${Date.now() + 4}`,
@@ -57,6 +60,7 @@ export let requestsData: Request[] = [
         },
         status: 'new',
         createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+        updatedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     },
     {
         id: `req-${Date.now() + 5}`,
@@ -67,6 +71,7 @@ export let requestsData: Request[] = [
         },
         status: 'new',
         createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(), // 20 mins ago
+        updatedAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
     },
     {
         id: 'req-1',
@@ -83,6 +88,7 @@ export let requestsData: Request[] = [
         status: 'new',
         assignedTo: 'service-manager-1',
         createdAt: '2024-07-28T10:00:00Z',
+        updatedAt: '2024-07-28T10:00:00Z',
     },
     {
         id: 'req-2',
@@ -99,6 +105,7 @@ export let requestsData: Request[] = [
         status: 'reviewed',
         assignedTo: 'service-manager-1',
         createdAt: '2024-07-27T14:30:00Z',
+        updatedAt: '2024-07-27T14:30:00Z',
     },
     {
         id: 'req-3',
@@ -114,5 +121,6 @@ export let requestsData: Request[] = [
         status: 'new',
         assignedTo: 'united-development',
         createdAt: '2024-07-26T18:00:00Z',
+        updatedAt: '2024-07-26T18:00:00Z',
     }
 ];

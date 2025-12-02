@@ -6,7 +6,7 @@ import { mapPropertyFromDB } from '../utils/supabaseMapper';
 import { filterProperties } from '../utils/propertyFilters';
 
 // Helper to clean data before sending to DB
-// Converts empty strings to null for Dates and UUIDs
+// Converts empty strings, "undefined", or "null" strings to actual null for DB compatibility
 const sanitize = (value: any) => {
     if (value === '' || value === undefined || value === 'undefined' || value === 'null') {
         return null;
@@ -204,7 +204,7 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
         if (updates.delivery.date !== undefined) dbUpdates.delivery_date = sanitize(updates.delivery.date);
     }
     
-    // Relations
+    // Relations - Sanitize FKs
     if (updates.projectId !== undefined) dbUpdates.project_id = sanitize(updates.projectId);
 
     // Contact

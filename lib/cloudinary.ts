@@ -1,6 +1,7 @@
 
 // Cloudinary Configuration
-// HARDCODED CREDENTIALS TO BYPASS VERCEL ENV VAR ISSUES
+// HARDCODED CREDENTIALS TO BYPASS VERCEL ENV VAR ISSUES AND ENSURE UPLOAD WORKS
+// User provided: Cloud Name: dwg0hr34g, Preset: onlyhelio_uploads
 const CLOUD_NAME = 'dwg0hr34g'; 
 const UPLOAD_PRESET = 'onlyhelio_uploads';
 

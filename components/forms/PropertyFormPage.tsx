@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Property, FilterOption } from '../../types';
+import type { Property } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { addProperty as apiAddProperty, updateProperty as apiUpdateProperty, getAllProperties } from '../../services/properties';
 import { getAllProjects } from '../../services/projects';
@@ -15,7 +15,7 @@ import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
-import FormField, { inputClasses, selectClasses } from '../ui/FormField';
+import FormField, { inputClasses } from '../ui/FormField';
 
 // Import Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
@@ -226,7 +226,7 @@ const PropertyFormPage: React.FC = () => {
     }
 
     const onSubmit = async (formData: PropertyFormData) => {
-        if (!currentUser || !('type' in currentUser) || !amenities) return;
+        if (!currentUser || !('type' in currentUser)) return;
         
         setIsUploading(true);
 
@@ -237,20 +237,18 @@ const PropertyFormPage: React.FC = () => {
                 try {
                     finalMainImage = await uploadToCloudinary(mainImageFile);
                 } catch (e: any) {
-                    throw new Error(`Main image upload failed: ${e.message}`);
+                     throw new Error(`Main image upload failed: ${e.message || e}`);
                 }
             }
 
             // 2. Handle Gallery Uploads
-            // We iterate over galleryImages (current view). 
-            // Correlate with galleryImageFiles: if entry is File, upload it. If null, use existing URL from galleryImages.
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
                      try {
                         return await uploadToCloudinary(file);
                     } catch (e: any) {
-                        throw new Error(`Gallery image ${index + 1} upload failed: ${e.message}`);
+                        throw new Error(`Gallery image ${index + 1} upload failed: ${e.message || e}`);
                     }
                 }
                 return img; // Existing URL
@@ -302,7 +300,7 @@ const PropertyFormPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Detailed Upload Error:", error);
-            const errorMessage = error?.message || "Failed to upload images. Please try again.";
+            const errorMessage = error instanceof Error ? error.message : "Failed to upload images.";
             showToast(errorMessage, "error");
         } finally {
             setIsUploading(false);

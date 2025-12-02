@@ -1,10 +1,10 @@
 
-import type { Partner } from '../types';
+import type { Partner, AdminPartner } from '../types';
 
 // SECURITY WARNING: This mock data includes hardcoded passwords for demonstration purposes ONLY.
 // In a real-world application, never store plain-text passwords in your codebase.
 // Use a secure authentication system with hashed and salted passwords.
-export let partnersData: Omit<Partner, 'name' | 'description' | 'role'>[] = [
+export let partnersData: (Omit<Partner, 'name' | 'description' | 'role'> & Partial<Pick<AdminPartner, 'subscriptionEndDate' | 'displayType' | 'contactMethods'>>)[] = [
     // Developers
     {
         id: 'united-development',

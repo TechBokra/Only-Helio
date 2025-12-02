@@ -113,7 +113,7 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
             type: partnerData.companyType,
             status: 'active',
             subscription_plan: partnerData.subscriptionPlan,
-            role: getRoleForType(partnerData.companyType),
+            role: getRoleForType(partnerData.companyType as PartnerType),
             image_url: partnerData.logo
         }])
         .select()
