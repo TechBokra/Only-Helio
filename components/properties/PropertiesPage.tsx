@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 // FIX: Imported 'keepPreviousData' for use with TanStack Query v5's placeholderData option.
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -47,7 +48,7 @@ const PropertiesPage: React.FC = () => {
         baths = '', 
         setFilter, 
         setPage 
-    } = filterControls as any;
+    } = filterControls as any; // Cast to any to avoid strict type checking on potential partial object
     
     // Fetch dependencies (dropdown options)
     const { data: projects, isLoading: pLoading } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
@@ -118,7 +119,7 @@ const PropertiesPage: React.FC = () => {
 
                     <div className="flex items-center gap-2 bg-white dark:bg-gray-700 p-1 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
                         <button
-                            onClick={() => setFilter('view', 'grid')}
+                            onClick={() => setFilter && setFilter('view', 'grid')}
                             className={`p-2 rounded-md transition-all ${view === 'grid' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="Grid View"
                             title={language === 'ar' ? 'عرض شبكي' : 'Grid View'}
@@ -126,7 +127,7 @@ const PropertiesPage: React.FC = () => {
                             <GridIcon className="w-5 h-5" />
                         </button>
                         <button
-                            onClick={() => setFilter('view', 'list')}
+                            onClick={() => setFilter && setFilter('view', 'list')}
                             className={`p-2 rounded-md transition-all ${view === 'list' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="List View"
                             title={language === 'ar' ? 'عرض قائمة' : 'List View'}
@@ -168,7 +169,7 @@ const PropertiesPage: React.FC = () => {
                             </div>
                         )}
                         <div className="mt-12">
-                            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+                            <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => setPage && setPage(p)} />
                         </div>
                     </>
                 )}
