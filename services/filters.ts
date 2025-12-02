@@ -1,6 +1,5 @@
-
 import { supabase } from '../lib/supabase';
-import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenities } from '../data/filterOptions';
+import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses } from '../data/filterOptions';
 import type { FilterOption } from '../types';
 
 // Map DB row to FilterOption
@@ -14,7 +13,6 @@ const mapFilterOption = (row: any): FilterOption => ({
 // Generic Fetcher
 const fetchOptions = async (table: string, initialData: FilterOption[]): Promise<FilterOption[]> => {
     if (!supabase) return initialData;
-    
     try {
         const { data, error } = await supabase.from(table).select('*');
         if (error) {
@@ -23,7 +21,6 @@ const fetchOptions = async (table: string, initialData: FilterOption[]): Promise
         }
         return data && data.length > 0 ? data.map(mapFilterOption) : initialData;
     } catch (e) {
-        console.error(`Critical error fetching ${table}:`, e);
         return initialData;
     }
 };
@@ -31,11 +28,12 @@ const fetchOptions = async (table: string, initialData: FilterOption[]): Promise
 // Getters
 export const getAllPropertyTypes = () => fetchOptions('property_types', initialPropertyTypes);
 export const getAllFinishingStatuses = () => fetchOptions('finishing_statuses', initialFinishingStatuses);
-export const getAllAmenities = () => fetchOptions('amenities', initialAmenities);
+// Stub for amenities to prevent import errors, returning empty
+export const getAllAmenities = async () => [];
 
 // Generic Mutator
 const mutateOption = async (
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity',
+    dataType: 'propertyType' | 'finishingStatus', // Removed amenity
     operation: 'add' | 'update' | 'delete',
     item?: FilterOption | Partial<FilterOption>,
     itemId?: string
@@ -44,17 +42,15 @@ const mutateOption = async (
     switch (dataType) {
         case 'propertyType': tableName = 'property_types'; break;
         case 'finishingStatus': tableName = 'finishing_statuses'; break;
-        case 'amenity': tableName = 'amenities'; break;
+        default: return null;
     }
 
-    if (!supabase) {
-        console.warn("Supabase not configured. Changes will not persist.");
-        return operation === 'delete' ? true : item; // Mock success
-    }
+    if (!supabase) return item; 
 
     try {
         if (operation === 'add' && item) {
             const payload = {
+                id: item.id || `auto-${Date.now()}`, 
                 name_en: item.en,
                 name_ar: item.ar,
                 applicable_to: item.applicableTo
@@ -70,15 +66,9 @@ const mutateOption = async (
             if (item.ar) payload.name_ar = item.ar;
             if (item.applicableTo) payload.applicable_to = item.applicableTo;
 
-            // Changed .single() to .maybeSingle() to avoid PGRST116 error if row doesn't exist
             const { data, error } = await supabase.from(tableName).update(payload).eq('id', item.id).select().maybeSingle();
-            
             if (error) throw error;
-            if (!data) {
-                console.warn(`Item with ID ${item.id} not found in ${tableName} for update.`);
-                return null; 
-            }
-            return mapFilterOption(data);
+            return data ? mapFilterOption(data) : null;
         }
 
         if (operation === 'delete' && itemId) {
@@ -93,12 +83,6 @@ const mutateOption = async (
     return null;
 };
 
-export const addFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', item: Omit<FilterOption, 'id'>): Promise<FilterOption> => {
-    return mutateOption(dataType, 'add', item) as Promise<FilterOption>;
-};
-export const updateFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', item: FilterOption): Promise<FilterOption | null> => {
-    return mutateOption(dataType, 'update', item) as Promise<FilterOption | null>;
-};
-export const deleteFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', itemId: string): Promise<boolean> => {
-    return mutateOption(dataType, 'delete', undefined, itemId) as Promise<boolean>;
-};
+export const addFilterOption = (dataType: 'propertyType' | 'finishingStatus', item: Omit<FilterOption, 'id'>) => mutateOption(dataType, 'add', item);
+export const updateFilterOption = (dataType: 'propertyType' | 'finishingStatus', item: FilterOption) => mutateOption(dataType, 'update', item);
+export const deleteFilterOption = (dataType: 'propertyType' | 'finishingStatus', itemId: string) => mutateOption(dataType, 'delete', undefined, itemId);

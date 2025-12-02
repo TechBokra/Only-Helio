@@ -1,13 +1,11 @@
-
-
 import React, { useState } from 'react';
 import type { FilterOption } from '../../types';
 import FilterItemFormModal from './FilterItemFormModal';
-import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities, deleteFilterOption as apiDeleteFilterOption } from '../../services/filters';
+import { getAllPropertyTypes, getAllFinishingStatuses, deleteFilterOption as apiDeleteFilterOption } from '../../services/filters';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../shared/LanguageContext';
 
-type DataType = 'propertyType' | 'finishingStatus' | 'amenity';
+type DataType = 'propertyType' | 'finishingStatus';
 
 const FilterManagerSection: React.FC<{
     title: string;
@@ -43,15 +41,12 @@ const FilterManagerSection: React.FC<{
     );
 };
 
-
 const AdminFilterManagementPage: React.FC = () => {
-    const { t } = useLanguage();
     const queryClient = useQueryClient();
     const [modalState, setModalState] = useState<{ isOpen: boolean; dataType?: DataType; itemToEdit?: FilterOption }>({ isOpen: false });
 
     const { data: propertyTypes = [], isLoading: ptLoading } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
     const { data: finishingStatuses = [], isLoading: fsLoading } = useQuery({ queryKey: ['finishingStatuses'], queryFn: getAllFinishingStatuses });
-    const { data: amenities = [], isLoading: amLoading } = useQuery({ queryKey: ['amenities'], queryFn: getAllAmenities });
     
     const deleteMutation = useMutation({
         mutationFn: ({ dataType, itemId }: { dataType: DataType, itemId: string }) => apiDeleteFilterOption(dataType, itemId),
@@ -60,8 +55,6 @@ const AdminFilterManagementPage: React.FC = () => {
                 queryClient.invalidateQueries({ queryKey: ['propertyTypes'] });
             } else if (dataType === 'finishingStatus') {
                  queryClient.invalidateQueries({ queryKey: ['finishingStatuses'] });
-            } else if (dataType === 'amenity') {
-                 queryClient.invalidateQueries({ queryKey: ['amenities'] });
             }
         }
     });
@@ -74,13 +67,11 @@ const AdminFilterManagementPage: React.FC = () => {
 
     const handleSave = () => {
         setModalState({ isOpen: false });
-        // Invalidate all queries on save
         queryClient.invalidateQueries({ queryKey: ['propertyTypes'] });
         queryClient.invalidateQueries({ queryKey: ['finishingStatuses'] });
-        queryClient.invalidateQueries({ queryKey: ['amenities'] });
     };
     
-    if (ptLoading || fsLoading || amLoading) return <div>Loading filters...</div>;
+    if (ptLoading || fsLoading) return <div>Loading filters...</div>;
 
     return (
         <div className="space-y-8">
@@ -108,13 +99,6 @@ const AdminFilterManagementPage: React.FC = () => {
                 onAdd={() => setModalState({ isOpen: true, dataType: 'finishingStatus' })}
                 onEdit={(item) => setModalState({ isOpen: true, dataType: 'finishingStatus', itemToEdit: item })}
                 onDelete={(id) => handleDelete('finishingStatus', id)}
-            />
-            <FilterManagerSection
-                title="Amenities"
-                items={amenities}
-                onAdd={() => setModalState({ isOpen: true, dataType: 'amenity' })}
-                onEdit={(item) => setModalState({ isOpen: true, dataType: 'amenity', itemToEdit: item })}
-                onDelete={(id) => handleDelete('amenity', id)}
             />
         </div>
     );

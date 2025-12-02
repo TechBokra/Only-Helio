@@ -28,7 +28,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   handleRetry = () => {
-      this.props.onReset?.();
+      if (this.props.onReset) {
+        this.props.onReset();
+      }
       this.setState({ hasError: false, error: null });
   };
 
@@ -69,13 +71,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button onClick={this.handleRetry} variant="primary" className="w-full sm:w-auto">
-                    <ArrowRightIcon className="w-4 h-4 mr-2" />
-                    Try Again
-                </Button>
                 <Button onClick={this.handleGoHome} variant="secondary" className="w-full sm:w-auto">
                     <HomeIcon className="w-4 h-4 mr-2" />
                     Go Home
+                </Button>
+                <Button onClick={this.handleRetry} variant="primary" className="w-full sm:w-auto">
+                    <ArrowRightIcon className="w-4 h-4 mr-2" />
+                    Try Again
                 </Button>
             </div>
           </div>
