@@ -19,6 +19,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { commonSchemas } from '../../utils/validation';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 // Validation Schema using centralized utils
 const registerSchema = z.object({
@@ -58,6 +59,8 @@ const Stepper: React.FC<{ steps: string[], currentStep: number }> = ({ steps, cu
 
 const RegisterPage: React.FC = () => {
     const { language, t } = useLanguage();
+    const { data: siteContent } = useSiteContent();
+    const siteName = siteContent?.siteName?.[language] || 'ONLY HELIO';
     const t_page = t.partnerRequestForm;
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -184,7 +187,7 @@ const RegisterPage: React.FC = () => {
                     <div className="text-center mb-8">
                         <Link to="/" className="inline-flex items-center justify-center gap-3 text-3xl font-bold text-amber-500 mb-4">
                             <SiteLogo className="h-10 w-10" />
-                            <span className="text-2xl">ONLY HELIO</span>
+                            <span className="text-2xl">{siteName}</span>
                         </Link>
                         <h1 className="text-3xl font-bold text-gray-800">{t.auth.registerTitle}</h1>
                         <p className="mt-2 text-gray-600">{t.auth.registerSubtitle}</p>

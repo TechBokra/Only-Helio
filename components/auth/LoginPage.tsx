@@ -11,9 +11,12 @@ import { partnersData } from '../../data/partners';
 import { rolePermissions } from '../../data/permissions';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 const LoginPage: React.FC = () => {
     const { language, t } = useLanguage();
+    const { data: siteContent } = useSiteContent();
+    const siteName = siteContent?.siteName?.[language] || 'ONLY HELIO';
     const t_auth = t.auth;
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -43,7 +46,6 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        // FIX: Now passing the 'password' state variable instead of hardcoded string
         await processLogin(email, password);
         setLoading(false);
     };
@@ -51,14 +53,12 @@ const LoginPage: React.FC = () => {
     const handleQuickLogin = async (emailToLogin: string) => {
         setError('');
         setLoading(emailToLogin);
-        // Quick login buttons still use the default demo password
         await processLogin(emailToLogin, 'password');
         setLoading(false);
     };
 
     const quickLoginUsers = useMemo(() => {
         const quickLoginEmails = [
-            // Internal Roles
             'admin@onlyhelio.com',
             'decor@onlyhelio.com',
             'fin-platform@onlyhelio.com',
@@ -67,25 +67,18 @@ const LoginPage: React.FC = () => {
             're-market@onlyhelio.com',
             'partners@onlyhelio.com',
             'content@onlyhelio.com',
-            // External Partners (Demo Accounts)
-            'dev1@onlyhelio.com',      // Developer (United Development)
-            'fin1@onlyhelio.com',      // Finishing (El Mottaheda)
-            'agency1@onlyhelio.com',   // Agency (Future Real Estate)
+            'dev1@onlyhelio.com',
+            'fin1@onlyhelio.com',
+            'agency1@onlyhelio.com',
         ];
 
         return quickLoginEmails
             .map(email => {
                 const partner = partnersData.find(p => p.email === email);
                 if (!partner) return null;
-                
-                // Use translation if available, otherwise fallback to ID
                 // @ts-ignore
                 const localizedName = t.partnerInfo[partner.id]?.name || partner.id;
-                
-                return {
-                    name: localizedName,
-                    email: partner.email,
-                };
+                return { name: localizedName, email: partner.email };
             })
             .filter(Boolean) as { name: string; email: string }[];
     }, [language, t]);
@@ -97,7 +90,7 @@ const LoginPage: React.FC = () => {
                 <div className="text-center">
                     <Link to="/" className="inline-flex items-center justify-center gap-3 text-3xl font-bold text-amber-500 mb-4">
                         <SiteLogo className="h-10 w-10" />
-                        <span className="text-2xl">ONLY HELIO</span>
+                        <span className="text-2xl">{siteName}</span>
                     </Link>
                     <h1 className="text-3xl font-bold text-gray-800">{t_auth.loginTitle}</h1>
                     <p className="mt-2 text-gray-600">{t_auth.loginSubtitle}</p>

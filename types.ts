@@ -1,116 +1,108 @@
 
-
-
-
-
-// ... (Keep existing types)
-
 export type Language = 'ar' | 'en';
-
 export type Theme = 'light' | 'dark';
 
 export enum Role {
-    SUPER_ADMIN = 'super_admin',
-    DEVELOPER_PARTNER = 'developer_partner',
-    FINISHING_PARTNER = 'finishing_partner',
-    AGENCY_PARTNER = 'agency_partner',
-    DECORATION_MANAGER = 'decoration_manager',
-    PLATFORM_FINISHING_MANAGER = 'platform_finishing_manager',
-    FINISHING_MARKET_MANAGER = 'finishing_market_manager',
-    PLATFORM_REAL_ESTATE_MANAGER = 'platform_real_estate_manager',
-    REAL_ESTATE_MARKET_MANAGER = 'real_estate_market_manager',
-    PARTNER_RELATIONS_MANAGER = 'partner_relations_manager',
-    CONTENT_MANAGER = 'content_manager',
-    SERVICE_MANAGER = 'service_manager',
-    CUSTOMER_RELATIONS_MANAGER = 'customer_relations_manager',
-    LISTINGS_MANAGER = 'listings_manager'
+    SUPER_ADMIN = 'SUPER_ADMIN',
+    DEVELOPER_PARTNER = 'DEVELOPER_PARTNER',
+    FINISHING_PARTNER = 'FINISHING_PARTNER',
+    AGENCY_PARTNER = 'AGENCY_PARTNER',
+    DECORATION_MANAGER = 'DECORATION_MANAGER',
+    PLATFORM_FINISHING_MANAGER = 'PLATFORM_FINISHING_MANAGER',
+    FINISHING_MARKET_MANAGER = 'FINISHING_MARKET_MANAGER',
+    PLATFORM_REAL_ESTATE_MANAGER = 'PLATFORM_REAL_ESTATE_MANAGER',
+    REAL_ESTATE_MARKET_MANAGER = 'REAL_ESTATE_MARKET_MANAGER',
+    PARTNER_RELATIONS_MANAGER = 'PARTNER_RELATIONS_MANAGER',
+    CONTENT_MANAGER = 'CONTENT_MANAGER',
+    SERVICE_MANAGER = 'SERVICE_MANAGER',
+    CUSTOMER_RELATIONS_MANAGER = 'CUSTOMER_RELATIONS_MANAGER',
+    LISTINGS_MANAGER = 'LISTINGS_MANAGER',
 }
 
 export enum Permission {
-    VIEW_ADMIN_DASHBOARD = 'view_admin_dashboard',
-    VIEW_PARTNER_DASHBOARD = 'view_partner_dashboard',
-    VIEW_ANALYTICS = 'view_analytics',
-    MANAGE_USERS = 'manage_users',
-    MANAGE_ROLES_PERMISSIONS = 'manage_roles_permissions',
-    MANAGE_ALL_PARTNERS = 'manage_all_partners',
-    MANAGE_FINISHING_PARTNERS = 'manage_finishing_partners',
-    MANAGE_PARTNER_REQUESTS = 'manage_partner_requests',
-    MANAGE_ALL_PROPERTIES = 'manage_all_properties',
-    MANAGE_PLATFORM_PROPERTIES = 'manage_platform_properties',
-    MANAGE_MARKET_PROPERTIES = 'manage_market_properties',
-    MANAGE_PROPERTY_REQUESTS = 'manage_property_requests',
-    MANAGE_PROPERTY_INQUIRIES = 'manage_property_inquiries',
-    MANAGE_ALL_PROJECTS = 'manage_all_projects',
-    MANAGE_DECORATIONS_CONTENT = 'manage_decorations_content',
-    MANAGE_DECORATIONS_LEADS = 'manage_decorations_leads',
-    MANAGE_PLATFORM_FINISHING_PACKAGES = 'manage_platform_finishing_packages',
-    MANAGE_PLATFORM_FINISHING_LEADS = 'manage_platform_finishing_leads',
-    MANAGE_CONTACT_REQUESTS = 'manage_contact_requests',
-    MANAGE_BANNERS = 'manage_banners',
-    MANAGE_SITE_CONTENT = 'manage_site_content',
-    MANAGE_FILTERS = 'manage_filters',
-    MANAGE_SETTINGS = 'manage_settings',
-    MANAGE_INQUIRIES_ROUTING = 'manage_inquiry_routing',
-    MANAGE_INQUIRY_ROUTING = 'manage_inquiry_routing',
-    MANAGE_PLANS = 'manage_plans',
-    MANAGE_AUTOMATION = 'manage_automation',
-    MANAGE_FORMS = 'manage_forms',
-    MANAGE_OWN_PROFILE = 'manage_own_profile',
-    MANAGE_OWN_PROPERTIES = 'manage_own_properties',
-    MANAGE_OWN_PROJECTS = 'manage_own_projects',
-    MANAGE_OWN_PORTFOLIO = 'manage_own_portfolio',
-    VIEW_OWN_LEADS = 'view_own_leads',
-    MANAGE_OWN_SUBSCRIPTION = 'manage_own_subscription',
-    MANAGE_PLATFORM_PROPERTY_LEADS = 'manage_platform_property_leads' 
+    VIEW_ADMIN_DASHBOARD = 'VIEW_ADMIN_DASHBOARD',
+    VIEW_PARTNER_DASHBOARD = 'VIEW_PARTNER_DASHBOARD',
+    MANAGE_USERS = 'MANAGE_USERS',
+    MANAGE_ROLES_PERMISSIONS = 'MANAGE_ROLES_PERMISSIONS',
+    MANAGE_ALL_PARTNERS = 'MANAGE_ALL_PARTNERS',
+    MANAGE_PARTNER_REQUESTS = 'MANAGE_PARTNER_REQUESTS',
+    MANAGE_ALL_PROPERTIES = 'MANAGE_ALL_PROPERTIES',
+    MANAGE_PLATFORM_PROPERTIES = 'MANAGE_PLATFORM_PROPERTIES',
+    MANAGE_MARKET_PROPERTIES = 'MANAGE_MARKET_PROPERTIES',
+    MANAGE_PROPERTY_REQUESTS = 'MANAGE_PROPERTY_REQUESTS',
+    MANAGE_PROPERTY_INQUIRIES = 'MANAGE_PROPERTY_INQUIRIES',
+    MANAGE_CONTACT_REQUESTS = 'MANAGE_CONTACT_REQUESTS',
+    MANAGE_ALL_PROJECTS = 'MANAGE_ALL_PROJECTS',
+    MANAGE_DECORATIONS_CONTENT = 'MANAGE_DECORATIONS_CONTENT',
+    MANAGE_DECORATIONS_LEADS = 'MANAGE_DECORATIONS_LEADS',
+    MANAGE_PLATFORM_FINISHING_PACKAGES = 'MANAGE_PLATFORM_FINISHING_PACKAGES',
+    MANAGE_PLATFORM_FINISHING_LEADS = 'MANAGE_PLATFORM_FINISHING_LEADS',
+    MANAGE_INQUIRY_ROUTING = 'MANAGE_INQUIRY_ROUTING',
+    MANAGE_PLANS = 'MANAGE_PLANS',
+    MANAGE_AUTOMATION = 'MANAGE_AUTOMATION',
+    MANAGE_BANNERS = 'MANAGE_BANNERS',
+    MANAGE_SITE_CONTENT = 'MANAGE_SITE_CONTENT',
+    MANAGE_FILTERS = 'MANAGE_FILTERS',
+    MANAGE_SETTINGS = 'MANAGE_SETTINGS',
+    MANAGE_FORMS = 'MANAGE_FORMS',
+    VIEW_ANALYTICS = 'VIEW_ANALYTICS',
+    MANAGE_OWN_PROFILE = 'MANAGE_OWN_PROFILE',
+    MANAGE_OWN_PROJECTS = 'MANAGE_OWN_PROJECTS',
+    VIEW_OWN_LEADS = 'VIEW_OWN_LEADS',
+    MANAGE_OWN_SUBSCRIPTION = 'MANAGE_OWN_SUBSCRIPTION',
+    MANAGE_OWN_PROPERTIES = 'MANAGE_OWN_PROPERTIES',
+    MANAGE_OWN_PORTFOLIO = 'MANAGE_OWN_PORTFOLIO',
+    MANAGE_FINISHING_PARTNERS = 'MANAGE_FINISHING_PARTNERS',
+    MANAGE_PLATFORM_PROPERTY_LEADS = 'MANAGE_PLATFORM_PROPERTY_LEADS'
 }
 
-export type PartnerType = 
-    | 'admin' 
-    | 'developer' 
-    | 'finishing' 
-    | 'agency' 
-    | 'decoration_manager' 
-    | 'platform_finishing_manager' 
-    | 'finishing_market_manager' 
-    | 'platform_real_estate_manager' 
-    | 'real_estate_market_manager' 
-    | 'partner_relations_manager' 
-    | 'content_manager' 
-    | 'service_manager' 
-    | 'customer_relations_manager' 
+export type PartnerType =
+    | 'developer'
+    | 'finishing'
+    | 'agency'
+    | 'admin'
+    | 'decoration_manager'
+    | 'platform_finishing_manager'
+    | 'finishing_market_manager'
+    | 'platform_real_estate_manager'
+    | 'real_estate_market_manager'
+    | 'partner_relations_manager'
+    | 'content_manager'
+    | 'service_manager'
+    | 'customer_relations_manager'
     | 'listings_manager';
 
 export type PartnerStatus = 'active' | 'pending' | 'disabled';
-export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
 export type SubscriptionPlan = 'basic' | 'professional' | 'elite' | 'commission' | 'paid_listing';
+export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
 
 export interface Partner {
     id: string;
     name: string;
     email: string;
-    password?: string;
-    imageUrl: string;
-    imageUrl_small?: string;
-    imageUrl_medium?: string;
-    imageUrl_large?: string;
-    type: PartnerType;
     role: Role;
+    type: PartnerType;
+    imageUrl: string;
     status: PartnerStatus;
     subscriptionPlan: SubscriptionPlan;
-    subscriptionEndDate?: string;
-    displayType: PartnerDisplayType;
-    description?: string;
-    contactMethods?: {
-        whatsapp: { enabled: boolean; number: string; };
-        phone: { enabled: boolean; number: string; };
-        form: { enabled: boolean; };
-    };
-    createdAt?: string;
+    password?: string;
 }
 
 export interface AdminPartner extends Partner {
-    nameAr?: string;
-    descriptionAr?: string;
+    nameAr: string;
+    description: string;
+    descriptionAr: string;
+    imageUrl_small: string;
+    imageUrl_medium: string;
+    imageUrl_large: string;
+    displayType: PartnerDisplayType;
+    subscriptionEndDate?: string;
+    contactMethods?: {
+        whatsapp: { enabled: boolean; number: string };
+        phone: { enabled: boolean; number: string };
+        form: { enabled: boolean };
+    };
+    createdAt?: string;
 }
 
 export type ListingStatus = 'active' | 'inactive' | 'draft' | 'sold';
@@ -118,28 +110,28 @@ export type ListingStatus = 'active' | 'inactive' | 'draft' | 'sold';
 export interface Property {
     id: string;
     partnerId: string;
+    projectId?: string;
+    projectName?: { ar: string; en: string };
     partnerName?: string;
     partnerImageUrl?: string;
-    projectId?: string;
-    projectName?: { en: string; ar: string };
     imageUrl: string;
     imageUrl_small?: string;
     imageUrl_medium?: string;
     imageUrl_large?: string;
     gallery: string[];
-    status: { en: string; ar: string };
+    status: { en: 'For Sale' | 'For Rent'; ar: 'للبيع' | 'إيجار' };
     price: { en: string; ar: string };
     priceNumeric: number;
     pricePerMeter?: { en: string; ar: string };
     type: { en: string; ar: string };
-    title: { en: string; ar: string };
-    address: { en: string; ar: string };
-    description: { en: string; ar: string };
+    title: { ar: string; en: string };
+    description: { ar: string; en: string };
+    address: { ar: string; en: string };
     beds: number;
     baths: number;
     area: number;
     floor?: number;
-    amenities: { en: string[]; ar: string[] };
+    amenities: { ar: string[]; en: string[] };
     finishingStatus?: { en: string; ar: string };
     installmentsAvailable: boolean;
     isInCompound: boolean;
@@ -152,13 +144,11 @@ export interface Property {
     listingStatus: ListingStatus;
     contactMethod?: 'platform' | 'direct';
     ownerPhone?: string;
-    createdAt?: string;
 }
 
 export interface Project {
     id: string;
     partnerId: string;
-    partnerName?: string;
     name: { ar: string; en: string };
     description: { ar: string; en: string };
     imageUrl: string;
@@ -172,7 +162,6 @@ export interface Project {
 export interface PortfolioItem {
     id: string;
     partnerId: string;
-    partnerName?: string;
     imageUrl: string;
     alt: string;
     title: { ar: string; en: string };
@@ -180,18 +169,6 @@ export interface PortfolioItem {
     price?: number;
     dimensions?: string;
     availability?: 'In Stock' | 'Made to Order';
-    createdAt?: string;
-}
-
-export interface DecorationCategory {
-    id: string;
-    name: { ar: string; en: string };
-    description: { ar: string; en: string };
-}
-
-export interface FavoriteItem {
-    id: string;
-    type: 'property' | 'service' | 'portfolio';
 }
 
 export type LeadStatus = 'new' | 'contacted' | 'site-visit' | 'quoted' | 'in-progress' | 'completed' | 'cancelled';
@@ -209,7 +186,7 @@ export interface Lead {
     id: string;
     partnerId: string;
     managerId?: string;
-    serviceType: 'finishing' | 'decorations' | 'property';
+    serviceType: 'finishing' | 'decorations' | 'property' | 'general';
     customerName: string;
     customerPhone: string;
     contactTime?: string;
@@ -219,10 +196,10 @@ export interface Lead {
     createdAt: string;
     updatedAt: string;
     messages: LeadMessage[];
-    assignedTo?: string;
     propertyId?: string;
-    partnerName?: string;
     referenceImage?: string;
+    assignedTo?: string;
+    partnerName?: string;
 }
 
 export enum RequestType {
@@ -233,46 +210,43 @@ export enum RequestType {
     PROPERTY_INQUIRY = 'PROPERTY_INQUIRY'
 }
 
-export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'assigned' | 'in-progress' | 'approved' | 'rejected' | 'closed';
+export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'approved' | 'rejected' | 'assigned' | 'in-progress' | 'closed';
 
 export interface Request {
     id: string;
     type: RequestType;
-    requesterInfo: { name: string; phone: string; email?: string };
-    payload: any;
     status: RequestStatus;
     assignedTo?: string;
     assignedToName?: string;
     createdAt: string;
-    updatedAt?: string;
-}
-
-export interface ManagementContact {
-    name: string;
-    position: string;
-    email: string;
-    phone: string;
+    updatedAt: string;
+    requesterInfo: {
+        name: string;
+        phone: string;
+        email?: string;
+    };
+    payload: Record<string, any> | Lead | PartnerRequest | AddPropertyRequest | ContactRequest | PropertyInquiryRequest;
 }
 
 export interface OfficialDocument {
     fileName: string;
-    fileContent: string; // Base64
+    fileContent: string;
 }
 
 export interface PartnerRequest {
     id: string;
     companyName: string;
-    companyType: PartnerType;
+    companyType: string;
     contactName: string;
     contactEmail: string;
     contactPhone: string;
-    description?: string;
+    companyAddress: string;
     website?: string;
-    companyAddress?: string; // Added missing property
-    managementContacts?: ManagementContact[];
+    description: string;
+    subscriptionPlan: SubscriptionPlan;
     logo?: string;
     documents?: OfficialDocument[];
-    subscriptionPlan: SubscriptionPlan;
+    managementContacts?: { name: string; position: string; email: string; phone: string }[];
     status: 'pending' | 'approved' | 'rejected';
     createdAt: string;
 }
@@ -281,13 +255,26 @@ export interface AddPropertyRequest {
     id: string;
     customerName: string;
     customerPhone: string;
+    contactTime: string;
+    cooperationType: 'paid_listing' | 'commission';
     propertyDetails: any;
+    images?: string[];
     status: RequestStatus;
     createdAt: string;
     managerId?: string;
-    images: string[];
-    cooperationType: string;
-    contactTime: string;
+}
+
+export interface ContactRequest {
+    id: string;
+    name: string;
+    phone: string;
+    message: string;
+    inquiryType: string;
+    companyName?: string;
+    businessType?: string;
+    status: RequestStatus;
+    createdAt: string;
+    managerId?: string;
 }
 
 export interface PropertyInquiryRequest {
@@ -299,44 +286,15 @@ export interface PropertyInquiryRequest {
     createdAt: string;
 }
 
-export interface ContactRequest {
-    id: string;
-    name: string;
-    phone: string;
-    message: string;
-    inquiryType: 'client' | 'partner';
-    companyName?: string;
-    businessType?: PartnerType;
-    status: RequestStatus;
-    managerId?: string;
-    createdAt: string;
-}
-
-export interface Notification {
-    id: string;
-    userId: string;
-    message: { ar: string; en: string };
-    link: string;
-    isRead: boolean;
-    createdAt: string;
-}
-
 export interface Banner {
     id: string;
     title: string;
     imageUrl: string;
     link?: string;
-    locations: ('home' | 'properties' | 'details' | 'finishing' | 'decorations')[];
+    locations: string[];
     status: 'active' | 'inactive';
     startDate?: string;
     endDate?: string;
-}
-
-export interface FilterOption {
-    id: string;
-    en: string;
-    ar: string;
-    applicableTo?: string[];
 }
 
 export interface Quote {
@@ -355,30 +313,21 @@ export interface PaymentConfiguration {
     };
     paymob: {
         enabled: boolean;
-        apiKey?: string;
-        secretKey?: string;
-        publicKey?: string;
+        apiKey: string;
+        secretKey: string;
+        publicKey: string;
     };
 }
 
 export interface ExternalIntegrationsConfig {
-    supabase?: {
-        url: string;
-        anonKey: string;
-    };
-    cloudinary?: {
-        cloudName: string;
-        apiKey: string;
-        apiSecret: string;
-        uploadPreset: string;
-    };
-    vercel?: {
-        projectUrl: string;
-    };
+    supabase?: { url: string; anonKey: string };
+    cloudinary?: { cloudName: string; apiKey: string; apiSecret: string; uploadPreset: string };
+    vercel?: { projectUrl: string };
 }
 
 export interface SiteContent {
     logoUrl?: string;
+    siteName?: { ar: string; en: string };
     locationPickerMapUrl?: string;
     topBanner?: {
         enabled: boolean;
@@ -395,31 +344,56 @@ export interface SiteContent {
         en: { title: string; subtitle: string };
         images: { src: string; alt: { ar: string; en: string } }[];
     };
-    homeCTA?: {
-        enabled: boolean;
-        ar: { title: string; subtitle: string; button: string; link: string };
-        en: { title: string; subtitle: string; button: string; link: string };
-    };
-    homeListings?: {
-        enabled: boolean;
-        count: number;
-        ar: { title: string };
-        en: { title: string };
-    };
-    whyUs: any;
-    services: any;
-    partners: any;
-    testimonials: any;
-    socialProof: any;
-    whyNewHeliopolis: any;
-    quotes: Quote[];
-    footer: any;
+    homeCTA?: any;
+    homeListings?: any;
+    whyUs?: any;
+    services?: any;
+    partners?: any;
+    testimonials?: any;
+    socialProof?: any;
+    whyNewHeliopolis?: any;
     finishingServices?: any[];
     projectsPage?: any;
     finishingPage?: any;
     decorationsPage?: any;
+    quotes?: Quote[];
     privacyPolicy?: any;
     termsOfUse?: any;
+    footer?: any;
+}
+
+export interface FilterOption {
+    id: string;
+    en: string;
+    ar: string;
+    applicableTo?: string[];
+}
+
+export interface DecorationCategory {
+    id: string;
+    name: { ar: string; en: string };
+    description: { ar: string; en: string };
+}
+
+export interface AIEstimatorItem {
+    id: string;
+    name: { ar: string; en: string };
+    unit: { ar: string; en: string };
+    price: number;
+}
+
+export interface AIEstimatorStage {
+    id: string;
+    name: { ar: string; en: string };
+    basicItems: AIEstimatorItem[];
+    optionalItems: AIEstimatorItem[];
+}
+
+export interface AIEstimatorConfig {
+    model: string;
+    prompt: string;
+    options: any;
+    stages: AIEstimatorStage[];
 }
 
 export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
@@ -432,8 +406,87 @@ export interface SubscriptionPlanDetails {
     commissionRate?: number;
 }
 
+export type TransactionStatus = 'paid' | 'pending' | 'reviewing' | 'failed' | 'refunded';
+export type TransactionType = 'subscription_fee' | 'listing_fee' | 'service_payment' | 'product_purchase';
+export type PaymentMethod = 'card' | 'instapay' | 'wallet' | 'cash';
+
+export interface Transaction {
+    id: string;
+    userId: string;
+    userName: string;
+    amount: number;
+    currency: string;
+    type: TransactionType;
+    description: string;
+    method: PaymentMethod;
+    status: TransactionStatus;
+    createdAt: string;
+    updatedAt: string;
+    referenceNumber?: string;
+    receiptUrl?: string;
+    relatedEntityId?: string;
+}
+
+export interface FinanceStats {
+    totalRevenue: number;
+    pendingAmount: number;
+    successfulTransactions: number;
+    pendingReviews: number;
+}
+
+export interface Notification {
+    id: string;
+    userId: string;
+    message: { ar: string; en: string };
+    link: string;
+    isRead: boolean;
+    createdAt: string;
+}
+
+export interface FavoriteItem {
+    id: string;
+    type: 'property' | 'service' | 'portfolio';
+}
+
+export type FormCategory = 'public' | 'lead_gen' | 'partner_app' | 'admin_internal';
+export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'radio' | 'date' | 'file';
+export type ValidationRuleType = 'none' | 'email' | 'phone_eg' | 'url' | 'number' | 'custom';
+export type SubmissionDestination = 'crm_leads' | 'crm_partners' | 'crm_messages' | 'email';
+
+export interface FormFieldDefinition {
+    id: string;
+    key: string;
+    type: FormFieldType;
+    label: { ar: string; en: string };
+    required: boolean;
+    width: 'full' | 'half' | 'third';
+    placeholder?: { ar: string; en: string };
+    options?: string | string[];
+    validation?: {
+        type: ValidationRuleType;
+        pattern?: string;
+        minLength?: number;
+        maxLength?: number;
+        errorMessage?: { ar: string; en: string };
+    };
+}
+
+export interface FormDefinition {
+    id: string;
+    slug: string;
+    title: { ar: string; en: string };
+    description?: { ar: string; en: string };
+    category: FormCategory;
+    destination: SubmissionDestination;
+    isActive: boolean;
+    submitButtonLabel?: { ar: string; en: string };
+    fields: FormFieldDefinition[];
+    createdAt?: string;
+    updatedAt?: string;
+}
+
 export interface PropertyFiltersType {
-    view: string;
+    view?: string;
     status: string;
     type: string;
     query: string;
@@ -449,101 +502,4 @@ export interface PropertyFiltersType {
     amenities: string[];
     beds: string;
     baths: string;
-}
-
-// AI Estimator & Finance types
-export interface AIEstimatorOption {
-    key: string;
-    en: string;
-    ar: string;
-}
-
-export interface AIEstimatorItem {
-    id: string;
-    name: { [key in Language]: string };
-    unit: { [key in Language]: string };
-    price: number;
-}
-
-export interface AIEstimatorStage {
-    id: string;
-    name: { [key in Language]: string };
-    basicItems: AIEstimatorItem[];
-    optionalItems: AIEstimatorItem[];
-}
-
-export interface AIEstimatorConfig {
-    model: string;
-    prompt: string;
-    options: {
-        [key: string]: AIEstimatorOption[];
-    };
-    stages: AIEstimatorStage[];
-}
-
-export type PaymentMethod = 'instapay' | 'card' | 'bank_transfer' | 'cash';
-export type TransactionStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'reviewing';
-export type TransactionType = 'subscription_fee' | 'listing_fee' | 'service_payment' | 'product_purchase';
-
-export interface Transaction {
-    id: string;
-    userId: string;
-    userName: string;
-    amount: number;
-    currency: string;
-    type: TransactionType;
-    description: string;
-    method: PaymentMethod;
-    status: TransactionStatus;
-    createdAt: string;
-    updatedAt: string;
-    relatedEntityId?: string;
-    receiptUrl?: string;
-    referenceNumber?: string;
-}
-
-export interface FinanceStats {
-    totalRevenue: number;
-    pendingAmount: number;
-    successfulTransactions: number;
-    pendingReviews: number;
-}
-
-// --- DYNAMIC FORMS TYPES ---
-export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'date' | 'file' | 'radio';
-export type FormCategory = 'public' | 'lead_gen' | 'partner_app' | 'admin_internal';
-export type SubmissionDestination = 'email' | 'crm_leads' | 'crm_messages' | 'crm_partners';
-
-export type ValidationRuleType = 'none' | 'email' | 'phone_eg' | 'url' | 'number' | 'custom';
-
-export interface FormFieldDefinition {
-    id: string;
-    type: FormFieldType;
-    label: { ar: string; en: string };
-    key: string; // The key used in JSON payload
-    required: boolean;
-    options?: string[] | string; // For select/radio: comma separated or simple array
-    placeholder?: { ar: string; en: string };
-    width?: 'full' | 'half' | 'third'; // Layout hint
-    validation?: {
-        type: ValidationRuleType;
-        pattern?: string; // Custom Regex string if type is custom
-        minLength?: number;
-        maxLength?: number;
-        errorMessage?: { ar: string; en: string };
-    };
-}
-
-export interface FormDefinition {
-    id: string;
-    slug: string; // e.g. 'contact-us', 'service-request'
-    title: { ar: string; en: string };
-    description?: { ar: string; en: string };
-    category: FormCategory; // NEW: To filter in admin
-    destination: SubmissionDestination; // NEW: To know where to route data
-    fields: FormFieldDefinition[];
-    submitButtonLabel?: { ar: string; en: string };
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
 }

@@ -12,29 +12,33 @@ import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Checkbox } from '../ui/Checkbox';
 import { CubeIcon, PhotoIcon, GlobeAltIcon, LockClosedIcon } from '../ui/Icons';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 const AdminSettingsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const { data: siteContent, isLoading: dataLoading, refetch } = useQuery({ queryKey: ['siteContent'], queryFn: getContent });
     const { showToast } = useToast();
     
-    const { register, handleSubmit, reset, formState: { isSubmitting, isDirty } } = useForm<SiteContent>();
+    const { register, handleSubmit, reset, formState: { isSubmitting, isDirty }, setValue } = useForm<SiteContent>();
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     
     const [activeTab, setActiveTab] = useState<'general' | 'banner' | 'contact' | 'social' | 'finance' | 'external'>('general');
 
     useEffect(() => {
         if (siteContent) {
-            // Pre-fill with known values if they don't exist in the DB content yet
-            // This ensures the user sees the current working configuration
             const mergedContent = {
                 ...siteContent,
+                siteName: {
+                    ar: siteContent.siteName?.ar || 'ONLY HELIO',
+                    en: siteContent.siteName?.en || 'ONLY HELIO'
+                },
                 externalConfig: {
                     supabase: {
                         url: siteContent.externalConfig?.supabase?.url || 'https://zpcpyxmnqffcmehpfkjl.supabase.co',
                         anonKey: siteContent.externalConfig?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwY3B5eG1ucWZmY21laHBma2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NjQyODksImV4cCI6MjA4MDE0MDI4OX0.HMa2X03op-grt2TM8-omgubclObxkm4NIPehL6XZ4KI'
                     },
                     cloudinary: {
-                        // Updated with real credentials from screenshot
                         cloudName: siteContent.externalConfig?.cloudinary?.cloudName || 'dwg0hr34g',
                         apiKey: siteContent.externalConfig?.cloudinary?.apiKey || '532568532962456',
                         apiSecret: siteContent.externalConfig?.cloudinary?.apiSecret || 'TG_wSAPS32Qv1gB2M19qmda9uII',
@@ -45,12 +49,28 @@ const AdminSettingsPage: React.FC = () => {
                     }
                 }
             };
-            reset(mergedContent); 
+            reset(mergedContent);
+            setLogoPreview(siteContent.logoUrl || null);
         }
     }, [siteContent, reset]);
 
+    const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            try {
+                setIsUploading(true);
+                const url = await uploadToCloudinary(file);
+                setValue('logoUrl', url, { shouldDirty: true });
+                setLogoPreview(url);
+                setIsUploading(false);
+            } catch (error) {
+                setIsUploading(false);
+                showToast("Failed to upload logo", "error");
+            }
+        }
+    };
+
     const onSubmit = async (formData: SiteContent) => {
-        // Avoid sending heavy arrays if not modified (optimization)
         const { finishingServices, ...dataToSave } = formData;
         const finalData = { ...siteContent, ...dataToSave };
         
@@ -101,7 +121,57 @@ const AdminSettingsPage: React.FC = () => {
                     <div className="p-6 space-y-6">
                         {/* GENERAL SETTINGS */}
                         {activeTab === 'general' && (
-                             <div className="space-y-6 animate-fadeIn">
+                             <div className="space-y-8 animate-fadeIn">
+                                {/* Branding Section */}
+                                <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                        <PhotoIcon className="w-5 h-5 text-amber-500" />
+                                        Branding & Identity
+                                    </h3>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Site Logo</label>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white overflow-hidden">
+                                                    {logoPreview ? (
+                                                        <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-1" />
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">No Logo</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        id="logo-upload"
+                                                        className="hidden"
+                                                        onChange={handleLogoChange}
+                                                    />
+                                                    <label 
+                                                        htmlFor="logo-upload"
+                                                        className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 cursor-pointer dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
+                                                    >
+                                                        {isUploading ? 'Uploading...' : 'Upload New Logo'}
+                                                    </label>
+                                                    <p className="text-xs text-gray-500 mt-2">Recommended: PNG, Transparent, 512x512px</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Name (English)</label>
+                                                <Input {...register('siteName.en')} className={inputClasses} placeholder="ONLY HELIO" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Name (Arabic)</label>
+                                                <Input {...register('siteName.ar')} className={inputClasses} placeholder="أونلي هيليو" dir="rtl" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Description (AR) - Footer</label>
                                     <Textarea {...register('footer.ar.description')} className={inputClasses} rows={3} />
@@ -200,6 +270,7 @@ const AdminSettingsPage: React.FC = () => {
                                         <Input {...register('footer.social.linkedin')} className={inputClasses} placeholder="https://linkedin.com/..." />
                                     </div>
                                 </div>
+                                <p className="text-xs text-gray-500">Leave empty or use '#' to hide the icon from the footer.</p>
                             </div>
                         )}
 
@@ -338,7 +409,7 @@ const AdminSettingsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="mt-8 flex justify-end items-center gap-4 sticky bottom-6">
-                    <Button type="submit" isLoading={isSubmitting} disabled={!isDirty} className="shadow-lg">
+                    <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting || (!isDirty && activeTab !== 'general')} className="shadow-lg">
                         {isSubmitting ? 'Saving...' : 'Save Settings'}
                     </Button>
                 </div>

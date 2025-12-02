@@ -9,6 +9,7 @@ import { SiteLogo } from './SiteLogo';
 import type { Partner } from '../../types';
 import { Permission } from '../../types';
 import { useLanguage } from './LanguageContext';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 interface MobileNavProps {
   id: string;
@@ -47,6 +48,8 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
       id, onToggleQuietZone, currentUser, dashboardPath, logout, hasPermission 
     } = props;
     const { language, setLanguage, t } = useLanguage();
+    const { data: siteContent } = useSiteContent();
+    const siteName = siteContent?.siteName?.[language] || 'ONLY HELIO';
     const isRTL = language === 'ar';
     
     useEffect(() => {
@@ -92,7 +95,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                      <Link to="/" onClick={onClose} id="mobile-nav-title" className="flex items-center gap-2 font-bold text-amber-500">
                         <SiteLogo className="h-8 w-8" />
-                        <span className="text-xl">ONLY HELIO</span>
+                        <span className="text-xl">{siteName}</span>
                     </Link>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" aria-label={language === 'ar' ? 'إغلاق القائمة' : 'Close menu'}>
                         <CloseIcon className="w-6 h-6"/>

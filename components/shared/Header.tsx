@@ -6,6 +6,7 @@ import { LightBulbIcon, HeartIcon, MenuIcon } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import { useLanguage } from './LanguageContext';
 import NotificationBell from './NotificationBell';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 interface HeaderProps {
     onToggleQuietZone: () => void;
@@ -25,6 +26,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     logout
 }) => {
     const { language, setLanguage, t } = useLanguage();
+    const { data: siteContent } = useSiteContent();
+    const siteName = siteContent?.siteName?.[language] || 'ONLY HELIO';
 
     const navLinks = [
         { name: t.nav.home, href: '/' },
@@ -44,7 +47,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 <div className="flex justify-between items-center h-16 lg:h-20">
                     <Link to="/" className="flex items-center gap-3 text-3xl font-bold text-amber-500">
                         <SiteLogo className="h-10 w-10" />
-                        <span className="text-2xl hidden sm:block">ONLY HELIO</span>
+                        <span className="text-2xl hidden sm:block">{siteName}</span>
                     </Link>
 
                     <nav className="hidden lg:flex items-center gap-8 text-lg">
