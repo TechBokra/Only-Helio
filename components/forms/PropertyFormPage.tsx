@@ -50,6 +50,8 @@ export interface PropertyFormData {
     installments?: { downPayment: number; monthlyInstallment: number; years: number };
     contactMethod: 'platform' | 'direct';
     ownerPhone?: string;
+    listingStartDate?: string;
+    listingEndDate?: string;
 }
 
 const PropertyFormPage: React.FC = () => {
@@ -119,7 +121,10 @@ const PropertyFormPage: React.FC = () => {
             showToast(td.addSuccess, 'success');
             handleNavigationSuccess(newProperty);
         },
-        onError: () => showToast('Failed to add property.', 'error'),
+        onError: (error: any) => {
+             console.error("Submission Error:", error);
+             showToast(`Failed to add property: ${error.message || 'Unknown error'}`, 'error');
+        },
     });
 
     const updateMutation = useMutation({
@@ -128,7 +133,10 @@ const PropertyFormPage: React.FC = () => {
             showToast(td.updateSuccess, 'success');
             handleNavigationSuccess(updatedProperty);
         },
-        onError: () => showToast('Failed to update property.', 'error'),
+        onError: (error: any) => {
+             console.error("Update Error:", error);
+             showToast(`Failed to update property: ${error.message || 'Unknown error'}`, 'error');
+        },
     });
 
     useEffect(() => {
@@ -147,12 +155,14 @@ const PropertyFormPage: React.FC = () => {
                     installments: prop.installments || { downPayment: 0, monthlyInstallment: 0, years: 0 },
                     contactMethod: prop.contactMethod || 'platform',
                     ownerPhone: prop.ownerPhone || '',
+                    projectId: prop.projectId || '', // Ensure empty string if null for controlled input
                 } as any);
                 
                 setMainImage(prop.imageUrl);
                 setMainImageFile(null);
                 
                 setGalleryImages(prop.gallery || []);
+                // Initialize tracker with nulls matching gallery length
                 setGalleryImageFiles(new Array(prop.gallery?.length || 0).fill(null));
                 
             } else if (propertyId && !isLoadingContext) {
@@ -161,7 +171,7 @@ const PropertyFormPage: React.FC = () => {
             }
         } else if (!propertyId) {
              reset({
-                projectId: searchParams.get('projectId') || undefined,
+                projectId: searchParams.get('projectId') || '', // Default to empty string
                 status: { en: 'For Sale', ar: 'للبيع' },
                 type: { en: 'Apartment', ar: 'شقة' },
                 beds: 3, baths: 2, area: 150, floor: 1,
@@ -232,20 +242,18 @@ const PropertyFormPage: React.FC = () => {
             }
 
             // 2. Handle Gallery Uploads
-            // Map over galleryImages (which contains both existing URLs and local previews)
-            // We use galleryImageFiles (which contains null for existing, File for new) to decide what to upload
+            // We iterate over galleryImages (current view). 
+            // Correlate with galleryImageFiles: if entry is File, upload it. If null, use existing URL from galleryImages.
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
                      try {
                         return await uploadToCloudinary(file);
                     } catch (e: any) {
-                        // Provide detailed context about which image failed
-                        throw new Error(`Gallery image ${index + 1} failed: ${e.message}`);
+                        throw new Error(`Gallery image ${index + 1} upload failed: ${e.message}`);
                     }
                 }
-                // If no file, it's an existing image URL, return as is
-                return img;
+                return img; // Existing URL
             }));
 
             const priceNumeric = Number(formData.priceNumeric) || 0;
@@ -281,7 +289,10 @@ const PropertyFormPage: React.FC = () => {
                 type: { en: formData.type.en as any, ar: formData.type.ar },
                 beds: formData.beds || 0,
                 baths: formData.baths || 0,
-                floor: formData.floor
+                floor: formData.floor,
+                projectId: formData.projectId || undefined, // Pass undefined if empty string
+                listingStartDate: formData.listingStartDate || undefined,
+                listingEndDate: formData.listingEndDate || undefined
             };
             
             if (propertyId) {
@@ -290,9 +301,9 @@ const PropertyFormPage: React.FC = () => {
                 addMutation.mutate(propertyData);
             }
         } catch (error: any) {
-            console.error("Error uploading images:", error);
+            console.error("Detailed Upload Error:", error);
             const errorMessage = error?.message || "Failed to upload images. Please try again.";
-            showToast(`Upload Error: ${errorMessage}`, "error");
+            showToast(errorMessage, "error");
         } finally {
             setIsUploading(false);
         }

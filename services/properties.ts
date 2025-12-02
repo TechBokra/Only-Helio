@@ -5,6 +5,15 @@ import type { Property, PropertyFiltersType } from '../types';
 import { mapPropertyFromDB } from '../utils/supabaseMapper';
 import { filterProperties } from '../utils/propertyFilters';
 
+// Helper to clean data before sending to DB
+// Converts empty strings to null for Dates and UUIDs
+const sanitize = (value: any) => {
+    if (value === '' || value === undefined || value === 'undefined' || value === 'null') {
+        return null;
+    }
+    return value;
+};
+
 // Helper to get partner info (could be optimized with joins later)
 const populatePropertyDetails = async (property: Property): Promise<Property> => {
     if (supabase && property.partnerId) {
@@ -85,7 +94,7 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
     const dbData = {
         partner_id: property.partnerId,
-        project_id: property.projectId || null,
+        project_id: sanitize(property.projectId), // Sanitize FK
         title_ar: property.title.ar,
         title_en: property.title.en,
         description_ar: property.description.ar,
@@ -107,12 +116,12 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         gallery: property.gallery,
         location: property.location,
         listing_status: property.listingStatus,
-        listing_start_date: property.listingStartDate,
+        listing_start_date: sanitize(property.listingStartDate), // Sanitize Date
         installments_available: property.installmentsAvailable,
         is_in_compound: property.isInCompound,
         real_estate_finance_available: property.realEstateFinanceAvailable,
         delivery_immediate: property.delivery.isImmediate,
-        delivery_date: property.delivery.date,
+        delivery_date: sanitize(property.delivery.date), // Sanitize Date
         contact_method: property.contactMethod,
         owner_phone: property.ownerPhone,
         amenities: property.amenities, 
@@ -125,7 +134,10 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase Insert Error:", error);
+        throw new Error(error.message);
+    }
     return mapPropertyFromDB(data);
 };
 
@@ -181,17 +193,19 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
     if (updates.realEstateFinanceAvailable !== undefined) dbUpdates.real_estate_finance_available = updates.realEstateFinanceAvailable;
     
     if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
-    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
-    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
+    
+    // Sanitize Dates
+    if (updates.listingStartDate !== undefined) dbUpdates.listing_start_date = sanitize(updates.listingStartDate);
+    if (updates.listingEndDate !== undefined) dbUpdates.listing_end_date = sanitize(updates.listingEndDate);
 
     // Delivery
     if (updates.delivery) {
         if (updates.delivery.isImmediate !== undefined) dbUpdates.delivery_immediate = updates.delivery.isImmediate;
-        if (updates.delivery.date !== undefined) dbUpdates.delivery_date = updates.delivery.date;
+        if (updates.delivery.date !== undefined) dbUpdates.delivery_date = sanitize(updates.delivery.date);
     }
     
     // Relations
-    if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId || null;
+    if (updates.projectId !== undefined) dbUpdates.project_id = sanitize(updates.projectId);
 
     // Contact
     if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
@@ -204,7 +218,10 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase Update Error:", error);
+        throw new Error(error.message);
+    }
     return mapPropertyFromDB(data);
 };
 
