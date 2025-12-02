@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from './LanguageContext';
 import GlobalSearch from '@/components/admin/GlobalSearch';
@@ -20,6 +21,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ navLinks, pageTitle }
     const { currentUser: user, logout: onLogout, hasPermission } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(localStorage.getItem('sidebarCollapsed') === 'true');
+    const mainContentRef = useRef<HTMLDivElement>(null);
+    const location = useLocation();
+
+    // Reset main content scroll on route change
+    useEffect(() => {
+        if (mainContentRef.current) {
+            mainContentRef.current.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }, [location.pathname]);
 
     if (!user) return null;
     
@@ -94,8 +104,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ navLinks, pageTitle }
                     </div>
                 </div>
 
-                <main className="py-10">
-                    <div className="px-4 sm:px-6 lg:px-8">
+                <main className="py-10 h-[calc(100vh-64px)] overflow-y-auto" ref={mainContentRef}>
+                    <div className="px-4 sm:px-6 lg:px-8 pb-10">
                        <Outlet />
                     </div>
                 </main>

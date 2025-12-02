@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
-import type { Language, Project, AdminPartner, FilterOption } from '../../types';
-import { SearchIcon, ArrowDownIcon, ChevronRightIcon, AdjustmentsHorizontalIcon } from '../ui/Icons';
+import type { Project, AdminPartner, FilterOption } from '../../types';
+import { SearchIcon, ChevronRightIcon, AdjustmentsHorizontalIcon } from '../ui/Icons';
 import type { usePropertyFilters } from '../../hooks/usePropertyFilters';
 import { useLanguage } from '../shared/LanguageContext';
 import { Input } from '../ui/Input';
@@ -28,48 +29,70 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     const { language, t: translations } = useLanguage();
     const t = translations.propertiesPage;
     const [showAdvanced, setShowAdvanced] = useState(false);
-    
+
+    // CRITICAL FIX: Fail fast if filters prop is undefined to prevent "reading 'beds' of undefined" error.
+    if (!filters) {
+        return null;
+    }
+
+    // Safe destructuring with default values
     const { 
         setFilter, 
         resetFilters,
-        status: statusFilter, type: typeFilter, query: queryFilter, 
-        minPrice: minPriceFilter, maxPrice: maxPriceFilter, project: projectFilter, 
-        finishing: finishingFilter, installments: installmentsFilter, floor: floorFilter, 
-        compound: compoundFilter, delivery: deliveryFilter, amenities: amenitiesFilter,
-        beds: bedsFilter, baths: bathsFilter, realEstateFinance: realEstateFinanceFilter,
+        status = 'all', 
+        type = 'all', 
+        query = '', 
+        minPrice = '', 
+        maxPrice = '', 
+        project = 'all', 
+        finishing = 'all', 
+        installments = 'all', 
+        floor = '', 
+        compound = 'all', 
+        delivery = 'all', 
+        amenities: amenitiesFilter = [],
+        beds = '', 
+        baths = '', 
+        realEstateFinance = 'all',
     } = filters;
 
     const isAnyFilterActive = useMemo(() => {
         return (
-            statusFilter !== 'all' || typeFilter !== 'all' || queryFilter !== '' ||
-            minPriceFilter !== '' || maxPriceFilter !== '' || projectFilter !== 'all' ||
-            finishingFilter !== 'all' || installmentsFilter !== 'all' || realEstateFinanceFilter !== 'all' ||
-            floorFilter !== '' || compoundFilter !== 'all' || deliveryFilter !== 'all' ||
-            amenitiesFilter.length > 0 || bedsFilter !== '' || bathsFilter !== ''
+            status !== 'all' || type !== 'all' || query !== '' ||
+            minPrice !== '' || maxPrice !== '' || project !== 'all' ||
+            finishing !== 'all' || installments !== 'all' || realEstateFinance !== 'all' ||
+            floor !== '' || compound !== 'all' || delivery !== 'all' ||
+            (amenitiesFilter && amenitiesFilter.length > 0) || beds !== '' || baths !== ''
         );
-    }, [filters]);
+    }, [
+        status, type, query, minPrice, maxPrice, 
+        project, finishing, installments, realEstateFinance, 
+        floor, compound, delivery, amenitiesFilter, beds, baths
+    ]);
 
     const handleAmenitiesChange = (amenityEn: string) => {
-        const newAmenities = amenitiesFilter.includes(amenityEn)
-            ? amenitiesFilter.filter(a => a !== amenityEn)
-            : [...amenitiesFilter, amenityEn];
+        if (!setFilter) return;
+        const currentAmenities = amenitiesFilter || [];
+        const newAmenities = currentAmenities.includes(amenityEn)
+            ? currentAmenities.filter((a: string) => a !== amenityEn)
+            : [...currentAmenities, amenityEn];
         setFilter('amenities', newAmenities);
     };
 
     // Helper to check applicability
     const isApplicable = (option: FilterOption) => {
-        if (typeFilter === 'all' || typeFilter === '') return true;
+        if (type === 'all' || type === '') return true;
         if (!option.applicableTo || option.applicableTo.length === 0) return true;
-        return option.applicableTo.includes(typeFilter);
+        return option.applicableTo.includes(type);
     };
 
     const availableAmenities = useMemo(() => {
-        return amenities.filter(isApplicable);
-    }, [amenities, typeFilter]);
+        return (amenities || []).filter(isApplicable);
+    }, [amenities, type]);
 
     const availableFinishingStatuses = useMemo(() => {
-        return finishingStatuses.filter(isApplicable);
-    }, [finishingStatuses, typeFilter]);
+        return (finishingStatuses || []).filter(isApplicable);
+    }, [finishingStatuses, type]);
 
     return (
       <>
@@ -86,7 +109,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                   <Input 
                     type="text" 
                     id="search-query"
-                    value={queryFilter} 
+                    value={query} 
                     onChange={e => setFilter('q', e.target.value)}
                     placeholder={t.searchPlaceholder}
                     className="pl-10"
@@ -97,7 +120,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.statusLabel}</label>
-                <Select value={statusFilter} onChange={e => setFilter('status', e.target.value)}>
+                <Select value={status} onChange={e => setFilter('status', e.target.value)}>
                     <option value="all">{t.allStatuses}</option>
                     <option value="For Sale">{t.forSale}</option>
                     <option value="For Rent">{t.forRent}</option>
@@ -106,10 +129,10 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.typeLabel}</label>
-                <Select value={typeFilter} onChange={e => setFilter('type', e.target.value)}>
+                <Select value={type} onChange={e => setFilter('type', e.target.value)}>
                     <option value="all">{t.allTypes}</option>
-                    {propertyTypes.map(type => (
-                        <option key={type.id} value={type.en}>{type[language]}</option>
+                    {propertyTypes.map(pt => (
+                        <option key={pt.id} value={pt.en}>{pt[language]}</option>
                     ))}
                 </Select>
             </div>
@@ -120,13 +143,13 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                     <Input 
                         type="number" 
                         placeholder={t.minPricePlaceholder} 
-                        value={minPriceFilter} 
+                        value={minPrice} 
                         onChange={e => setFilter('minPrice', e.target.value)} 
                     />
                     <Input 
                         type="number" 
                         placeholder={t.maxPricePlaceholder} 
-                        value={maxPriceFilter} 
+                        value={maxPrice} 
                         onChange={e => setFilter('maxPrice', e.target.value)} 
                     />
                 </div>
@@ -134,10 +157,10 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.finishing}</label>
-                <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
+                <Select value={finishing} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
                     <option value="all">{t.allFinishes}</option>
-                    {availableFinishingStatuses.map(status => (
-                        <option key={status.id} value={status.en}>{status[language]}</option>
+                    {availableFinishingStatuses.map(statusOption => (
+                        <option key={statusOption.id} value={statusOption.en}>{statusOption[language]}</option>
                     ))}
                 </Select>
             </div>
@@ -147,14 +170,14 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-fadeIn">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.project}</label>
-                     <Select value={projectFilter} onChange={e => setFilter('project', e.target.value)}>
+                     <Select value={project} onChange={e => setFilter('project', e.target.value)}>
                         <option value="all">{t.allProjects}</option>
                         {projects.map(p => <option key={p.id} value={p.id}>{p.name[language]}</option>)}
                     </Select>
                   </div>
                    <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.installments}</label>
-                     <Select value={installmentsFilter} onChange={e => setFilter('installments', e.target.value)}>
+                     <Select value={installments} onChange={e => setFilter('installments', e.target.value)}>
                         <option value="all">{t.allInstallments}</option>
                         <option value="yes">{t.installmentsYes}</option>
                         <option value="no">{t.installmentsNo}</option>
@@ -162,7 +185,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.realEstateFinance}</label>
-                     <Select value={realEstateFinanceFilter} onChange={e => setFilter('realEstateFinance', e.target.value)}>
+                     <Select value={realEstateFinance} onChange={e => setFilter('realEstateFinance', e.target.value)}>
                         <option value="all">{t.allRealEstateFinance}</option>
                         <option value="yes">{t.realEstateFinanceYes}</option>
                         <option value="no">{t.realEstateFinanceNo}</option>
@@ -170,7 +193,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.inCompound}</label>
-                     <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)}>
+                     <Select value={compound} onChange={e => setFilter('compound', e.target.value)}>
                         <option value="all">{t.allCompound}</option>
                         <option value="yes">{t.compoundYes}</option>
                         <option value="no">{t.compoundNo}</option>
@@ -178,7 +201,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                   </div>
                    <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.delivery}</label>
-                     <Select value={deliveryFilter} onChange={e => setFilter('delivery', e.target.value)}>
+                     <Select value={delivery} onChange={e => setFilter('delivery', e.target.value)}>
                         <option value="all">{t.allDelivery}</option>
                         <option value="immediate">{t.immediateDelivery}</option>
                     </Select>
@@ -186,15 +209,15 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.floor}</label>
-                        <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} />
+                        <Input type="number" value={floor} onChange={e => setFilter('floor', e.target.value)} />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.propertyCard.beds}</label>
-                        <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} />
+                        <Input type="number" value={beds} onChange={e => setFilter('beds', e.target.value)} />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.propertyCard.baths}</label>
-                        <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} />
+                        <Input type="number" value={baths} onChange={e => setFilter('baths', e.target.value)} />
                       </div>
                   </div>
                   <div className="sm:col-span-2 lg:col-span-4">
@@ -204,7 +227,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                               <div key={amenity.id} className="flex items-center gap-2">
                                   <Checkbox 
                                     id={`amenity-${amenity.id}`}
-                                    checked={amenitiesFilter.includes(amenity.en)}
+                                    checked={(amenitiesFilter || []).includes(amenity.en)}
                                     onCheckedChange={() => handleAmenitiesChange(amenity.en)}
                                   />
                                   <label htmlFor={`amenity-${amenity.id}`} className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">

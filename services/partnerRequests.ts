@@ -1,56 +1,37 @@
 
-
-import { partnerRequestsData as initialPartnerRequestsData } from '../data/partnerRequests';
+import { getAllRequests, addRequest, updateRequest } from './requests';
 import type { PartnerRequest } from '../types';
-import { addNotification } from './notifications';
+import { RequestType } from '../types';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let partnerRequestsData: PartnerRequest[] = [...initialPartnerRequestsData];
+// Wrapper service to filter general requests for Partner Applications
+// This ensures we read from the same database source (Supabase) via the central service
 
-const SIMULATED_DELAY = 300;
-
-export const getAllPartnerRequests = (): Promise<PartnerRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...partnerRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+export const getAllPartnerRequests = async (): Promise<PartnerRequest[]> => {
+  const all = await getAllRequests();
+  return all
+    .filter(r => r.type === RequestType.PARTNER_APPLICATION)
+    .map(r => ({
+        ...r.payload as PartnerRequest,
+        id: r.id,
+        status: r.status,
+        createdAt: r.createdAt
+    }));
 };
 
-export const addPartnerRequest = (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: PartnerRequest = {
-        ...data,
-        id: `preq-${Date.now()}`,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      };
-      partnerRequestsData.unshift(newRequest);
-      
-      addNotification({
-        userId: 'partner-relations-manager-1',
-        message: {
-          ar: `لديك طلب انضمام شريك جديد من "${newRequest.companyName}".`,
-          en: `New partner request from "${newRequest.companyName}".`,
+export const addPartnerRequest = async (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
+    const req = await addRequest(RequestType.PARTNER_APPLICATION, {
+        requesterInfo: { 
+            name: data.contactName, 
+            phone: data.contactPhone, 
+            email: data.contactEmail 
         },
-        link: `/admin/partner-requests/${newRequest.id}`,
-      });
-
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
+        payload: data
+    });
+    // Use 'as any' to merge payload with top-level props safely
+    return { ...(req.payload as any), id: req.id, status: req.status, createdAt: req.createdAt };
 };
 
-export const updatePartnerRequestStatus = (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = partnerRequestsData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                partnerRequestsData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
-    });
+export const updatePartnerRequestStatus = async (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
+    const updated = await updateRequest(id, { status });
+    return !!updated;
 };

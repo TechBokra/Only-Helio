@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 // FIX: Imported 'keepPreviousData' for use with TanStack Query v5's placeholderData option.
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -25,12 +24,30 @@ const PropertiesPage: React.FC = () => {
     const t_page = t.propertiesPage;
     const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
     
-    const filterControls = usePropertyFilters();
+    // Fallback to empty object if hook returns undefined (unlikely but safe)
+    const filterControls = usePropertyFilters() || {};
+    
     const { 
-        page, view, status, type, query, minPrice, maxPrice, project, 
-        finishing, installments, realEstateFinance, floor, compound, delivery, 
-        amenities: amenitiesFilter, beds, baths, setFilter, setPage
-    } = filterControls;
+        page = 1, 
+        view = 'grid', 
+        status = 'all', 
+        type = 'all', 
+        query = '', 
+        minPrice = '', 
+        maxPrice = '', 
+        project = 'all', 
+        finishing = 'all', 
+        installments = 'all', 
+        realEstateFinance = 'all', 
+        floor = '', 
+        compound = 'all', 
+        delivery = 'all', 
+        amenities: amenitiesFilter = [], 
+        beds = '', 
+        baths = '', 
+        setFilter, 
+        setPage 
+    } = filterControls as any;
     
     // Fetch dependencies (dropdown options)
     const { data: projects, isLoading: pLoading } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
@@ -72,7 +89,7 @@ const PropertiesPage: React.FC = () => {
     const totalPages = Math.ceil(totalProperties / ITEMS_PER_PAGE);
 
     // This logic was incorrect in the original file, it should depend on filterControls.view
-    const gridClasses = filterControls.view === 'list' 
+    const gridClasses = view === 'list' 
         ? 'grid-cols-1 gap-4' 
         : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8';
 
@@ -102,7 +119,7 @@ const PropertiesPage: React.FC = () => {
                     <div className="flex items-center gap-2 bg-white dark:bg-gray-700 p-1 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
                         <button
                             onClick={() => setFilter('view', 'grid')}
-                            className={`p-2 rounded-md transition-all ${filterControls.view === 'grid' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                            className={`p-2 rounded-md transition-all ${view === 'grid' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="Grid View"
                             title={language === 'ar' ? 'عرض شبكي' : 'Grid View'}
                         >
@@ -110,7 +127,7 @@ const PropertiesPage: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setFilter('view', 'list')}
-                            className={`p-2 rounded-md transition-all ${filterControls.view === 'list' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                            className={`p-2 rounded-md transition-all ${view === 'list' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="List View"
                             title={language === 'ar' ? 'عرض قائمة' : 'List View'}
                         >
@@ -124,14 +141,14 @@ const PropertiesPage: React.FC = () => {
             <div className="container mx-auto px-6 py-12">
                 {isLoadingAny ? (
                     <div className={`grid ${gridClasses}`}>
-                        {Array.from({ length: 6 }).map((_, i) => filterControls.view === 'list' ? <PropertyListItemSkeleton key={i} /> : <PropertyCardSkeleton key={i} />)}
+                        {Array.from({ length: 6 }).map((_, i) => view === 'list' ? <PropertyListItemSkeleton key={i} /> : <PropertyCardSkeleton key={i} />)}
                     </div>
                 ) : (
                     <>
                         {properties.length > 0 ? (
                             <div className={`grid ${gridClasses}`}>
                                 {properties.map(prop => (
-                                    filterControls.view === 'list' ? (
+                                    view === 'list' ? (
                                         <PropertyListItem key={prop.id} {...prop} />
                                     ) : (
                                         <PropertyCard key={prop.id} {...prop} />
