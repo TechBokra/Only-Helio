@@ -75,6 +75,7 @@ export type PartnerType =
 export type PartnerStatus = 'active' | 'pending' | 'disabled';
 export type SubscriptionPlan = 'basic' | 'professional' | 'elite' | 'commission' | 'paid_listing';
 export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
+export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
 
 export interface Partner {
     id: string;
@@ -86,6 +87,13 @@ export interface Partner {
     status: PartnerStatus;
     subscriptionPlan: SubscriptionPlan;
     password?: string;
+    displayType?: PartnerDisplayType;
+    subscriptionEndDate?: string;
+    contactMethods?: {
+        whatsapp: { enabled: boolean; number: string };
+        phone: { enabled: boolean; number: string };
+        form: { enabled: boolean };
+    };
 }
 
 export interface AdminPartner extends Partner {
@@ -95,13 +103,6 @@ export interface AdminPartner extends Partner {
     imageUrl_small: string;
     imageUrl_medium: string;
     imageUrl_large: string;
-    displayType: PartnerDisplayType;
-    subscriptionEndDate?: string;
-    contactMethods?: {
-        whatsapp: { enabled: boolean; number: string };
-        phone: { enabled: boolean; number: string };
-        form: { enabled: boolean };
-    };
     createdAt?: string;
 }
 
@@ -139,11 +140,16 @@ export interface Property {
     delivery: { isImmediate: boolean; date?: string };
     installments?: { downPayment: number; monthlyInstallment: number; years: number };
     location: { lat: number; lng: number };
+    listingStatus: ListingStatus;
     listingStartDate?: string;
     listingEndDate?: string;
-    listingStatus: ListingStatus;
     contactMethod?: 'platform' | 'direct';
     ownerPhone?: string;
+}
+
+export interface FavoriteItem {
+    id: string;
+    type: 'property' | 'service' | 'portfolio';
 }
 
 export interface Project {
@@ -157,6 +163,7 @@ export interface Project {
     imageUrl_large?: string;
     createdAt: string;
     features?: { icon: string; text: { ar: string; en: string } }[];
+    partnerName?: string;
 }
 
 export interface PortfolioItem {
@@ -169,6 +176,7 @@ export interface PortfolioItem {
     price?: number;
     dimensions?: string;
     availability?: 'In Stock' | 'Made to Order';
+    partnerName?: string;
 }
 
 export type LeadStatus = 'new' | 'contacted' | 'site-visit' | 'quoted' | 'in-progress' | 'completed' | 'cancelled';
@@ -185,7 +193,6 @@ export interface LeadMessage {
 export interface Lead {
     id: string;
     partnerId: string;
-    managerId?: string;
     serviceType: 'finishing' | 'decorations' | 'property' | 'general';
     customerName: string;
     customerPhone: string;
@@ -195,73 +202,32 @@ export interface Lead {
     status: LeadStatus;
     createdAt: string;
     updatedAt: string;
-    messages: LeadMessage[];
+    managerId?: string;
     propertyId?: string;
-    referenceImage?: string;
+    messages: LeadMessage[];
     assignedTo?: string;
     partnerName?: string;
 }
 
-export enum RequestType {
-    LEAD = 'LEAD',
-    PARTNER_APPLICATION = 'PARTNER_APPLICATION',
-    PROPERTY_LISTING_REQUEST = 'PROPERTY_LISTING_REQUEST',
-    CONTACT_MESSAGE = 'CONTACT_MESSAGE',
-    PROPERTY_INQUIRY = 'PROPERTY_INQUIRY'
-}
-
+export type RequestType = 'LEAD' | 'PARTNER_APPLICATION' | 'PROPERTY_LISTING_REQUEST' | 'CONTACT_MESSAGE' | 'PROPERTY_INQUIRY';
 export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'approved' | 'rejected' | 'assigned' | 'in-progress' | 'closed';
+
+export interface RequesterInfo {
+    name: string;
+    phone: string;
+    email?: string;
+}
 
 export interface Request {
     id: string;
     type: RequestType;
+    requesterInfo: RequesterInfo;
+    payload: unknown;
     status: RequestStatus;
     assignedTo?: string;
-    assignedToName?: string;
     createdAt: string;
     updatedAt: string;
-    requesterInfo: {
-        name: string;
-        phone: string;
-        email?: string;
-    };
-    payload: Record<string, any> | Lead | PartnerRequest | AddPropertyRequest | ContactRequest | PropertyInquiryRequest;
-}
-
-export interface OfficialDocument {
-    fileName: string;
-    fileContent: string;
-}
-
-export interface PartnerRequest {
-    id: string;
-    companyName: string;
-    companyType: string;
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-    companyAddress: string;
-    website?: string;
-    description: string;
-    subscriptionPlan: SubscriptionPlan;
-    logo?: string;
-    documents?: OfficialDocument[];
-    managementContacts?: { name: string; position: string; email: string; phone: string }[];
-    status: 'pending' | 'approved' | 'rejected';
-    createdAt: string;
-}
-
-export interface AddPropertyRequest {
-    id: string;
-    customerName: string;
-    customerPhone: string;
-    contactTime: string;
-    cooperationType: 'paid_listing' | 'commission';
-    propertyDetails: any;
-    images?: string[];
-    status: RequestStatus;
-    createdAt: string;
-    managerId?: string;
+    assignedToName?: string;
 }
 
 export interface ContactRequest {
@@ -277,6 +243,63 @@ export interface ContactRequest {
     managerId?: string;
 }
 
+export interface AddPropertyRequest {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    propertyDetails: {
+        title?: { en: string; ar: string };
+        description?: { en: string; ar: string };
+        price?: number;
+        area?: number;
+        propertyType?: { en: string; ar: string };
+        address?: string;
+        location?: { lat: number; lng: number };
+        purpose?: { en: string; ar: string };
+        finishingStatus?: { en: string; ar: string };
+        bedrooms?: number;
+        bathrooms?: number;
+        floor?: number;
+        isInCompound?: boolean;
+        deliveryType?: string;
+        deliveryMonth?: string;
+        deliveryYear?: string;
+        hasInstallments?: boolean;
+        realEstateFinanceAvailable?: boolean;
+        downPayment?: number;
+        monthlyInstallment?: number;
+        years?: number;
+        listingStartDate?: string;
+        listingEndDate?: string;
+        contactMethod?: 'platform' | 'direct';
+        ownerPhone?: string;
+        amenities?: { en: string[]; ar: string[] };
+    };
+    images?: string[];
+    cooperationType: string;
+    status: RequestStatus;
+    createdAt: string;
+    managerId?: string;
+}
+
+export interface PartnerRequest {
+    id: string;
+    companyName: string;
+    companyType: string;
+    companyAddress: string;
+    website?: string;
+    description: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    logo?: string;
+    documents?: { fileName: string; fileContent: string }[];
+    managementContacts?: { name: string; position: string; email: string; phone: string }[];
+    status: RequestStatus;
+    subscriptionPlan: SubscriptionPlan;
+    createdAt: string;
+}
+
 export interface PropertyInquiryRequest {
     id: string;
     customerName: string;
@@ -286,80 +309,23 @@ export interface PropertyInquiryRequest {
     createdAt: string;
 }
 
-export interface Banner {
+export interface OfficialDocument {
+    fileName: string;
+    fileContent: string;
+}
+
+export interface DecorationCategory {
     id: string;
-    title: string;
-    imageUrl: string;
-    link?: string;
-    locations: string[];
-    status: 'active' | 'inactive';
-    startDate?: string;
-    endDate?: string;
+    name: { ar: string; en: string };
+    description: { ar: string; en: string };
 }
 
-export interface Quote {
-    quote: { ar: string; en: string };
-    author: { ar: string; en: string };
-}
-
-export interface PaymentConfiguration {
-    instapay: {
-        enabled: boolean;
-        number: string;
-        walletName?: string;
-        paymentLink?: string;
-        qrCodeUrl?: string;
-        instructions: { ar: string; en: string };
-    };
-    paymob: {
-        enabled: boolean;
-        apiKey: string;
-        secretKey: string;
-        publicKey: string;
-    };
-}
-
-export interface ExternalIntegrationsConfig {
-    supabase?: { url: string; anonKey: string };
-    cloudinary?: { cloudName: string; apiKey: string; apiSecret: string; uploadPreset: string };
-    vercel?: { projectUrl: string };
-}
-
-export interface SiteContent {
-    logoUrl?: string;
-    siteName?: { ar: string; en: string };
-    locationPickerMapUrl?: string;
-    topBanner?: {
-        enabled: boolean;
-        content: { ar: string; en: string };
-    };
-    contactConfiguration?: {
-        routing: 'internal' | 'email' | 'both';
-        targetEmail?: string;
-    };
-    paymentConfiguration?: PaymentConfiguration;
-    externalConfig?: ExternalIntegrationsConfig;
-    hero: {
-        ar: { title: string; subtitle: string };
-        en: { title: string; subtitle: string };
-        images: { src: string; alt: { ar: string; en: string } }[];
-    };
-    homeCTA?: any;
-    homeListings?: any;
-    whyUs?: any;
-    services?: any;
-    partners?: any;
-    testimonials?: any;
-    socialProof?: any;
-    whyNewHeliopolis?: any;
-    finishingServices?: any[];
-    projectsPage?: any;
-    finishingPage?: any;
-    decorationsPage?: any;
-    quotes?: Quote[];
-    privacyPolicy?: any;
-    termsOfUse?: any;
-    footer?: any;
+export interface SubscriptionPlanDetails {
+    name: string;
+    price: string;
+    description: string;
+    features: string[];
+    commissionRate?: number;
 }
 
 export interface FilterOption {
@@ -367,12 +333,32 @@ export interface FilterOption {
     en: string;
     ar: string;
     applicableTo?: string[];
+    [key: string]: any; // For dynamic access with language
 }
 
-export interface DecorationCategory {
+export interface Banner {
     id: string;
-    name: { ar: string; en: string };
-    description: { ar: string; en: string };
+    title: string;
+    imageUrl: string;
+    link: string;
+    locations: string[];
+    status: 'active' | 'inactive';
+    startDate?: string;
+    endDate?: string;
+}
+
+export interface Notification {
+    id: string;
+    userId: string;
+    message: { ar: string; en: string };
+    link: string;
+    isRead: boolean;
+    createdAt: string;
+}
+
+export interface Quote {
+    quote: { ar: string; en: string };
+    author: { ar: string; en: string };
 }
 
 export interface AIEstimatorItem {
@@ -396,19 +382,62 @@ export interface AIEstimatorConfig {
     stages: AIEstimatorStage[];
 }
 
-export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
-
-export interface SubscriptionPlanDetails {
-    name: string;
-    price: string;
-    description: string;
-    features: string[];
-    commissionRate?: number;
+export interface SiteContent {
+    logoUrl?: string;
+    locationPickerMapUrl?: string;
+    topBanner?: { enabled: boolean; content: { ar: string; en: string } };
+    contactConfiguration?: { routing: string; targetEmail: string };
+    paymentConfiguration?: { 
+        instapay: { enabled: boolean; number: string; walletName?: string; paymentLink?: string; qrCodeUrl?: string; instructions: { ar: string; en: string } };
+        paymob: { enabled: boolean; apiKey: string; secretKey: string; publicKey: string };
+    };
+    hero: { ar: { title: string; subtitle: string }; en: { title: string; subtitle: string }; images: { src: string; alt: { ar: string; en: string } }[] };
+    homeCTA?: { enabled: boolean; ar: any; en: any };
+    homeListings?: { enabled: boolean; count: number; ar?: any; en?: any };
+    whyUs: { enabled: boolean; ar: any; en: any };
+    services: { enabled: boolean; ar: any; en: any };
+    partners: { enabled: boolean; ar: any; en: any };
+    testimonials: { enabled: boolean; ar: any; en: any; items: any[] };
+    socialProof: { enabled: boolean; stats: any[] };
+    whyNewHeliopolis: { enabled: boolean; ar: any; en: any; images: any[] };
+    finishingServices?: any[];
+    projectsPage?: any;
+    finishingPage?: any;
+    decorationsPage?: any;
+    quotes?: Quote[];
+    privacyPolicy?: any;
+    termsOfUse?: any;
+    footer: any;
+    siteName?: { ar: string; en: string };
+    externalConfig?: {
+        supabase?: { url: string; anonKey: string };
+        cloudinary?: { cloudName: string; apiKey: string; apiSecret: string; uploadPreset: string };
+        vercel?: { projectUrl: string };
+    };
 }
+
+export type PropertyFiltersType = {
+    status: string;
+    type: string;
+    query: string;
+    minPrice: string;
+    maxPrice: string;
+    project: string;
+    finishing: string;
+    installments: string;
+    realEstateFinance: string;
+    floor: string;
+    compound: string;
+    delivery: string;
+    amenities: string[];
+    beds: string;
+    baths: string;
+    view?: string;
+};
 
 export type TransactionStatus = 'paid' | 'pending' | 'reviewing' | 'failed' | 'refunded';
 export type TransactionType = 'subscription_fee' | 'listing_fee' | 'service_payment' | 'product_purchase';
-export type PaymentMethod = 'card' | 'instapay' | 'wallet' | 'cash';
+export type PaymentMethod = 'card' | 'instapay' | 'wallet';
 
 export interface Transaction {
     id: string;
@@ -434,24 +463,10 @@ export interface FinanceStats {
     pendingReviews: number;
 }
 
-export interface Notification {
-    id: string;
-    userId: string;
-    message: { ar: string; en: string };
-    link: string;
-    isRead: boolean;
-    createdAt: string;
-}
-
-export interface FavoriteItem {
-    id: string;
-    type: 'property' | 'service' | 'portfolio';
-}
-
 export type FormCategory = 'public' | 'lead_gen' | 'partner_app' | 'admin_internal';
 export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'radio' | 'date' | 'file';
 export type ValidationRuleType = 'none' | 'email' | 'phone_eg' | 'url' | 'number' | 'custom';
-export type SubmissionDestination = 'crm_leads' | 'crm_partners' | 'crm_messages' | 'email';
+export type SubmissionDestination = 'crm_messages' | 'crm_leads' | 'crm_partners' | 'email';
 
 export interface FormFieldDefinition {
     id: string;
@@ -461,7 +476,7 @@ export interface FormFieldDefinition {
     required: boolean;
     width: 'full' | 'half' | 'third';
     placeholder?: { ar: string; en: string };
-    options?: string | string[];
+    options?: string[] | string; // string if comma separated
     validation?: {
         type: ValidationRuleType;
         pattern?: string;
@@ -477,29 +492,10 @@ export interface FormDefinition {
     title: { ar: string; en: string };
     description?: { ar: string; en: string };
     category: FormCategory;
-    destination: SubmissionDestination;
+    destination: string;
     isActive: boolean;
     submitButtonLabel?: { ar: string; en: string };
     fields: FormFieldDefinition[];
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-export interface PropertyFiltersType {
-    view?: string;
-    status: string;
-    type: string;
-    query: string;
-    minPrice: string;
-    maxPrice: string;
-    project: string;
-    finishing: string;
-    installments: string;
-    realEstateFinance: string;
-    floor: string;
-    compound: string;
-    delivery: string;
-    amenities: string[];
-    beds: string;
-    baths: string;
+    createdAt: string;
+    updatedAt: string;
 }

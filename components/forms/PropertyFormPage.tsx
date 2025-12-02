@@ -264,6 +264,9 @@ const PropertyFormPage: React.FC = () => {
                 en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
             } : undefined;
 
+            // Safely parse integers (handling 0 correctly)
+            const safeInt = (val: any) => (val !== '' && val !== undefined && val !== null) ? Number(val) : undefined;
+
             const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
                 ...formData,
                 status: { 
@@ -285,9 +288,9 @@ const PropertyFormPage: React.FC = () => {
                 gallery: finalGalleryImages,
                 listingStatus: formData.listingStatus as any,
                 type: { en: formData.type.en as any, ar: formData.type.ar },
-                beds: formData.beds || 0,
-                baths: formData.baths || 0,
-                floor: formData.floor,
+                beds: safeInt(formData.beds) || 0,
+                baths: safeInt(formData.baths) || 0,
+                floor: safeInt(formData.floor),
                 projectId: formData.projectId || undefined, // Pass undefined if empty string
                 listingStartDate: formData.listingStartDate || undefined,
                 listingEndDate: formData.listingEndDate || undefined

@@ -1,3 +1,4 @@
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '../ui/Button';
 import { ExclamationCircleIcon, HomeIcon, ArrowRightIcon } from '../ui/Icons';
@@ -13,14 +14,12 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Initialize state as a class property to avoid constructor type inference issues
+  state: ErrorBoundaryState = {
       hasError: false,
       error: null
-    };
-  }
+  };
 
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
