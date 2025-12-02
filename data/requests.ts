@@ -30,7 +30,7 @@ export let requestsData: Request[] = [
             }
         },
         status: 'new',
-        createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
         updatedAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
     },
     {
@@ -47,7 +47,7 @@ export let requestsData: Request[] = [
             }
         },
         status: 'new',
-        createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(), // 10 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
         updatedAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
     },
     {
@@ -59,7 +59,7 @@ export let requestsData: Request[] = [
             inquiryType: 'client'
         },
         status: 'new',
-        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
         updatedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     },
     {
@@ -70,7 +70,7 @@ export let requestsData: Request[] = [
             details: 'أبحث عن فيلا مستقلة بمساحة لا تقل عن 400م بحديقة خاصة، في حدود 8 مليون جنيه.',
         },
         status: 'new',
-        createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(), // 20 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
         updatedAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
     },
     {

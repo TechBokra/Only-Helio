@@ -87,6 +87,7 @@ export interface Partner {
     status: PartnerStatus;
     subscriptionPlan: SubscriptionPlan;
     password?: string;
+    // Promoted optional fields to fix build errors
     displayType?: PartnerDisplayType;
     subscriptionEndDate?: string;
     contactMethods?: {
@@ -207,10 +208,9 @@ export interface Lead {
     messages: LeadMessage[];
     assignedTo?: string;
     partnerName?: string;
-    referenceImage?: string; // Added for custom requests
+    referenceImage?: string;
 }
 
-// Changed from type union to enum for value usage
 export enum RequestType {
     LEAD = 'LEAD',
     PARTNER_APPLICATION = 'PARTNER_APPLICATION',
@@ -289,7 +289,7 @@ export interface AddPropertyRequest {
     status: RequestStatus;
     createdAt: string;
     managerId?: string;
-    contactTime?: string; // Added
+    contactTime?: string;
 }
 
 export interface PartnerRequest {
@@ -343,7 +343,7 @@ export interface FilterOption {
     en: string;
     ar: string;
     applicableTo?: string[];
-    [key: string]: any; // For dynamic access with language
+    [key: string]: any;
 }
 
 export interface Banner {

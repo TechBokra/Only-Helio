@@ -1,4 +1,5 @@
 
+
 import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenities } from '../data/filterOptions';
 import type { FilterOption } from '../types';
 

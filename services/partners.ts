@@ -1,9 +1,34 @@
 
 import { supabase } from '../lib/supabase';
-import { partnersData as initialPartnersData } from '../data/partners'; // Keep as fallback/seeder source
+import { partnersData as initialPartnersData } from '../data/partners'; 
 import type { Partner, AdminPartner, PartnerStatus, PartnerRequest, PartnerType, SubscriptionPlan } from '../types';
 import { mapPartnerFromDB } from '../utils/supabaseMapper';
 import { Role } from '../types';
+
+// Helper function defined at the bottom, but hoisted for use
+function getRoleForType(type: PartnerType): Role {
+    switch (type) {
+        case 'admin': return Role.SUPER_ADMIN;
+        case 'developer': return Role.DEVELOPER_PARTNER;
+        case 'finishing': return Role.FINISHING_PARTNER;
+        case 'agency': return Role.AGENCY_PARTNER;
+        
+        case 'decoration_manager': return Role.DECORATION_MANAGER;
+        case 'platform_finishing_manager': return Role.PLATFORM_FINISHING_MANAGER;
+        case 'finishing_market_manager': return Role.FINISHING_MARKET_MANAGER;
+        case 'platform_real_estate_manager': return Role.PLATFORM_REAL_ESTATE_MANAGER;
+        case 'real_estate_market_manager': return Role.REAL_ESTATE_MARKET_MANAGER;
+        
+        case 'partner_relations_manager': return Role.PARTNER_RELATIONS_MANAGER;
+        case 'content_manager': return Role.CONTENT_MANAGER;
+
+        case 'service_manager': return Role.SERVICE_MANAGER;
+        case 'customer_relations_manager': return Role.CUSTOMER_RELATIONS_MANAGER;
+        case 'listings_manager': return Role.LISTINGS_MANAGER;
+        
+        default: return Role.AGENCY_PARTNER; 
+    }
+}
 
 // --- SUPABASE IMPLEMENTATION ---
 
@@ -17,8 +42,14 @@ export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
 
         if (error) {
             console.warn('Supabase: Error fetching partners, falling back to local data:', error.message);
-            // Fallback to local data for smoother dev experience if DB is empty/broken
-            return initialPartnersData.map(p => ({...p, name: (p as any).name || '', description: (p as any).description || '', role: Role.AGENCY_PARTNER} as unknown as AdminPartner));
+            // Fallback to local data with CORRECT roles
+            return initialPartnersData.map(p => ({
+                ...p, 
+                name: (p as any).name || '', 
+                description: (p as any).description || '', 
+                // Fix: Ensure fallback data gets the correct role based on type, not just defaulting to Agency
+                role: (p as any).role || getRoleForType(p.type)
+            } as unknown as AdminPartner));
         }
         
         if (!data || data.length === 0) {
@@ -28,7 +59,13 @@ export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
         return data.map(mapPartnerFromDB);
     } catch (e) {
         console.error("Critical error in getAllPartnersForAdmin:", e);
-        return [];
+        // Fallback on critical error too
+        return initialPartnersData.map(p => ({
+            ...p, 
+            name: (p as any).name || '', 
+            description: (p as any).description || '', 
+            role: (p as any).role || getRoleForType(p.type)
+        } as unknown as AdminPartner));
     }
 };
 
@@ -51,16 +88,41 @@ export const getPartnerById = async (id: string): Promise<Partner | undefined> =
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) {
+        // Fallback for local dev if Supabase not connected
+        const localUser = initialPartnersData.find(p => p.email === email);
+        if (localUser) {
+             return {
+                 ...localUser,
+                 name: (localUser as any).name,
+                 role: (localUser as any).role || getRoleForType(localUser.type)
+             } as Partner;
+        }
+        return undefined;
+    }
 
     try {
         const { data, error } = await supabase
             .from('partners')
             .select('*')
             .ilike('email', email) // Case-insensitive
-            .maybeSingle(); // Changed from single() to maybeSingle() to avoid error on not found
+            .maybeSingle(); 
 
-        if (error || !data) return undefined;
+        if (error) {
+             console.warn("Supabase error finding partner:", error.message);
+             // Fallback
+             const localUser = initialPartnersData.find(p => p.email === email);
+             if (localUser) {
+                 return {
+                     ...localUser,
+                     name: (localUser as any).name,
+                     role: (localUser as any).role || getRoleForType(localUser.type)
+                 } as Partner;
+             }
+             return undefined;
+        }
+
+        if (!data) return undefined;
         return mapPartnerFromDB(data);
     } catch (e) {
         console.error("Error in getPartnerByEmail:", e);
@@ -71,7 +133,6 @@ export const getPartnerByEmail = async (email: string): Promise<Partner | undefi
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    // Map frontend fields to DB fields
     const dbUpdates: any = {};
     if (updates.nameEn) dbUpdates.name = updates.nameEn;
     if (updates.nameAr) dbUpdates.name_ar = updates.nameAr;
@@ -107,7 +168,7 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
         .from('partners')
         .insert([{
             name: partnerData.companyName,
-            name_ar: partnerData.companyName, // Default AR name to EN
+            name_ar: partnerData.companyName, 
             description_en: partnerData.description,
             email: partnerData.contactEmail,
             type: partnerData.companyType,
@@ -131,7 +192,6 @@ export const deletePartner = async (id: string): Promise<boolean> => {
 };
 
 export const updatePartnerAdmin = async (id: string, updates: Partial<AdminPartner>): Promise<AdminPartner> => {
-    // Re-map AdminPartner partial to DB columns for updatePartner
     await updatePartner(id, {
         nameEn: updates.name,
         nameAr: updates.nameAr,
@@ -163,7 +223,6 @@ export const addInternalUser = async (userData: { name: string, nameAr: string, 
    return mapPartnerFromDB(data);
 }
 
-// Alias for generic user update
 export const updateUser = async (id: string, updates: any): Promise<boolean> => {
     return updatePartner(id, updates);
 }
@@ -176,31 +235,6 @@ export const upgradePartnerPlan = async (partnerId: string, newPlan: Subscriptio
     return !error;
 }
 
-function getRoleForType(type: PartnerType): Role {
-    switch (type) {
-        case 'admin': return Role.SUPER_ADMIN;
-        case 'developer': return Role.DEVELOPER_PARTNER;
-        case 'finishing': return Role.FINISHING_PARTNER;
-        case 'agency': return Role.AGENCY_PARTNER;
-        
-        case 'decoration_manager': return Role.DECORATION_MANAGER;
-        case 'platform_finishing_manager': return Role.PLATFORM_FINISHING_MANAGER;
-        case 'finishing_market_manager': return Role.FINISHING_MARKET_MANAGER;
-        case 'platform_real_estate_manager': return Role.PLATFORM_REAL_ESTATE_MANAGER;
-        case 'real_estate_market_manager': return Role.REAL_ESTATE_MARKET_MANAGER;
-        
-        case 'partner_relations_manager': return Role.PARTNER_RELATIONS_MANAGER;
-        case 'content_manager': return Role.CONTENT_MANAGER;
-
-        case 'service_manager': return Role.SERVICE_MANAGER;
-        case 'customer_relations_manager': return Role.CUSTOMER_RELATIONS_MANAGER;
-        case 'listings_manager': return Role.LISTINGS_MANAGER;
-        
-        default: return Role.AGENCY_PARTNER; 
-    }
-}
-
-// --- SEEDING HELPER (Exported for use in Admin) ---
 export const seedPartnersToSupabase = async () => {
     if (!supabase) throw new Error("Supabase client not initialized");
     

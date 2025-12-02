@@ -1,4 +1,5 @@
 
+
 import { requestsData } from '../data/requests';
 import { RequestType, Role } from '../types';
 import type { Request, RequestStatus, Lead, LeadMessage, LeadStatus } from '../types';
@@ -44,7 +45,7 @@ export const getAllRequests = (): Promise<Request[]> => {
             const leadRequests: Request[] = leads.map(lead => ({
                 id: lead.id, // Use lead ID as request ID
                 type: RequestType.LEAD,
-                status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress'), // Approximate Status Mapping
+                status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress') as RequestStatus, // Approximate Status Mapping
                 assignedTo: lead.assignedTo || lead.managerId || lead.partnerId,
                 assignedToName: lead.partnerName,
                 createdAt: lead.createdAt,

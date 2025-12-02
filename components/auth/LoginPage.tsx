@@ -1,32 +1,53 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { Role, Permission } from '../../types';
-import type { Language, Partner } from '../../types';
-import { getPartnerByEmail } from '../../services/partners';
+import { Permission } from '../../types';
 import { Input } from '../ui/Input';
 import { SiteLogo } from '../shared/SiteLogo';
-import { partnersData } from '../../data/partners';
 import { rolePermissions } from '../../data/permissions';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { Checkbox } from '../ui/Checkbox';
 
 const LoginPage: React.FC = () => {
     const { language, t } = useLanguage();
     const { data: siteContent } = useSiteContent();
     const siteName = siteContent?.siteName?.[language] || 'ONLY HELIO';
     const t_auth = t.auth;
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState<string | boolean>(false);
+    const [loading, setLoading] = useState(false);
+    
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const processLogin = async (emailInput: string, passwordInput: string) => {
-        const user = await login(emailInput, passwordInput);
+    // Load saved email on mount
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('onlyhelio_saved_email');
+        if (savedEmail) {
+            setEmail(savedEmail);
+            setRememberMe(true);
+        }
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        // Handle Remember Me logic
+        if (rememberMe) {
+            localStorage.setItem('onlyhelio_saved_email', email);
+        } else {
+            localStorage.removeItem('onlyhelio_saved_email');
+        }
+
+        const user = await login(email, password);
 
         if (user) {
             const permissions = rolePermissions.get(user.role) || [];
@@ -40,126 +61,103 @@ const LoginPage: React.FC = () => {
         } else {
             setError(t_auth.loginError);
         }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-        await processLogin(email, password);
         setLoading(false);
     };
-
-    const handleQuickLogin = async (emailToLogin: string) => {
-        setError('');
-        setLoading(emailToLogin);
-        await processLogin(emailToLogin, 'password');
-        setLoading(false);
-    };
-
-    const quickLoginUsers = useMemo(() => {
-        const quickLoginEmails = [
-            'admin@onlyhelio.com',
-            'decor@onlyhelio.com',
-            'fin-platform@onlyhelio.com',
-            'fin-market@onlyhelio.com',
-            're-platform@onlyhelio.com',
-            're-market@onlyhelio.com',
-            'partners@onlyhelio.com',
-            'content@onlyhelio.com',
-            'dev1@onlyhelio.com',
-            'fin1@onlyhelio.com',
-            'agency1@onlyhelio.com',
-        ];
-
-        return quickLoginEmails
-            .map(email => {
-                const partner = partnersData.find(p => p.email === email);
-                if (!partner) return null;
-                // @ts-ignore
-                const localizedName = t.partnerInfo[partner.id]?.name || partner.id;
-                return { name: localizedName, email: partner.email };
-            })
-            .filter(Boolean) as { name: string; email: string }[];
-    }, [language, t]);
-
 
     return (
-        <div className="py-20 bg-white flex items-center justify-center">
-            <div className="w-full max-w-lg p-8 space-y-8 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
+            <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-10 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
                 <div className="text-center">
-                    <Link to="/" className="inline-flex items-center justify-center gap-3 text-3xl font-bold text-amber-500 mb-4">
-                        <SiteLogo className="h-10 w-10" />
-                        <span className="text-2xl">{siteName}</span>
+                    <Link to="/" className="inline-flex items-center justify-center gap-3 text-3xl font-bold text-amber-500 mb-6">
+                        <SiteLogo className="h-12 w-12" />
                     </Link>
-                    <h1 className="text-3xl font-bold text-gray-800">{t_auth.loginTitle}</h1>
-                    <p className="mt-2 text-gray-600">{t_auth.loginSubtitle}</p>
+                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">
+                        {siteName}
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {t_auth.loginSubtitle}
+                    </p>
                 </div>
+                
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md shadow-sm -space-y-px">
+                    <div className="space-y-4">
                         <div>
-                            <label htmlFor="email-address" className="sr-only">{t_auth.email}</label>
+                            <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                {t_auth.email}
+                            </label>
                             <Input
                                 id="email-address"
                                 name="email"
                                 type="email"
                                 autoComplete="email"
                                 required
-                                placeholder={t_auth.email}
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                disabled={!!loading}
+                                disabled={loading}
+                                className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             />
                         </div>
-                        <div className="pt-4">
-                            <label htmlFor="password" className="sr-only">{t_auth.password}</label>
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                {t_auth.password}
+                            </label>
                             <Input
                                 id="password"
                                 name="password"
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                placeholder={t_auth.password}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                disabled={!!loading}
+                                disabled={loading}
+                                className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             />
                         </div>
                     </div>
 
-                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <Checkbox 
+                                id="remember-me" 
+                                checked={rememberMe} 
+                                onCheckedChange={(checked) => setRememberMe(!!checked)} 
+                            />
+                            <label htmlFor="remember-me" className={`ml-2 block text-sm text-gray-900 dark:text-gray-300 ${language === 'ar' ? 'mr-2' : 'ml-2'}`}>
+                                {language === 'ar' ? 'تذكرني' : 'Remember me'}
+                            </label>
+                        </div>
+
+                        <div className="text-sm">
+                            <a href="#" className="font-medium text-amber-600 hover:text-amber-500">
+                                {language === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                            </a>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+                            <div className="flex">
+                                <div className="ml-3">
+                                    <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div>
-                        <Button type="submit" isLoading={loading === true} className="w-full" size="lg">
+                        <Button type="submit" isLoading={loading} className="w-full" size="lg">
                            {t_auth.loginButton}
                         </Button>
                     </div>
                 </form>
-                 <div className="text-center">
-                    <Button variant="link" onClick={() => navigate('/register')}>
-                        {t.joinAsPartner}
-                    </Button>
-                </div>
-
-                {/* Quick Login Section for Demo/Testing Purposes */}
-                <div className="border-t border-gray-200 pt-6">
-                    <p className="text-center text-sm font-medium text-gray-600 mb-4">
-                        {language === 'ar' ? 'للتجربة: تسجيل دخول سريع' : 'For Demo: Quick Logins'}
+                
+                <div className="text-center mt-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {language === 'ar' ? 'ليس لديك حساب؟' : "Don't have an account?"}{' '}
+                        <Button variant="link" onClick={() => navigate('/register')} className="p-0 h-auto font-bold text-amber-600">
+                            {t.joinAsPartner}
+                        </Button>
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
-                        {quickLoginUsers.map(user => (
-                            <Button
-                                key={user.email}
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleQuickLogin(user.email)}
-                                isLoading={loading === user.email}
-                                className="w-full text-xs h-auto py-2 whitespace-normal leading-tight"
-                            >
-                                {user.name}
-                            </Button>
-                        ))}
-                    </div>
                 </div>
             </div>
         </div>
