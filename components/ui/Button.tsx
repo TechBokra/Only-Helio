@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Spinner } from './Spinner';
 
 // Manual implementation of cva-like functionality
@@ -38,7 +38,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     loadingText?: string;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'default', fullWidth = false, isLoading, loadingText, type = 'button', children, ...props }, ref) => {
         const classes = [
             buttonVariants.base,

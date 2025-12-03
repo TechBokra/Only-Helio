@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import SEO from '../shared/SEO';
@@ -27,7 +28,7 @@ const PropertiesPage: React.FC = () => {
     const page = filterControls.page;
     const view = filterControls.view;
     
-    // Fetch only existing tables
+    // Fetch filter options
     const { data: projects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
     const { data: propertyTypes } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
     const { data: finishingStatuses } = useQuery({ queryKey: ['finishingStatuses'], queryFn: getAllFinishingStatuses });
@@ -42,9 +43,14 @@ const PropertiesPage: React.FC = () => {
         maxPrice: filterControls.maxPrice,
         project: filterControls.project,
         finishing: filterControls.finishing,
+        installments: filterControls.installments,
+        realEstateFinance: filterControls.realEstateFinance,
+        floor: filterControls.floor,
+        compound: filterControls.compound,
+        delivery: filterControls.delivery,
+        amenities: filterControls.amenities,
         beds: filterControls.beds,
         baths: filterControls.baths,
-        amenities: filterControls.amenities,
     }), [filterControls]);
 
     const { data: propertiesData, isLoading: propsLoading } = useQuery({

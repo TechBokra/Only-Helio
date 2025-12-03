@@ -1,8 +1,8 @@
-import React from 'react';
+
+import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import App from './App';
-// AuthProvider and FavoritesProvider are removed (Zustand handles this now)
 import { ToastProvider } from './components/shared/ToastContext';
 import { LanguageProvider } from './components/shared/LanguageContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,22 +15,20 @@ if (!rootElement) {
     throw new Error('Could not find root element to mount to');
 }
 
-// Robust Query Client Configuration
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            retry: 1, // Retry failed requests once
-            refetchOnWindowFocus: false, // Prevent refetching when tab is switched (better UX for forms)
-            staleTime: 1000 * 60 * 5, // Data is fresh for 5 minutes
-            throwOnError: false, // Don't crash the app on query errors, let components handle isError state
+            retry: 1,
+            refetchOnWindowFocus: false,
+            staleTime: 1000 * 60 * 5,
+            throwOnError: false,
         },
         mutations: {
-            retry: 0, // Don't retry mutations (like form submissions) automatically to prevent duplication
+            retry: 0,
         }
     }
 });
 
-// Smart Router Selection
 const hostname = window.location.hostname;
 const href = window.location.href;
 

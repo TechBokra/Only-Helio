@@ -1,3 +1,4 @@
+
 import type { Property, PropertyFiltersType } from '../types';
 
 export const filterProperties = (properties: Property[], filters: PropertyFiltersType): Property[] => {
@@ -36,6 +37,21 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
                 propertyAmenitiesEn.includes(selectedAmenity)
             );
         }
+        
+        // Compound Check
+        const compoundMatch = filters.compound === 'all' || 
+                            (filters.compound === 'yes' && p.isInCompound) ||
+                            (filters.compound === 'no' && !p.isInCompound);
+
+        // Real Estate Finance Check
+        const financeMatch = filters.realEstateFinance === 'all' ||
+                             (filters.realEstateFinance === 'yes' && p.realEstateFinanceAvailable) ||
+                             (filters.realEstateFinance === 'no' && !p.realEstateFinanceAvailable);
+        
+        // Installments Check
+        const installmentsMatch = filters.installments === 'all' ||
+                                  (filters.installments === 'yes' && p.installmentsAvailable) ||
+                                  (filters.installments === 'no' && !p.installmentsAvailable);
 
         // Search Query
         let queryMatch = true;
@@ -49,6 +65,6 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
                 (p.partnerName?.toLowerCase().includes(q) || false);
         }
 
-        return statusMatch && typeMatch && queryMatch && priceMatch && finishingMatch && projectMatch && bedsMatch && bathsMatch && amenitiesMatch;
+        return statusMatch && typeMatch && queryMatch && priceMatch && finishingMatch && projectMatch && bedsMatch && bathsMatch && amenitiesMatch && compoundMatch && financeMatch && installmentsMatch;
     });
 };

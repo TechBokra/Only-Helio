@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabase';
 import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenitiesData } from '../data/filterOptions';
 import type { FilterOption } from '../types';
@@ -24,6 +25,9 @@ const fetchOptions = async (table: string, localData: FilterOption[]): Promise<F
             console.warn(`Supabase: Error fetching ${table}, falling back to local data.`, error.message);
             return localData;
         }
+        
+        if (!data) return localData;
+
         // Update local cache with fresh DB data
         const mappedData = data.map(mapFilterOption);
         
@@ -33,6 +37,7 @@ const fetchOptions = async (table: string, localData: FilterOption[]): Promise<F
         
         return mappedData;
     } catch (e) {
+        console.error(`Unexpected error fetching ${table}:`, e);
         return localData;
     }
 };
@@ -44,17 +49,27 @@ export const getAllAmenities = () => fetchOptions('amenities', localAmenities);
 
 // Generic Mutator
 const mutateOption = async (
-    dataType: 'propertyType' | 'finishingStatus', 
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity', 
     operation: 'add' | 'update' | 'delete',
     item?: FilterOption | Partial<FilterOption>,
     itemId?: string
 ) => {
     let tableName = '';
-    let localList = dataType === 'propertyType' ? localPropertyTypes : localFinishingStatuses;
+    let localList: FilterOption[] = [];
     
     switch (dataType) {
-        case 'propertyType': tableName = 'property_types'; break;
-        case 'finishingStatus': tableName = 'finishing_statuses'; break;
+        case 'propertyType': 
+            tableName = 'property_types'; 
+            localList = localPropertyTypes;
+            break;
+        case 'finishingStatus': 
+            tableName = 'finishing_statuses'; 
+            localList = localFinishingStatuses;
+            break;
+        case 'amenity':
+            tableName = 'amenities';
+            localList = localAmenities;
+            break;
         default: return null;
     }
 
@@ -83,7 +98,8 @@ const mutateOption = async (
 
     // Sync back to module-level variables
     if (dataType === 'propertyType') localPropertyTypes = localList;
-    else localFinishingStatuses = localList;
+    else if (dataType === 'finishingStatus') localFinishingStatuses = localList;
+    else localAmenities = localList;
 
     // --- 2. Attempt Supabase Mutation ---
     if (!supabase) return resultItem; 
@@ -91,12 +107,12 @@ const mutateOption = async (
     try {
         if (operation === 'add' && item) {
             const payload: any = {
-                id: resultItem?.id, // Use the ID generated locally if needed
+                id: resultItem?.id, // Use the ID generated locally if needed (or let DB handle it if UUID)
                 name_en: item.en,
                 name_ar: item.ar,
             };
-            // Only add applicable_to if it's finishingStatus, as property_types table doesn't have this column
-            if (dataType === 'finishingStatus' && item.applicableTo) {
+            // Add applicable_to for finishingStatus and amenity
+            if ((dataType === 'finishingStatus' || dataType === 'amenity') && item.applicableTo) {
                 payload.applicable_to = item.applicableTo;
             }
 
@@ -110,8 +126,8 @@ const mutateOption = async (
             if (item.en) payload.name_en = item.en;
             if (item.ar) payload.name_ar = item.ar;
             
-            // Only add applicable_to if it's finishingStatus
-            if (dataType === 'finishingStatus' && item.applicableTo) {
+            // Add applicable_to for finishingStatus and amenity
+            if ((dataType === 'finishingStatus' || dataType === 'amenity') && item.applicableTo) {
                 payload.applicable_to = item.applicableTo;
             }
 
@@ -138,6 +154,6 @@ const mutateOption = async (
     return resultItem;
 };
 
-export const addFilterOption = (dataType: 'propertyType' | 'finishingStatus', item: Omit<FilterOption, 'id'>) => mutateOption(dataType, 'add', item);
-export const updateFilterOption = (dataType: 'propertyType' | 'finishingStatus', item: FilterOption) => mutateOption(dataType, 'update', item);
-export const deleteFilterOption = (dataType: 'propertyType' | 'finishingStatus', itemId: string) => mutateOption(dataType, 'delete', undefined, itemId);
+export const addFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', item: Omit<FilterOption, 'id'>) => mutateOption(dataType, 'add', item);
+export const updateFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', item: FilterOption) => mutateOption(dataType, 'update', item);
+export const deleteFilterOption = (dataType: 'propertyType' | 'finishingStatus' | 'amenity', itemId: string) => mutateOption(dataType, 'delete', undefined, itemId);

@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { SearchIcon, XCircleIcon, CheckBadgeIcon } from '../ui/Icons';
+
+import React, { useMemo, useState } from 'react';
+import { SearchIcon, XCircleIcon, CheckBadgeIcon, ChevronDownIcon, ChevronRightIcon } from '../ui/Icons';
 import { useLanguage } from '../shared/LanguageContext';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -25,6 +26,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     const { language, t } = useLanguage();
     const t_page = t.propertiesPage;
     const t_card = t.propertyCard;
+    const [showMoreFilters, setShowMoreFilters] = useState(false);
 
     // --- STRICT SAFETY LAYER ---
     const safeFilters = filters || {};
@@ -73,11 +75,23 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8 transition-all">
             {/* Header */}
             <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t_page.searchLabel}</h2>
-                <Button variant="ghost" onClick={handleReset} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">
-                    <XCircleIcon className="w-4 h-4 mr-1" />
-                    {language === 'ar' ? 'إعادة تعيين' : 'Reset'}
-                </Button>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <SearchIcon className="w-5 h-5 text-amber-500"/>
+                    {t_page.searchLabel}
+                </h2>
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={handleReset} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">
+                        <XCircleIcon className="w-4 h-4 mr-1" />
+                        {language === 'ar' ? 'إعادة تعيين' : 'Reset'}
+                    </Button>
+                    <button 
+                        onClick={() => setShowMoreFilters(!showMoreFilters)}
+                        className="text-sm font-semibold text-amber-600 hover:text-amber-700 flex items-center"
+                    >
+                        {showMoreFilters ? t_page.hideFilters : t_page.advancedFilters}
+                        {showMoreFilters ? <ChevronDownIcon className="w-4 h-4 ml-1" /> : <ChevronRightIcon className="w-4 h-4 ml-1" />}
+                    </button>
+                </div>
             </div>
 
             {/* Main Filters Grid */}
@@ -89,7 +103,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         placeholder={t_page.searchPlaceholder} 
                         value={getVal('query')}
                         onChange={(e) => setVal('query', e.target.value)}
-                        className="pl-10"
+                        className="pl-10 bg-gray-50 dark:bg-gray-900/50"
                     />
                     <SearchIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
@@ -115,29 +129,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                     </Select>
                 </div>
 
-                {/* 4. Project */}
-                <div>
-                     <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.project}</label>
-                    <Select value={getVal('project')} onChange={(e) => setVal('project', e.target.value)}>
-                        <option value="all">{t_page.allProjects}</option>
-                        {projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name[language]}</option>
-                        ))}
-                    </Select>
-                </div>
-
-                {/* 5. Finishing */}
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.finishing}</label>
-                    <Select value={getVal('finishing')} onChange={(e) => setVal('finishing', e.target.value)}>
-                        <option value="all">{t_page.allFinishes}</option>
-                        {finishingStatuses.map(fs => (
-                            <option key={fs.id} value={fs.en}>{fs[language]}</option>
-                        ))}
-                    </Select>
-                </div>
-
-                {/* 6. Price Range */}
+                {/* 4. Price Range */}
                 <div className="sm:col-span-2 flex gap-2">
                     <div className="w-1/2">
                         <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.minPricePlaceholder}</label>
@@ -158,50 +150,107 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         />
                     </div>
                 </div>
-
-                {/* 7. Beds & Baths */}
-                <div className="flex gap-2">
-                    <div className="w-1/2">
-                         <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.beds}</label>
-                        <Input 
-                            type="number" 
-                            value={getVal('beds')} 
-                            onChange={(e) => setVal('beds', e.target.value)}
-                            placeholder="+"
-                        />
-                    </div>
-                    <div className="w-1/2">
-                         <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.baths}</label>
-                        <Input 
-                            type="number" 
-                            value={getVal('baths')}
-                            onChange={(e) => setVal('baths', e.target.value)}
-                             placeholder="+"
-                        />
-                    </div>
-                </div>
             </div>
+            
+            {/* Advanced Filters (Collapsible) */}
+            {showMoreFilters && (
+                <div className="animate-fadeIn border-t border-gray-100 dark:border-gray-700 pt-6 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Project */}
+                        <div>
+                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.project}</label>
+                            <Select value={getVal('project')} onChange={(e) => setVal('project', e.target.value)}>
+                                <option value="all">{t_page.allProjects}</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name[language]}</option>
+                                ))}
+                            </Select>
+                        </div>
 
-            {/* Amenities Section */}
-            {availableAmenities.length > 0 && (
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
-                        <CheckBadgeIcon className="w-4 h-4 text-amber-500" />
-                        {t_page.amenities}
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                        {availableAmenities.map(amenity => (
-                            <label key={amenity.id} className="flex items-center gap-2 cursor-pointer group">
-                                <Checkbox 
-                                    checked={(safeFilters.amenities || []).includes(amenity.en)}
-                                    onCheckedChange={() => handleAmenityToggle(amenity.en)}
+                        {/* Finishing */}
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.finishing}</label>
+                            <Select value={getVal('finishing')} onChange={(e) => setVal('finishing', e.target.value)}>
+                                <option value="all">{t_page.allFinishes}</option>
+                                {finishingStatuses.map(fs => (
+                                    <option key={fs.id} value={fs.en}>{fs[language]}</option>
+                                ))}
+                            </Select>
+                        </div>
+
+                        {/* Installments & Finance */}
+                        <div>
+                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.installments}</label>
+                             <Select value={getVal('installments')} onChange={(e) => setVal('installments', e.target.value)}>
+                                <option value="all">{t_page.allInstallments}</option>
+                                <option value="yes">{t_page.installmentsYes}</option>
+                                <option value="no">{t_page.installmentsNo}</option>
+                            </Select>
+                        </div>
+                         <div>
+                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.realEstateFinance}</label>
+                             <Select value={getVal('realEstateFinance')} onChange={(e) => setVal('realEstateFinance', e.target.value)}>
+                                <option value="all">{t_page.allRealEstateFinance}</option>
+                                <option value="yes">{t_page.realEstateFinanceYes}</option>
+                                <option value="no">{t_page.realEstateFinanceNo}</option>
+                            </Select>
+                        </div>
+
+                         {/* Compound */}
+                         <div>
+                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.inCompound}</label>
+                             <Select value={getVal('compound')} onChange={(e) => setVal('compound', e.target.value)}>
+                                <option value="all">{t_page.allCompound}</option>
+                                <option value="yes">{t_page.compoundYes}</option>
+                                <option value="no">{t_page.compoundNo}</option>
+                            </Select>
+                        </div>
+                        
+                         {/* Beds & Baths */}
+                        <div className="flex gap-2">
+                            <div className="w-1/2">
+                                 <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.beds}</label>
+                                <Input 
+                                    type="number" 
+                                    value={getVal('beds')} 
+                                    onChange={(e) => setVal('beds', e.target.value)}
+                                    placeholder="+"
                                 />
-                                <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors select-none">
-                                    {amenity[language]}
-                                </span>
-                            </label>
-                        ))}
+                            </div>
+                            <div className="w-1/2">
+                                 <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.baths}</label>
+                                <Input 
+                                    type="number" 
+                                    value={getVal('baths')}
+                                    onChange={(e) => setVal('baths', e.target.value)}
+                                     placeholder="+"
+                                />
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Amenities Section */}
+                    {availableAmenities.length > 0 && (
+                        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                                <CheckBadgeIcon className="w-4 h-4 text-amber-500" />
+                                {t_page.amenities}
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                {availableAmenities.map(amenity => (
+                                    <label key={amenity.id} className="flex items-center gap-2 cursor-pointer group p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        <Checkbox 
+                                            checked={(safeFilters.amenities || []).includes(amenity.en)}
+                                            onCheckedChange={() => handleAmenityToggle(amenity.en)}
+                                        />
+                                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 select-none">
+                                            {amenity[language]}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

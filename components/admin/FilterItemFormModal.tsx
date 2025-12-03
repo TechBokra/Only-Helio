@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { FilterOption } from '../../types';
@@ -11,7 +12,7 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Checkbox } from '../ui/Checkbox';
 
 interface FilterItemFormModalProps {
-    dataType: 'propertyType' | 'finishingStatus';
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity';
     itemToEdit?: FilterOption;
     onClose: () => void;
     onSave: () => void;
@@ -22,7 +23,7 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     const t_shared = t.adminShared;
     const { showToast } = useToast();
 
-    // Fetch property types to allow mapping (only needed if we are editing finishing)
+    // Fetch property types to allow mapping (needed for finishing status and amenities)
     const { data: propertyTypes } = useQuery({ 
         queryKey: ['propertyTypes'], 
         queryFn: getAllPropertyTypes,
@@ -39,9 +40,8 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
         mutationFn: (data: { en: string; ar: string; applicableTo?: string[] }) => {
             const payload = { 
                 ...data,
-                // If applicableTo is empty or not needed (propertyType), we can either send undefined or empty array. 
-                // Logic downstream usually treats empty array as "Applicable to All" or "None" depending on implementation.
-                // Here, for propertyType, we exclude it. For others, we send it.
+                // If applicableTo is empty or not needed (propertyType), we exclude it for propertyType.
+                // For amenities and finishingStatus, we send it.
                 applicableTo: dataType === 'propertyType' ? undefined : data.applicableTo 
             };
 
@@ -82,11 +82,20 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     };
 
     const isApplicableSectionVisible = dataType !== 'propertyType' && propertyTypes && propertyTypes.length > 0;
+    
+    const getTitle = () => {
+        switch(dataType) {
+            case 'propertyType': return 'Property Type';
+            case 'finishingStatus': return 'Finishing Status';
+            case 'amenity': return 'Amenity';
+            default: return 'Item';
+        }
+    };
 
     return (
         <Modal isOpen={true} onClose={onClose} aria-labelledby="filter-form-title">
             <ModalHeader onClose={onClose} id="filter-form-title">
-                {itemToEdit ? t_shared.edit : t_shared.add} {dataType === 'finishingStatus' ? 'Finishing Status' : 'Property Type'}
+                {itemToEdit ? t_shared.edit : t_shared.add} {getTitle()}
             </ModalHeader>
             <form onSubmit={handleSubmit}>
                 <ModalContent className="space-y-6 pt-2">
@@ -105,7 +114,7 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
                                 Applicable To (Property Types)
                             </label>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                                Select which property types this option should appear for. Leave unchecked to apply to all (or none, depending on logic).
+                                Select which property types this option should appear for. Leave unchecked to apply to all.
                             </p>
                             <div className="grid grid-cols-2 gap-3">
                                 {propertyTypes?.map((type) => (
