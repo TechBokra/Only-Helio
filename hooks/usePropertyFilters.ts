@@ -4,7 +4,6 @@ import { useMemo, useCallback } from 'react';
 export const usePropertyFilters = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Simplified: Only Essential Filters
     const filters = useMemo(() => ({
         view: searchParams.get('view') || 'grid',
         status: searchParams.get('status') || 'all',
@@ -14,22 +13,37 @@ export const usePropertyFilters = () => {
         maxPrice: searchParams.get('maxPrice') || '',
         project: searchParams.get('project') || 'all',
         finishing: searchParams.get('finishing') || 'all',
+        installments: searchParams.get('installments') || 'all',
+        realEstateFinance: searchParams.get('realEstateFinance') || 'all',
+        floor: searchParams.get('floor') || '',
+        compound: searchParams.get('compound') || 'all',
+        delivery: searchParams.get('delivery') || 'all',
+        amenities: searchParams.get('amenities')?.split(',').filter(Boolean) || [],
         beds: searchParams.get('beds') || '',
         baths: searchParams.get('baths') || '',
     }), [searchParams]);
     
     const page = useMemo(() => parseInt(searchParams.get('page') || '1', 10), [searchParams]);
 
-    const setFilter = useCallback((filterName: string, value: string) => {
+    const setFilter = useCallback((filterName: string, value: string | string[]) => {
         setSearchParams(prev => {
             const newParams = new URLSearchParams(prev);
             
-            if (value === 'all' || value === '') {
-                newParams.delete(filterName);
+            if (Array.isArray(value)) {
+                 if (value.length > 0) {
+                    newParams.set(filterName, value.join(','));
+                } else {
+                    newParams.delete(filterName);
+                }
             } else {
-                newParams.set(filterName, value);
+                if (value === 'all' || value === '') {
+                    newParams.delete(filterName);
+                } else {
+                    newParams.set(filterName, value);
+                }
             }
             
+            // Always reset to page 1 when a filter is changed, except for the 'view' filter
             if (filterName !== 'view') {
                 newParams.delete('page');
             }
