@@ -28,8 +28,10 @@ const fetchOptions = async (table: string, initialData: FilterOption[]): Promise
 // Getters
 export const getAllPropertyTypes = () => fetchOptions('property_types', initialPropertyTypes);
 export const getAllFinishingStatuses = () => fetchOptions('finishing_statuses', initialFinishingStatuses);
-// Stub for amenities to prevent import errors, returning empty
-export const getAllAmenities = async () => [];
+
+// Stub for amenities to prevent import errors, returning empty typed array
+// FIX: Explicitly return Promise<FilterOption[]> to prevent 'never[]' inference errors in hooks
+export const getAllAmenities = async (): Promise<FilterOption[]> => [];
 
 // Generic Mutator
 const mutateOption = async (
@@ -49,12 +51,17 @@ const mutateOption = async (
 
     try {
         if (operation === 'add' && item) {
-            const payload = {
+            const payload: any = {
                 id: item.id || `auto-${Date.now()}`, 
                 name_en: item.en,
                 name_ar: item.ar,
-                applicable_to: item.applicableTo
             };
+
+            // Only add applicable_to if it's finishingStatus, as property_types table doesn't have this column
+            if (dataType === 'finishingStatus' && item.applicableTo) {
+                payload.applicable_to = item.applicableTo;
+            }
+
             const { data, error } = await supabase.from(tableName).insert([payload]).select().single();
             if (error) throw error;
             return mapFilterOption(data);
@@ -64,7 +71,11 @@ const mutateOption = async (
             const payload: any = {};
             if (item.en) payload.name_en = item.en;
             if (item.ar) payload.name_ar = item.ar;
-            if (item.applicableTo) payload.applicable_to = item.applicableTo;
+            
+            // Only add applicable_to if it's finishingStatus
+            if (dataType === 'finishingStatus' && item.applicableTo) {
+                payload.applicable_to = item.applicableTo;
+            }
 
             const { data, error } = await supabase.from(tableName).update(payload).eq('id', item.id).select().maybeSingle();
             if (error) throw error;

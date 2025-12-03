@@ -12,7 +12,8 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Checkbox } from '../ui/Checkbox';
 
 interface FilterItemFormModalProps {
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity';
+    // FIX: Removed 'amenity' from union type to match service definition
+    dataType: 'propertyType' | 'finishingStatus';
     itemToEdit?: FilterOption;
     onClose: () => void;
     onSave: () => void;
@@ -23,7 +24,7 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     const t_shared = t.adminShared;
     const { showToast } = useToast();
 
-    // Fetch property types to allow mapping (only needed if we are editing amenities or finishing)
+    // Fetch property types to allow mapping (only needed if we are editing finishing)
     const { data: propertyTypes } = useQuery({ 
         queryKey: ['propertyTypes'], 
         queryFn: getAllPropertyTypes,
@@ -87,7 +88,8 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     return (
         <Modal isOpen={true} onClose={onClose} aria-labelledby="filter-form-title">
             <ModalHeader onClose={onClose} id="filter-form-title">
-                {itemToEdit ? t_shared.edit : t_shared.add} {dataType === 'amenity' ? 'Amenity' : dataType === 'finishingStatus' ? 'Finishing Status' : 'Property Type'}
+                {/* FIX: Removed 'amenity' check since it's no longer supported */}
+                {itemToEdit ? t_shared.edit : t_shared.add} {dataType === 'finishingStatus' ? 'Finishing Status' : 'Property Type'}
             </ModalHeader>
             <form onSubmit={handleSubmit}>
                 <ModalContent className="space-y-6 pt-2">
