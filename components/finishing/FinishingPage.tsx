@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Language, AdminPartner } from '../../types';
@@ -19,12 +18,14 @@ interface PricingTier {
     price: number;
 }
 
+// --- Sub-Components moved outside to prevent re-creation on render ---
+
 const ServicePackageCard: React.FC<{
     service: any;
     onBookTier: (serviceTitle: string, tier: PricingTier) => void;
     language: Language;
     t: any;
-}> = ({ service, onBookTier, language, t }) => {
+}> = React.memo(({ service, onBookTier, language, t }) => {
     const { isFavorite, toggleFavorite } = useFavorites();
     const { showToast } = useToast();
     const serviceId = service.title.en;
@@ -38,7 +39,7 @@ const ServicePackageCard: React.FC<{
     };
 
     return (
-        <Card className="flex flex-col h-full p-0 border-2 border-transparent hover:border-amber-500/30 transition-all duration-300">
+        <Card className="flex flex-col h-full p-0 border-2 border-transparent hover:border-amber-500/30 transition-all duration-300 bg-white dark:bg-gray-800">
             <CardContent className="p-8 flex flex-col flex-grow relative">
                  <button onClick={handleFavoriteClick} className="absolute top-4 right-4 p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors z-10" aria-label={isFav ? t.favoritesPage.removeFromFavorites : t.favoritesPage.addToFavorites}>
                     {isFav ? <HeartIconSolid className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6 text-gray-500" />}
@@ -48,7 +49,7 @@ const ServicePackageCard: React.FC<{
 
                 <div className="space-y-4">
                     {(service.pricingTiers || []).map((tier: PricingTier, index: number) => (
-                        <div key={index} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700 gap-4">
+                        <div key={index} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 gap-4 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
                             <div>
                                 <p className="font-bold text-gray-800 dark:text-gray-200">{tier.unitType[language]}</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">{tier.areaRange[language]}</p>
@@ -60,7 +61,7 @@ const ServicePackageCard: React.FC<{
                                 <Button 
                                     size="sm" 
                                     onClick={() => onBookTier(service.title[language], tier)}
-                                    className="whitespace-nowrap bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold"
+                                    className="whitespace-nowrap"
                                 >
                                     {language === 'ar' ? 'حجز الآن' : 'Book Now'}
                                 </Button>
@@ -71,33 +72,33 @@ const ServicePackageCard: React.FC<{
             </CardContent>
         </Card>
     );
-};
+});
 
-const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = ({ partner, t }) => {
-    const { language } = useLanguage();
+const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = React.memo(({ partner, t }) => {
     const localizedPartner = t.partnerInfo[partner.id];
-
     if (!localizedPartner) return null;
 
     return (
         <Link to={`/partners/${partner.id}`} className="block h-full">
             <Card className="transform hover:-translate-y-2 transition-transform duration-300 group h-full flex flex-col overflow-hidden p-0 card-glow">
-                <picture>
-                     <source
-                        type="image/webp"
-                        srcSet={`${partner.imageUrl_small}&fm=webp 480w, ${partner.imageUrl_medium}&fm=webp 800w, ${partner.imageUrl_large || partner.imageUrl}&fm=webp 1200w`}
-                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                    />
-                    <img
-                        src={partner.imageUrl_large || partner.imageUrl}
-                        srcSet={`${partner.imageUrl_small} 480w, ${partner.imageUrl_medium} 800w, ${partner.imageUrl_large || partner.imageUrl} 1200w`}
-                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                        alt={localizedPartner.name}
-                        className="w-full h-48 object-cover"
-                        loading="lazy"
-                    />
-                </picture>
-                <CardContent className="p-6 flex flex-col flex-grow">
+                <div className="relative h-48 overflow-hidden">
+                    <picture>
+                        <source
+                            type="image/webp"
+                            srcSet={`${partner.imageUrl_small}&fm=webp 480w, ${partner.imageUrl_medium}&fm=webp 800w, ${partner.imageUrl_large || partner.imageUrl}&fm=webp 1200w`}
+                            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
+                        />
+                        <img
+                            src={partner.imageUrl_large || partner.imageUrl}
+                            srcSet={`${partner.imageUrl_small} 480w, ${partner.imageUrl_medium} 800w, ${partner.imageUrl_large || partner.imageUrl} 1200w`}
+                            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
+                            alt={localizedPartner.name}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            loading="lazy"
+                        />
+                    </picture>
+                </div>
+                <CardContent className="p-6 flex flex-col flex-grow bg-white dark:bg-gray-800">
                     <h3 className="text-xl font-bold text-amber-500 mb-2 group-hover:text-amber-400 transition-colors">
                         {localizedPartner.name}
                     </h3>
@@ -108,15 +109,14 @@ const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = ({ partn
             </Card>
         </Link>
     );
-};
+});
 
-const ServiceProviderCard: React.FC<{ partner: AdminPartner; onRequest: (title: string, partnerId: string) => void; t: any; buttonText: string }> = ({ partner, onRequest, t, buttonText }) => {
+const ServiceProviderCard: React.FC<{ partner: AdminPartner; onRequest: (title: string, partnerId: string) => void; t: any; buttonText: string }> = React.memo(({ partner, onRequest, t, buttonText }) => {
     const localizedPartner = t.partnerInfo[partner.id];
-
     if (!localizedPartner) return null;
 
     return (
-        <Card className="p-6 flex flex-col sm:flex-row justify-between items-center">
+        <Card className="p-6 flex flex-col sm:flex-row justify-between items-center hover:shadow-md transition-shadow duration-200 bg-white dark:bg-gray-800">
             <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">{localizedPartner.name}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{localizedPartner.description}</p>
@@ -124,13 +124,15 @@ const ServiceProviderCard: React.FC<{ partner: AdminPartner; onRequest: (title: 
             <Button 
                 onClick={() => onRequest(t.partnerProfilePage.serviceRequestFor + ' ' + localizedPartner.name, partner.id)} 
                 className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0"
+                variant="outline"
             >
                 {buttonText}
             </Button>
         </Card>
     );
-};
+});
 
+// --- Main Component ---
 
 const FinishingPage: React.FC = () => {
     const { language, t } = useLanguage();
@@ -142,8 +144,6 @@ const FinishingPage: React.FC = () => {
     const { data: siteContent, isLoading: isLoadingContent } = useSiteContent();
 
     const isLoading = isLoadingPartners || isLoadingContent;
-    
-    // Use dynamic content if available, fallback to translation file
     const content = siteContent?.finishingPage?.[language] || t.finishingPage;
 
     const handleRequestService = (serviceTitle: string, partnerId: string = 'admin-user') => {
@@ -157,13 +157,12 @@ const FinishingPage: React.FC = () => {
     };
     
     const handleBookTier = (serviceTitle: string, tier: PricingTier) => {
-        // Redirect to Service Request Page directly with tier info
         navigate('/request-service', {
             state: {
                 serviceTitle,
                 partnerId: 'admin-user',
                 serviceType: 'finishing',
-                tier: tier, // Pass the tier details
+                tier: tier,
                 isBooking: true
             },
         });
@@ -192,21 +191,15 @@ const FinishingPage: React.FC = () => {
         }
     };
 
-
-    const services = useMemo(() => {
-        if (!siteContent?.finishingServices) return [];
-        return siteContent.finishingServices;
-    }, [siteContent]);
+    const services = useMemo(() => siteContent?.finishingServices || [], [siteContent]);
 
     const { companyPartners, serviceProviders } = useMemo(() => {
         if (!partners) return { companyPartners: [], serviceProviders: [] };
-        
         const allFinishingPartners = partners.filter((p) => p.type === 'finishing' && p.status === 'active');
-        
-        const companies = allFinishingPartners.filter(p => p.subscriptionPlan === 'professional' || p.subscriptionPlan === 'elite');
-        const providers = allFinishingPartners.filter(p => p.subscriptionPlan === 'commission');
-
-        return { companyPartners: companies, serviceProviders: providers };
+        return { 
+            companyPartners: allFinishingPartners.filter(p => ['professional', 'elite'].includes(p.subscriptionPlan)),
+            serviceProviders: allFinishingPartners.filter(p => p.subscriptionPlan === 'commission')
+        };
     }, [partners]);
 
     if (isLoading) {
@@ -220,22 +213,19 @@ const FinishingPage: React.FC = () => {
             {/* Hero Section */}
             <section
                 className="relative h-[50vh] flex items-center justify-center text-center bg-cover bg-center"
-                style={{
-                    backgroundImage:
-                        "url('https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?fm=webp&q=75&w=1600&auto=format&fit=crop')",
-                }}
+                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?fm=webp&q=75&w=1600&auto=format&fit=crop')" }}
             >
                 <div className="absolute top-0 left-0 w-full h-full bg-black/70 z-10"></div>
                 <div className="relative z-20 px-4 container mx-auto text-white">
-                    <h1 className="text-4xl md:text-6xl font-extrabold">{content.heroTitle}</h1>
-                    <p className="max-w-3xl mx-auto text-lg md:text-xl text-gray-200 mt-4">
+                    <h1 className="text-4xl md:text-6xl font-extrabold animate-fadeInUp-subtle">{content.heroTitle}</h1>
+                    <p className="max-w-3xl mx-auto text-lg md:text-xl text-gray-200 mt-4 animate-fadeInUp-subtle" style={{animationDelay: '0.1s'}}>
                         {content.heroSubtitle}
                     </p>
-                     <div className="mt-6">
+                     <div className="mt-6 animate-fadeInUp-subtle" style={{animationDelay: '0.2s'}}>
                         <Button
                             onClick={handleShare}
                             variant="secondary"
-                            className="bg-white/20 text-white border-white/50 hover:bg-white/30"
+                            className="bg-white/20 text-white border-white/50 hover:bg-white/30 backdrop-blur-sm"
                         >
                             <ShareIcon className="w-5 h-5 mr-2" />
                             {t.sharing.share}
@@ -255,7 +245,6 @@ const FinishingPage: React.FC = () => {
                          <p className="text-md text-gray-600 dark:text-gray-300 mt-2">{content.servicesIntro}</p>
                     </div>
 
-                    {/* Service Tabs */}
                     <div className="flex flex-wrap justify-center gap-4 mb-12" role="tablist">
                         {services.map((service, index) => (
                             <button
@@ -274,7 +263,6 @@ const FinishingPage: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* Active Service Card */}
                     <div className="max-w-5xl mx-auto min-h-[400px]">
                         {services[activeServiceIndex] && (
                              <div key={activeServiceIndex} className="animate-fadeIn">
@@ -345,11 +333,10 @@ const FinishingPage: React.FC = () => {
                     </h2>
                     <p className="max-w-3xl mx-auto text-lg text-gray-500 mb-8">{content.ctaSubtitle}</p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Link
-                            to="/contact"
-                            className="w-full sm:w-auto bg-amber-500 text-gray-900 font-semibold px-8 py-4 rounded-lg text-lg hover:bg-amber-600 transition-colors duration-200 shadow-lg shadow-amber-500/20"
-                        >
-                            {content.ctaButton}
+                        <Link to="/contact">
+                            <Button size="lg" className="shadow-xl shadow-amber-500/20 px-10">
+                                {content.ctaButton}
+                            </Button>
                         </Link>
                     </div>
                 </div>

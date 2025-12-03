@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { FilterOption } from '../../types';
@@ -12,7 +11,6 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Checkbox } from '../ui/Checkbox';
 
 interface FilterItemFormModalProps {
-    // FIX: Removed 'amenity' from union type to match service definition
     dataType: 'propertyType' | 'finishingStatus';
     itemToEdit?: FilterOption;
     onClose: () => void;
@@ -88,7 +86,6 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     return (
         <Modal isOpen={true} onClose={onClose} aria-labelledby="filter-form-title">
             <ModalHeader onClose={onClose} id="filter-form-title">
-                {/* FIX: Removed 'amenity' check since it's no longer supported */}
                 {itemToEdit ? t_shared.edit : t_shared.add} {dataType === 'finishingStatus' ? 'Finishing Status' : 'Property Type'}
             </ModalHeader>
             <form onSubmit={handleSubmit}>

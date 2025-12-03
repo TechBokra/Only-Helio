@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useFieldArray, UseFormReturn } from 'react-hook-form';
@@ -8,26 +7,24 @@ import { Input } from '../../ui/Input';
 import { Textarea } from '../../ui/Textarea';
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon, PhotoIcon, SparklesIcon } from '../../ui/Icons';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import { uploadToCloudinary } from '../../../lib/cloudinary';
+import { useToast } from '../../shared/ToastContext';
 
 type ContentFormContext = UseFormReturn<SiteContent>;
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 const ContentHeroPage: React.FC = () => {
     const { register, control, setValue } = useOutletContext<ContentFormContext>();
     const { fields, append, remove, swap } = useFieldArray({ control, name: 'hero.images' });
+    const { showToast } = useToast();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         if (e.target.files && e.target.files[0]) {
-            const base64 = await fileToBase64(e.target.files[0]);
-            setValue(`hero.images.${index}.src`, base64, { shouldDirty: true });
+            try {
+                const url = await uploadToCloudinary(e.target.files[0]);
+                setValue(`hero.images.${index}.src`, url, { shouldDirty: true });
+            } catch (error) {
+                showToast("Failed to upload image", "error");
+            }
         }
     };
 

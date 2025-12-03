@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useFieldArray, UseFormReturn, Control } from 'react-hook-form';
@@ -9,29 +7,27 @@ import { Input } from '../../ui/Input';
 import { Textarea } from '../../ui/Textarea';
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from '../../ui/Icons';
 import { Checkbox } from '../../ui/Checkbox';
+import { uploadToCloudinary } from '../../../lib/cloudinary';
+import { useToast } from '../../shared/ToastContext';
 
 type ContentFormContext = UseFormReturn<SiteContent>;
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
 
 const ContentWhyNewHeliopolisPage: React.FC = () => {
     const { register, control, setValue } = useOutletContext<ContentFormContext>();
     const { fields: statFields, append: appendStat, remove: removeStat } = useFieldArray({ control, name: 'whyNewHeliopolis.en.location.stats' });
     const { remove: removeArStat } = useFieldArray({ control, name: 'whyNewHeliopolis.ar.location.stats' });
+    const { showToast } = useToast();
 
     const { fields: imageFields, append: appendImage, remove: removeImage, swap: swapImage } = useFieldArray({ control, name: 'whyNewHeliopolis.images' });
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         if (e.target.files && e.target.files[0]) {
-            const base64 = await fileToBase64(e.target.files[0]);
-            setValue(`whyNewHeliopolis.images.${index}.src`, base64, { shouldDirty: true });
+            try {
+                const url = await uploadToCloudinary(e.target.files[0]);
+                setValue(`whyNewHeliopolis.images.${index}.src`, url, { shouldDirty: true });
+            } catch (error) {
+                showToast("Failed to upload image", "error");
+            }
         }
     };
 

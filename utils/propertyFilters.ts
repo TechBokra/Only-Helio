@@ -27,6 +27,16 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
         const minBaths = Number(filters.baths) || 0;
         const bathsMatch = minBaths === 0 || (p.baths !== undefined && p.baths >= minBaths);
         
+        // Amenities Check (AND logic: property must have ALL selected amenities)
+        let amenitiesMatch = true;
+        if (filters.amenities && filters.amenities.length > 0) {
+            const propertyAmenitiesEn = p.amenities?.en || [];
+            // We check against the English keys of amenities
+            amenitiesMatch = filters.amenities.every(selectedAmenity => 
+                propertyAmenitiesEn.includes(selectedAmenity)
+            );
+        }
+
         // Search Query
         let queryMatch = true;
         if (filters.query) {
@@ -39,6 +49,6 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
                 (p.partnerName?.toLowerCase().includes(q) || false);
         }
 
-        return statusMatch && typeMatch && queryMatch && priceMatch && finishingMatch && projectMatch && bedsMatch && bathsMatch;
+        return statusMatch && typeMatch && queryMatch && priceMatch && finishingMatch && projectMatch && bedsMatch && bathsMatch && amenitiesMatch;
     });
 };

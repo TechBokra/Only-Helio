@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +9,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { inputClasses } from '../ui/FormField';
-import { fileToBase64 } from '../../utils/fileUtils';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 import type { AdminPartner } from '../../types';
 
 const AdminProfilePage: React.FC = () => {
@@ -23,6 +22,7 @@ const AdminProfilePage: React.FC = () => {
     const { register, handleSubmit, reset } = useForm();
     const [logoPreview, setLogoPreview] = useState<string | null>('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         if (currentUser) {
@@ -64,23 +64,30 @@ const AdminProfilePage: React.FC = () => {
     const onSubmit = async (data: any) => {
         if (!currentUser) return;
 
-        let imageUrl = currentUser.imageUrl;
-        if (logoFile) {
-            imageUrl = await fileToBase64(logoFile);
-        }
-        
-        const updates: any = {
-            nameAr: data.nameAr,
-            name: data.nameEn, // Internal users mainly use 'name' as EN and 'nameAr' for AR
-            email: data.email,
-            imageUrl: imageUrl,
-        };
+        setIsUploading(true);
+        try {
+            let imageUrl = currentUser.imageUrl;
+            if (logoFile) {
+                imageUrl = await uploadToCloudinary(logoFile);
+            }
+            
+            const updates: any = {
+                nameAr: data.nameAr,
+                name: data.nameEn, // Internal users mainly use 'name' as EN and 'nameAr' for AR
+                email: data.email,
+                imageUrl: imageUrl,
+            };
 
-        if (data.password) {
-            updates.password = data.password;
-        }
+            if (data.password) {
+                updates.password = data.password;
+            }
 
-        mutation.mutate({ id: currentUser.id, updates });
+            mutation.mutate({ id: currentUser.id, updates });
+        } catch (error) {
+            showToast("Failed to upload image", "error");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     if (!currentUser) return null;
@@ -152,7 +159,7 @@ const AdminProfilePage: React.FC = () => {
                         </div>
 
                         <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <Button type="submit" isLoading={mutation.isPending}>
+                            <Button type="submit" isLoading={mutation.isPending || isUploading}>
                                 {t_dash.saveChanges}
                             </Button>
                         </div>

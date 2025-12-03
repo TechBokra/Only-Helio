@@ -1,9 +1,10 @@
-import React from 'react';
-import { SearchIcon, XCircleIcon } from '../ui/Icons';
+import React, { useMemo } from 'react';
+import { SearchIcon, XCircleIcon, CheckBadgeIcon } from '../ui/Icons';
 import { useLanguage } from '../shared/LanguageContext';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
+import { Checkbox } from '../ui/Checkbox';
 import type { Project, FilterOption } from '../../types';
 
 interface PropertyFiltersProps {
@@ -11,16 +12,17 @@ interface PropertyFiltersProps {
   projects?: Project[];
   propertyTypes?: FilterOption[];
   finishingStatuses?: FilterOption[];
+  amenities?: FilterOption[];
 }
 
 const PropertyFilters: React.FC<PropertyFiltersProps> = ({ 
     filters, 
     projects = [], 
     propertyTypes = [], 
-    finishingStatuses = []
+    finishingStatuses = [],
+    amenities = []
 }) => {
     const { language, t } = useLanguage();
-    // Access translation namespaces correctly
     const t_page = t.propertiesPage;
     const t_card = t.propertyCard;
 
@@ -44,6 +46,29 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         }
     };
 
+    const handleAmenityToggle = (amenityEn: string) => {
+        const currentAmenities = safeFilters.amenities || [];
+        let newAmenities: string[];
+        
+        if (currentAmenities.includes(amenityEn)) {
+            newAmenities = currentAmenities.filter((a: string) => a !== amenityEn);
+        } else {
+            newAmenities = [...currentAmenities, amenityEn];
+        }
+        
+        setVal('amenities', newAmenities);
+    };
+
+    const selectedType = getVal('type');
+
+    const availableAmenities = useMemo(() => {
+        if (!amenities) return [];
+        if (!selectedType || selectedType === 'all') return amenities;
+        return amenities.filter(amenity => 
+            !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(selectedType)
+        );
+    }, [amenities, selectedType]);
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8 transition-all">
             {/* Header */}
@@ -56,7 +81,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
             </div>
 
             {/* Main Filters Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 
                 {/* 1. Search Query */}
                 <div className="col-span-1 sm:col-span-2 lg:col-span-4 relative">
@@ -156,6 +181,29 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Amenities Section */}
+            {availableAmenities.length > 0 && (
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-amber-500" />
+                        {t_page.amenities}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {availableAmenities.map(amenity => (
+                            <label key={amenity.id} className="flex items-center gap-2 cursor-pointer group">
+                                <Checkbox 
+                                    checked={(safeFilters.amenities || []).includes(amenity.en)}
+                                    onCheckedChange={() => handleAmenityToggle(amenity.en)}
+                                />
+                                <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors select-none">
+                                    {amenity[language]}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

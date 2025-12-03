@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm, SubmitHandler, FormProvider, FieldValues, RegisterOptions } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -15,7 +14,6 @@ import { Select } from '../ui/Select';
 import { Checkbox } from '../ui/Checkbox';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { PATTERNS, MESSAGES, CONFIG } from '../../utils/validation';
-// CHANGED: Import Cloudinary uploader instead of fileUtils
 import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface DynamicFormProps {
@@ -59,7 +57,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = methods;
 
-    // CHANGED: Upload to Cloudinary instead of Base64
     const processFiles = async (formData: FieldValues, fields: FormFieldDefinition[]) => {
         const processedData = { ...formData };
         const fileFields = fields.filter(f => f.type === 'file');
@@ -231,13 +228,16 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             return <input type="hidden" {...commonProps} />;
         }
 
+        // Check for errors
+        const hasError = !!errors[field.key];
+
         switch (field.type) {
             case 'textarea':
-                return <Textarea {...commonProps} rows={4} className={inputClasses} />;
+                return <Textarea {...commonProps} rows={4} className={`${inputClasses} ${hasError ? 'border-red-500' : ''}`} />;
             case 'select':
                 const options = Array.isArray(field.options) ? field.options : (typeof field.options === 'string' ? field.options.split(',').map(o => o.trim()) : []);
                 return (
-                    <Select {...commonProps} className={selectClasses}>
+                    <Select {...commonProps} className={`${selectClasses} ${hasError ? 'border-red-500' : ''}`}>
                         <option value="">{language === 'ar' ? 'اختر...' : 'Select...'}</option>
                         {options.map(opt => {
                             const label = t.formOptions?.[opt as keyof typeof t.formOptions] || opt;
@@ -257,12 +257,13 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                     <Input 
                         type="file" 
                         {...commonProps} 
+                        error={hasError}
                         className="p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900 dark:file:text-amber-300" 
                         accept="image/*,application/pdf" 
                     />
                 );
             default:
-                return <Input type={field.type} {...commonProps} className={inputClasses} />;
+                return <Input type={field.type} {...commonProps} error={hasError} className={inputClasses} />;
         }
     };
 

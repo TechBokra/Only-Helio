@@ -10,7 +10,7 @@ import PropertyCardSkeleton from '../shared/PropertyCardSkeleton';
 import PropertyListItemSkeleton from '../shared/PropertyListItemSkeleton';
 import PropertyInquiryModal from '../shared/PropertyInquiryModal';
 import { getAllProjects } from '../../services/projects';
-import { getAllPropertyTypes, getAllFinishingStatuses } from '../../services/filters';
+import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '../../services/filters';
 import { getPaginatedProperties } from '../../services/properties';
 import { usePropertyFilters } from '../../hooks/usePropertyFilters';
 import Pagination from '../shared/Pagination';
@@ -31,6 +31,7 @@ const PropertiesPage: React.FC = () => {
     const { data: projects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
     const { data: propertyTypes } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
     const { data: finishingStatuses } = useQuery({ queryKey: ['finishingStatuses'], queryFn: getAllFinishingStatuses });
+    const { data: amenities } = useQuery({ queryKey: ['amenities'], queryFn: getAllAmenities });
     
     const queryFilters = useMemo(() => ({
         view: filterControls.view,
@@ -43,6 +44,7 @@ const PropertiesPage: React.FC = () => {
         finishing: filterControls.finishing,
         beds: filterControls.beds,
         baths: filterControls.baths,
+        amenities: filterControls.amenities,
     }), [filterControls]);
 
     const { data: propertiesData, isLoading: propsLoading } = useQuery({
@@ -75,6 +77,7 @@ const PropertiesPage: React.FC = () => {
                     projects={projects || []}
                     propertyTypes={propertyTypes || []}
                     finishingStatuses={finishingStatuses || []}
+                    amenities={amenities || []}
                 />
             </div>
             
