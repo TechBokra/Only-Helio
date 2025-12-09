@@ -14,6 +14,9 @@ const PropertyFinancials: React.FC = () => {
     const watchPrice = watch('priceNumeric');
     const watchArea = watch('area');
     const watchStatus = watch('status');
+    const watchType = watch('type');
+    
+    const isLand = watchType?.en === 'Land';
 
     const pricePerMeter = useMemo(() => {
         if (!watchPrice || !watchArea || watchArea === 0) return 0;

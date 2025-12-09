@@ -1,16 +1,17 @@
 
-
 import React, { useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import type { AddPropertyRequest, Property } from '../../../types';
+import type { AddPropertyRequest, Request } from '../../../types';
+import { RequestType } from '../../../types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllPropertyRequests, updatePropertyRequestStatus } from '../../../services/propertyRequests';
-import { addProperty } from '../../../services/properties';
-import { ArrowLeftIcon } from '../../ui/Icons';
+import { ArrowLeftIcon, CheckCircleIcon, XCircleIcon, WrenchScrewdriverIcon } from '../../ui/Icons';
 import DetailItem from '../../shared/DetailItem';
 import { useLanguage } from '../../shared/LanguageContext';
 import { useToast } from '../../shared/ToastContext';
 import UnifiedMap from '../../shared/UnifiedMap';
+import { Button } from '../../ui/Button';
+import RequestPayloadViewer from './RequestPayloadViewer';
 
 const AdminPropertyRequestDetailsPage: React.FC = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -23,88 +24,32 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     
     const request = useMemo(() => requests?.find(r => r.id === requestId), [requests, requestId]);
 
-    const addPropertyMutation = useMutation({
-        mutationFn: (propertyData: Omit<Property, 'id'>) => addProperty(propertyData),
-    });
+    // Adapt specific AddPropertyRequest structure to the generic Request structure expected by the viewer
+    const requestForViewer = useMemo((): Request | null => {
+        if (!request) return null;
+        return {
+            id: request.id,
+            type: RequestType.PROPERTY_LISTING_REQUEST,
+            status: request.status,
+            assignedTo: '',
+            createdAt: request.createdAt,
+            updatedAt: request.createdAt,
+            requesterInfo: {
+                name: request.customerName,
+                phone: request.customerPhone
+            },
+            payload: {
+                propertyDetails: request.propertyDetails,
+                cooperationType: request.cooperationType,
+                images: request.images,
+                paymentStatus: (request as any).paymentStatus // Ensure payment status is passed if present
+            }
+        };
+    }, [request]);
 
     const updateRequestMutation = useMutation({
-        mutationFn: (status: 'approved' | 'rejected') => updatePropertyRequestStatus(request!.id, status),
-        onSuccess: async (data, status) => {
-            if (status === 'approved' && request) {
-                const pd = request.propertyDetails;
-
-                if (!pd) {
-                    showToast('Cannot approve: Missing property details.', 'error');
-                    return;
-                }
-
-                const priceNumeric = Number(pd.price) || 0;
-                const area = Number(pd.area) || 0;
-                const pricePerMeter = area > 0 ? Math.round(priceNumeric / area) : 0;
-
-                // Safe access helpers
-                const getEn = (obj: any) => obj?.en || '';
-                const getAr = (obj: any) => obj?.ar || '';
-
-                const newProperty: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl' | 'projectName'> = {
-                    partnerId: 'individual-listings',
-                    title: { 
-                        en: getEn(pd.title) || 'Untitled Property', 
-                        ar: getAr(pd.title) || 'عقار بدون عنوان' 
-                    },
-                    description: { 
-                        en: getEn(pd.description) || '', 
-                        ar: getAr(pd.description) || '' 
-                    },
-                    address: { en: pd.address || '', ar: pd.address || '' },
-                    location: pd.location || { lat: 30.0, lng: 31.0 },
-                    status: { 
-                        en: (pd.purpose?.en || 'For Sale') as 'For Sale' | 'For Rent', 
-                        ar: (pd.purpose?.ar || 'للبيع') as 'للبيع' | 'إيجار'
-                    },
-                    type: { 
-                        en: (getEn(pd.propertyType) || 'Apartment') as string, 
-                        ar: (getAr(pd.propertyType) || 'شقة') as string
-                    },
-                    finishingStatus: pd.finishingStatus ? { 
-                        en: getEn(pd.finishingStatus), 
-                        ar: getAr(pd.finishingStatus) 
-                    } : undefined,
-                    area: area,
-                    price: { 
-                        en: `EGP ${priceNumeric.toLocaleString('en-US')}`,
-                        ar: `${priceNumeric.toLocaleString('ar-EG')} ج.م`
-                    },
-                    priceNumeric: priceNumeric,
-                    pricePerMeter: pricePerMeter > 0 ? {
-                        en: `EGP ${pricePerMeter.toLocaleString('en-US')}/m²`,
-                        ar: `${pricePerMeter.toLocaleString('ar-EG')} ج.م/م²`
-                    } : undefined,
-                    beds: Number(pd.bedrooms) || 0,
-                    baths: Number(pd.bathrooms) || 0,
-                    floor: Number(pd.floor) || 0,
-                    amenities: pd.amenities || { en: [], ar: [] },
-                    isInCompound: !!pd.isInCompound,
-                    delivery: { 
-                        isImmediate: pd.deliveryType === 'immediate', 
-                        date: pd.deliveryType === 'future' ? `${pd.deliveryMonth}/${pd.deliveryYear}` : undefined
-                    },
-                    installmentsAvailable: !!pd.hasInstallments,
-                    installments: pd.hasInstallments ? {
-                        downPayment: Number(pd.downPayment) || 0,
-                        monthlyInstallment: Number(pd.monthlyInstallment) || 0,
-                        years: Number(pd.years) || 0
-                    } : undefined,
-                    realEstateFinanceAvailable: !!pd.realEstateFinanceAvailable,
-                    imageUrl: request.images && request.images[0] ? request.images[0] : 'https://via.placeholder.com/800x600?text=No+Image',
-                    gallery: request.images ? request.images.slice(1) : [],
-                    listingStatus: 'active',
-                    contactMethod: pd.contactMethod || 'platform',
-                    ownerPhone: pd.ownerPhone,
-                    listingStartDate: pd.listingStartDate || new Date().toISOString().split('T')[0],
-                };
-                await addPropertyMutation.mutateAsync(newProperty);
-            }
+        mutationFn: (status: 'rejected') => updatePropertyRequestStatus(request!.id, status),
+        onSuccess: (_, status) => {
             showToast(`Request has been ${status}.`, 'success');
             queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
             navigate('/admin/properties/listing-requests');
@@ -114,72 +59,67 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
         }
     });
 
+    const handleEditAndPublish = () => {
+        if (!request) return;
+        // Navigate to the Add Property page with the request data pre-filled in state
+        navigate('/admin/properties/new', { 
+            state: { 
+                fromRequest: request 
+            } 
+        });
+    };
+
     if (isLoading) return <div>Loading...</div>;
     if (!request) return <div>Request not found.</div>;
     
     const { propertyDetails: pd } = request;
 
-    // Guard against missing pd
     if (!pd) {
-        return <div className="p-8 text-center text-red-500">Error: Request data is corrupt or missing details.</div>;
+        return <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg border border-red-200">Error: Request data is corrupt or missing details.</div>;
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
-             <Link to="/admin/properties/listing-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
-                <ArrowLeftIcon className="w-5 h-5" />
+        <div className="max-w-7xl mx-auto animate-fadeIn">
+             <Link to="/admin/properties/listing-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-6 font-medium">
+                <ArrowLeftIcon className="w-4 h-4" />
                 {t.adminShared.backToRequests}
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t_admin.propertyDetailsTitle}</h1>
             
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 space-y-8">
-                 <section>
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Owner Info</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <DetailItem label="Name" value={request.customerName} />
-                        <DetailItem label="Phone" value={request.customerPhone} />
-                        <DetailItem label="Contact Time" value={request.contactTime} />
-                    </div>
-                </section>
-                
-                 <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Cooperation & Listing</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <DetailItem label="Cooperation Model" value={request.cooperationType} />
-                        <DetailItem label="Listing Start Date" value={pd.listingStartDate} />
-                        <DetailItem label="Listing End Date" value={pd.listingEndDate} />
-                    </div>
-                 </section>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t_admin.propertyDetailsTitle}</h1>
+                <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${
+                    request.status === 'new' ? 'bg-blue-100 text-blue-700' : 
+                    request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                    request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                }`}>
+                    Status: {request.status}
+                </span>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Main Info Column */}
+                <div className="lg:col-span-2 space-y-8">
+                     {/* Payload Viewer (Includes Financial & Property Card) */}
+                    {requestForViewer && <RequestPayloadViewer request={requestForViewer} />}
 
-                <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Property Details</h2>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6">
-                        <DetailItem label="Title (EN)" value={pd.title?.en} />
-                        <DetailItem label="Title (AR)" value={pd.title?.ar} />
-                        <DetailItem label="Purpose" value={pd.purpose?.[language]} />
-                        <DetailItem label="Property Type" value={pd.propertyType?.[language]} />
-                        <DetailItem label="Finishing" value={pd.finishingStatus?.[language]} />
-                        <DetailItem label="Area" value={`${pd.area} m²`} />
-                        <DetailItem label="Price" value={`EGP ${pd.price?.toLocaleString()}`} />
-                        <DetailItem label="Bedrooms" value={pd.bedrooms} />
-                        <DetailItem label="Bathrooms" value={pd.bathrooms} />
-                        <DetailItem label="Floor" value={pd.floor} />
-                        <DetailItem label="In Compound" value={pd.isInCompound ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                        <DetailItem label="Installments" value={pd.hasInstallments ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                        <DetailItem label="Real Estate Finance" value={pd.realEstateFinanceAvailable ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                        <DetailItem label="Delivery" value={pd.deliveryType === 'immediate' ? 'Immediate' : `${pd.deliveryMonth}/${pd.deliveryYear}`} />
-                     </div>
-                     <div className="mt-4 space-y-2">
-                         <DetailItem label="Address" value={pd.address} layout="grid"/>
-                         <DetailItem label="Description (EN)" value={<p className="whitespace-pre-line">{pd.description?.en}</p>} layout="grid"/>
-                         <DetailItem label="Description (AR)" value={<p className="whitespace-pre-line">{pd.description?.ar}</p>} layout="grid"/>
-                         <DetailItem label="Amenities" value={(pd.amenities?.en || []).join(', ')} layout="grid" />
-                     </div>
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <span className="w-1 h-6 bg-amber-500 rounded-full"></span> Owner Information
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <DetailItem label="Full Name" value={request.customerName} />
+                            <DetailItem label="Phone Number" value={request.customerPhone} />
+                            <DetailItem label="Preferred Contact Time" value={request.contactTime} />
+                            <DetailItem label="Submission Date" value={new Date(request.createdAt).toLocaleString()} />
+                        </div>
+                    </div>
 
-                     {pd.location && (
-                        <div className="mt-6">
-                            <h3 className="text-sm font-medium text-gray-500 mb-2">Location Verification</h3>
-                            <div className="h-64 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    {pd.location && (
+                         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span className="w-1 h-6 bg-amber-500 rounded-full"></span> Submitted Location
+                            </h2>
+                            <div className="h-64 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 relative z-0">
                                 <UnifiedMap 
                                     mode="read"
                                     markers={[{
@@ -190,47 +130,67 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                                     }]}
                                 />
                             </div>
-                            <p className="text-xs text-gray-400 mt-1 font-mono">
+                            <p className="text-xs text-gray-500 mt-2 font-mono">
                                 Lat: {pd.location.lat}, Lng: {pd.location.lng}
                             </p>
                         </div>
-                     )}
-                </section>
+                    )}
+                </div>
 
-                {pd.hasInstallments && (
-                    <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-amber-500 mb-4">Installment Details</h2>
-                        <div className="grid grid-cols-3 gap-4">
-                            <DetailItem label="Down Payment" value={`EGP ${pd.downPayment?.toLocaleString()}`} />
-                            <DetailItem label="Monthly" value={`EGP ${pd.monthlyInstallment?.toLocaleString()}`} />
-                            <DetailItem label="Years" value={pd.years} />
-                        </div>
-                    </section>
-                )}
+                {/* Right Column: Actions */}
+                <div className="lg:col-span-1">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 sticky top-24">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
+                            Decision & Actions
+                        </h3>
+                        
+                        {request.status === 'pending' || request.status === 'new' ? (
+                            <div className="space-y-6">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                    <h4 className="font-bold text-blue-800 dark:text-blue-200 mb-2 text-sm uppercase tracking-wider">Review Process</h4>
+                                    <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2 list-disc list-inside">
+                                        <li>Verify property details & images.</li>
+                                        <li>Check financial arrangement.</li>
+                                        <li>Click "Edit & Publish" to finalize.</li>
+                                    </ul>
+                                </div>
 
-                 {request.images && request.images.length > 0 && (
-                    <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-amber-500 mb-4">Images</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {request.images.map((img: string, index: number) => (
-                                <a key={index} href={img} target="_blank" rel="noreferrer">
-                                    <img src={img} alt={`Property ${index+1}`} className="w-full h-32 object-cover rounded-md" />
-                                </a>
-                            ))}
-                        </div>
-                    </section>
-                )}
+                                <Button 
+                                    onClick={handleEditAndPublish} 
+                                    className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-4 text-lg shadow-lg shadow-amber-500/20 transition-all hover:-translate-y-0.5"
+                                >
+                                    <WrenchScrewdriverIcon className="w-5 h-5" />
+                                    {language === 'ar' ? 'تعديل ونشر' : 'Edit & Publish'}
+                                </Button>
+                                
+                                <div className="relative flex py-2 items-center">
+                                    <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold">Or</span>
+                                    <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                </div>
 
-                 {request.status === 'pending' && (
-                    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4">
-                        <button onClick={() => updateRequestMutation.mutate('rejected')} disabled={updateRequestMutation.isPending} className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors">
-                           {t.adminShared.reject}
-                        </button>
-                         <button onClick={() => updateRequestMutation.mutate('approved')} disabled={updateRequestMutation.isPending || addPropertyMutation.isPending} className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors">
-                            {t.adminShared.approve} & Create Listing
-                        </button>
+                                <Button 
+                                    onClick={() => updateRequestMutation.mutate('rejected')} 
+                                    disabled={updateRequestMutation.isPending} 
+                                    variant="danger"
+                                    className="w-full flex items-center justify-center gap-2 opacity-90 hover:opacity-100"
+                                >
+                                    <XCircleIcon className="w-5 h-5" />
+                                    {t.adminShared.reject}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner
+                                    ${request.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                                    {request.status === 'approved' ? <CheckCircleIcon className="w-10 h-10" /> : <XCircleIcon className="w-10 h-10" />}
+                                </div>
+                                <p className="text-gray-900 dark:text-white font-bold text-xl capitalize mb-2">{request.status}</p>
+                                <p className="text-sm text-gray-500">This request has been processed.</p>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );

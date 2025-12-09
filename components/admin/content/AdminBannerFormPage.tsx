@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -146,6 +145,7 @@ const AdminBannerFormPage: React.FC = () => {
             const bannerData = {
                 ...data,
                 imageUrl,
+                locations: data.locations || [],
                 startDate: data.startDate || undefined,
                 endDate: data.endDate || undefined,
             };

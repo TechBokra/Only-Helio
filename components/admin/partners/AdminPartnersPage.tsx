@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllPartnersForAdmin, updatePartnerStatus, deletePartner } from '../../../services/partners';
+import { getExternalPartners, updatePartnerStatus, deletePartner } from '../../../services/partners'; // CHANGED IMPORT
 import { getPlans } from '../../../services/plans';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -25,7 +25,12 @@ const AdminPartnersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const { data: partners, isLoading, isError, refetch } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
+    // CHANGED: Fetch only external partners
+    const { data: partners, isLoading, isError, refetch } = useQuery({ 
+        queryKey: ['externalPartners'], 
+        queryFn: getExternalPartners 
+    });
+    
     useQuery({ queryKey: ['plans'], queryFn: getPlans }); 
 
     const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
@@ -34,12 +39,12 @@ const AdminPartnersPage: React.FC = () => {
 
     const statusMutation = useMutation({
         mutationFn: ({ id, status }: { id: string, status: PartnerStatus }) => updatePartnerStatus(id, status),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] })
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['externalPartners'] })
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deletePartner(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] })
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['externalPartners'] })
     });
 
     const handleStatusToggle = (id: string, currentStatus: PartnerStatus) => {
@@ -105,7 +110,7 @@ const AdminPartnersPage: React.FC = () => {
         
         setSelectedPartners([]);
         setActionToConfirm(null);
-        queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+        queryClient.invalidateQueries({ queryKey: ['externalPartners'] });
     };
     
     const updateUrlFilter = (key: string, value: string) => {
@@ -257,7 +262,10 @@ const AdminPartnersPage: React.FC = () => {
                 <Input placeholder={t_admin.filter.searchByNameOrEmail} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-xs"/>
                 <Select value={filters.type || 'all'} onChange={e => updateUrlFilter('type', e.target.value)}>
                     <option value="all">{t_admin.filter.filterByType} ({t_admin.filter.all})</option>
-                    {Object.entries(t_admin.partnerTypes).map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
+                    {/* Only show external business types here */}
+                    {['developer', 'agency', 'finishing'].map(key => (
+                         <option key={key} value={key}>{t_admin.partnerTypes[key as keyof typeof t_admin.partnerTypes]}</option>
+                    ))}
                 </Select>
                 <Select value={filters.status || 'all'} onChange={e => updateUrlFilter('status', e.target.value)}>
                     <option value="all">{t_admin.filter.filterByStatus} ({t_admin.filter.all})</option>

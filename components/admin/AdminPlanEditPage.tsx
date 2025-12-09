@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails } from '../../types';
@@ -20,6 +21,7 @@ const AdminPlanEditPage: React.FC = () => {
     const [arData, setArData] = useState({ price: '', description: '', features: '' });
     const [enData, setEnData] = useState({ price: '', description: '', features: '' });
     const [commissionRate, setCommissionRate] = useState('');
+    const [planId, setPlanId] = useState<string | undefined>(undefined);
     const [loadingSave, setLoadingSave] = useState(false);
 
     // Determine actual plan type and subCategory (for individual-sale/rent)
@@ -36,6 +38,7 @@ const AdminPlanEditPage: React.FC = () => {
 
             if (plan) {
                 const typedPlan = plan as { ar: SubscriptionPlanDetails, en: SubscriptionPlanDetails };
+                setPlanId(typedPlan.en.id); // Capture ID
                 setArData({
                     price: typedPlan.ar.price,
                     description: typedPlan.ar.description,
@@ -46,7 +49,7 @@ const AdminPlanEditPage: React.FC = () => {
                     description: typedPlan.en.description,
                     features: typedPlan.en.features.join('\n'),
                 });
-                setCommissionRate(String(typedPlan.en.commissionRate || ''));
+                setCommissionRate(typedPlan.en.commissionRate !== undefined && typedPlan.en.commissionRate !== null ? String(typedPlan.en.commissionRate) : '');
             }
         }
     }, [realPlanType, planKey, subCategory, plans]);
@@ -56,7 +59,9 @@ const AdminPlanEditPage: React.FC = () => {
         if (!realPlanType || !planKey) return;
         
         setLoadingSave(true);
-        const rate = commissionRate ? parseFloat(commissionRate) : undefined;
+        // Ensure rate is a valid number or undefined
+        const rate = commissionRate !== '' ? parseFloat(commissionRate) : undefined;
+        
         await apiUpdatePlan(realPlanType, planKey as SubscriptionPlan, {
             ar: {
                 price: arData.price,
@@ -70,7 +75,7 @@ const AdminPlanEditPage: React.FC = () => {
                 features: enData.features.split('\n').filter(f => f.trim() !== ''),
                 commissionRate: rate,
             }
-        }, subCategory);
+        }, subCategory, planId); // Pass ID here
         
         setLoadingSave(false);
         navigate('/admin/partners/plans');

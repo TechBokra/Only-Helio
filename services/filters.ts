@@ -1,4 +1,3 @@
-
 import { supabase } from '../lib/supabase';
 import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenitiesData } from '../data/filterOptions';
 import type { FilterOption } from '../types';
@@ -107,7 +106,7 @@ const mutateOption = async (
     try {
         if (operation === 'add' && item) {
             const payload: any = {
-                id: resultItem?.id, // Use the ID generated locally if needed (or let DB handle it if UUID)
+                id: resultItem?.id, // Use the ID generated locally if needed
                 name_en: item.en,
                 name_ar: item.ar,
             };
@@ -126,9 +125,14 @@ const mutateOption = async (
             if (item.en) payload.name_en = item.en;
             if (item.ar) payload.name_ar = item.ar;
             
-            // Add applicable_to for finishingStatus and amenity
-            if ((dataType === 'finishingStatus' || dataType === 'amenity') && item.applicableTo) {
-                payload.applicable_to = item.applicableTo;
+            // FIX: Ensure applicableTo is mapped to applicable_to for DB
+            if ((dataType === 'finishingStatus' || dataType === 'amenity')) {
+                 if (item.applicableTo) {
+                     payload.applicable_to = item.applicableTo;
+                 } else if (item.applicableTo === null || (item as any).applicableTo === undefined) {
+                     // If not provided in update, we don't change it, unless explicitly cleared.
+                     // For simplicity in this modal flow, we always send the full array.
+                 }
             }
 
             const { data, error } = await supabase.from(tableName).update(payload).eq('id', item.id).select().maybeSingle();
@@ -142,13 +146,11 @@ const mutateOption = async (
             return true;
         }
     } catch (e: any) {
-        // If RLS policy fails (42501), we log it but return the local result so the app doesn't crash for the user.
         if (e?.code === '42501') {
             console.warn("Supabase RLS Policy Blocked Action. Falling back to local mock mode.");
             return resultItem || true; 
         }
         console.error(`Error performing ${operation} on ${tableName}:`, e);
-        // We intentionally return the local result to keep the UI working in dev mode
         return resultItem || true;
     }
     return resultItem;

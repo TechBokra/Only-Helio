@@ -26,22 +26,29 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.notifications.title, href: '/admin/notifications', icon: BellIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'Overview' },
   { name: t => t.adminDashboard.nav.reports, href: '/admin/reports', icon: FileDownloadIcon, permission: Permission.VIEW_ANALYTICS, group: 'Overview' },
   
-  // ... (Rest of existing links)
-  { name: t => t.adminDashboard.requestsTriage.allRequests, href: '/admin/requests', icon: InboxIcon, permission: Permission.MANAGE_USERS, group: 'Request Triage' },
-  { name: t => t.adminDashboard.nav.propertyRequests, href: '/admin/requests?type=PROPERTY_LISTING_REQUEST', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_PROPERTY_REQUESTS, group: 'Real Estate Market' },
-  { name: t => t.adminDashboard.nav.propertyInquiries, href: '/admin/requests?type=PROPERTY_INQUIRY', icon: SearchIcon, permission: Permission.MANAGE_PROPERTY_INQUIRIES, group: 'Real Estate Market' },
-  { name: t => t.adminDashboard.nav.contactRequests, href: '/admin/requests?type=CONTACT_MESSAGE', icon: PhoneIcon, permission: Permission.MANAGE_CONTACT_REQUESTS, group: 'Real Estate Market' },
+  // --- Group: Communication (New) ---
+  { name: t => t.adminDashboard.nav.contactRequests, href: '/admin/communication/messages', icon: InboxIcon, permission: Permission.MANAGE_CONTACT_REQUESTS, group: 'Communication' },
+
+  // --- Group: Real Estate Market ---
+  { name: t => t.adminDashboard.nav.propertyRequests, href: '/admin/properties/listing-requests', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_PROPERTY_REQUESTS, group: 'Real Estate Market' },
+  { name: t => t.adminDashboard.nav.propertyInquiries, href: '/admin/properties/search-requests', icon: SearchIcon, permission: Permission.MANAGE_PROPERTY_INQUIRIES, group: 'Real Estate Market' },
+  
+  // --- Group: Platform Operations ---
   { name: t => t.adminDashboard.nav.platformProperties, href: '/admin/platform-properties', icon: BuildingIcon, permission: Permission.MANAGE_PLATFORM_PROPERTIES, group: 'Platform Operations' },
   { name: t => t.adminDashboard.nav.platformFinishing, href: '/admin/platform-finishing', icon: WrenchScrewdriverIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_PACKAGES, group: 'Platform Operations' },
   { name: t => t.adminDashboard.nav.platformDecorations, href: '/admin/platform-decorations', icon: SparklesIcon, permission: Permission.MANAGE_DECORATIONS_CONTENT, group: 'Platform Operations' },
+  
+  // --- Group: Partner Relations ---
   { name: t => t.adminDashboard.nav.partners, href: '/admin/partners', icon: UsersIcon, permission: Permission.MANAGE_ALL_PARTNERS, group: 'Partner Relations' },
-  { name: t => t.adminDashboard.nav.partnerRequests, href: '/admin/requests?type=PARTNER_APPLICATION', icon: UserPlusIcon, permission: Permission.MANAGE_PARTNER_REQUESTS, group: 'Partner Relations' },
+  { name: t => t.adminDashboard.nav.partnerRequests, href: '/admin/partners/applications', icon: UserPlusIcon, permission: Permission.MANAGE_PARTNER_REQUESTS, group: 'Partner Relations' },
+  
+  // --- Group: Content & Listings ---
   { name: t => t.adminDashboard.nav.properties, href: '/admin/properties', icon: BuildingIcon, permission: Permission.MANAGE_ALL_PROPERTIES, group: 'Content & Listings' },
   { name: t => t.adminDashboard.nav.projects, href: '/admin/projects', icon: CubeIcon, permission: Permission.MANAGE_ALL_PROJECTS, group: 'Content & Listings' },
   { name: t => t.adminDashboard.nav.banners, href: '/admin/banners', icon: PhotoIcon, permission: Permission.MANAGE_BANNERS, group: 'Content & Listings' },
   { name: t => t.adminDashboard.nav.siteContent, href: '/admin/content', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_SITE_CONTENT, group: 'Content & Listings' },
   
-  // System Group
+  // --- Group: System ---
   { name: t => t.adminDashboard.nav.forms, href: '/admin/forms', icon: ListIcon, permission: Permission.MANAGE_FORMS, group: 'System' },
   { name: t => t.adminDashboard.nav.users, href: '/admin/users', icon: UsersIcon, permission: Permission.MANAGE_USERS, group: 'System' },
   { name: t => t.adminDashboard.nav.automationRules, href: '/admin/automation', icon: AdjustmentsHorizontalIcon, permission: Permission.MANAGE_AUTOMATION, group: 'System' },

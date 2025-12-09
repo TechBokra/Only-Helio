@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Property } from '../../types';
+import type { Property, AddPropertyRequest } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { addProperty as apiAddProperty, updateProperty as apiUpdateProperty, getAllProperties } from '../../services/properties';
+import { updatePropertyRequestStatus } from '../../services/propertyRequests';
 import { getAllProjects } from '../../services/projects';
 import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '../../services/filters';
 import { Role, Permission } from '../../types';
@@ -15,7 +16,7 @@ import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
-import FormField, { inputClasses } from '../ui/FormField';
+import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 
 // Import Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
@@ -52,16 +53,29 @@ export interface PropertyFormData {
     ownerPhone?: string;
     listingStartDate?: string;
     listingEndDate?: string;
+    
+    // Additional fields used in request mapping or form state
+    hasInstallments?: string;
+    deliveryType?: string;
+    deliveryMonth?: string;
+    deliveryYear?: string;
+    downPayment?: string;
+    monthlyInstallment?: string;
+    years?: string;
 }
 
 const PropertyFormPage: React.FC = () => {
     const { propertyId } = useParams();
     const navigate = useNavigate();
+    const locationHook = useLocation(); // Use location to get state
     const [searchParams] = useSearchParams();
     const { currentUser, hasPermission } = useAuth();
     const { language, t } = useLanguage();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
+    
+    // Check if we are editing from a Request
+    const requestData = locationHook.state?.fromRequest as AddPropertyRequest | undefined;
     
     const usageType = currentUser?.type === 'developer' ? 'units' : 'properties';
     const { isLimitReached } = useSubscriptionUsage(usageType);
@@ -94,7 +108,14 @@ const PropertyFormPage: React.FC = () => {
     const partnerProjects = useMemo(() => (projects || []).filter(p => p.partnerId === currentUser?.id), [projects, currentUser]);
     const watchContactMethod = watch('contactMethod');
 
-    const handleNavigationSuccess = (property?: Property) => {
+    const handleNavigationSuccess = async (property?: Property) => {
+        // If this was from a request, mark the request as approved
+        if (requestData) {
+            await updatePropertyRequestStatus(requestData.id, 'approved');
+            showToast('Original request marked as Approved.', 'success');
+            queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
+        }
+
         queryClient.invalidateQueries({ queryKey: ['allProperties'] });
         queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
         queryClient.invalidateQueries({ queryKey: [`partner-properties-${currentUser?.id}`] });
@@ -140,7 +161,53 @@ const PropertyFormPage: React.FC = () => {
     });
 
     useEffect(() => {
-        if (propertyId && properties) {
+        if (requestData && !propertyId) {
+            // --- PRE-FILL FROM REQUEST DATA ---
+            const pd = requestData.propertyDetails;
+            const safeVal = (val: any) => val || '';
+            const safeNum = (val: any) => Number(val) || 0;
+            const getEn = (obj: any) => obj?.en || obj || '';
+            const getAr = (obj: any) => obj?.ar || obj || '';
+
+            reset({
+                title: { ar: getAr(pd.title) || 'عقار جديد (من طلب)', en: getEn(pd.title) || 'New Property (From Request)' },
+                description: { ar: getAr(pd.description), en: getEn(pd.description) },
+                address: { ar: safeVal(pd.address), en: safeVal(pd.address) },
+                priceNumeric: safeNum(pd.price),
+                area: safeNum(pd.area),
+                status: pd.purpose || { en: 'For Sale', ar: 'للبيع' },
+                type: { en: getEn(pd.propertyType), ar: getAr(pd.propertyType) },
+                finishingStatus: pd.finishingStatus || { en: '', ar: '' },
+                beds: safeNum(pd.bedrooms),
+                baths: safeNum(pd.bathrooms),
+                floor: safeNum(pd.floor),
+                isInCompound: pd.isInCompound ? 'true' : 'false',
+                installmentsAvailable: pd.hasInstallments ? 'true' : 'false',
+                realEstateFinanceAvailable: pd.realEstateFinanceAvailable ? 'true' : 'false',
+                delivery: { isImmediate: pd.deliveryType === 'immediate' ? 'true' : 'false', date: pd.deliveryType === 'future' ? `${pd.deliveryYear}-${pd.deliveryMonth}` : '' },
+                installments: { 
+                    downPayment: safeNum(pd.downPayment), 
+                    monthlyInstallment: safeNum(pd.monthlyInstallment), 
+                    years: safeNum(pd.years) 
+                },
+                location: pd.location || { lat: 30.129, lng: 31.621 },
+                amenities: pd.amenities || { ar: [], en: [] },
+                contactMethod: pd.contactMethod || 'platform',
+                ownerPhone: pd.ownerPhone || '',
+                listingStatus: 'active', // Default to active when approving
+                projectId: '',
+            } as any);
+
+            if (requestData.images && requestData.images.length > 0) {
+                setMainImage(requestData.images[0]);
+                if (requestData.images.length > 1) {
+                     setGalleryImages(requestData.images.slice(1));
+                     setGalleryImageFiles(new Array(requestData.images.length - 1).fill(null)); // No files to upload, just URLs
+                }
+            }
+
+        } else if (propertyId && properties) {
+            // --- EDIT EXISTING PROPERTY ---
             const prop = properties.find(p => p.id === propertyId);
             const userCanEdit = currentUser && 'type' in currentUser && (prop?.partnerId === currentUser.id || hasPermission(Permission.MANAGE_ALL_PROPERTIES));
 
@@ -155,23 +222,23 @@ const PropertyFormPage: React.FC = () => {
                     installments: prop.installments || { downPayment: 0, monthlyInstallment: 0, years: 0 },
                     contactMethod: prop.contactMethod || 'platform',
                     ownerPhone: prop.ownerPhone || '',
-                    projectId: prop.projectId || '', // Ensure empty string if null for controlled input
+                    projectId: prop.projectId || '', 
                 } as any);
                 
                 setMainImage(prop.imageUrl);
                 setMainImageFile(null);
                 
                 setGalleryImages(prop.gallery || []);
-                // Initialize tracker with nulls matching gallery length
                 setGalleryImageFiles(new Array(prop.gallery?.length || 0).fill(null));
                 
             } else if (propertyId && !isLoadingContext) {
                 const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/properties' : '/dashboard/properties';
                 navigate(redirectPath);
             }
-        } else if (!propertyId) {
+        } else if (!propertyId && !requestData) {
+             // --- NEW BLANK PROPERTY ---
              reset({
-                projectId: searchParams.get('projectId') || '', // Default to empty string
+                projectId: searchParams.get('projectId') || '',
                 status: { en: 'For Sale', ar: 'للبيع' },
                 type: { en: 'Apartment', ar: 'شقة' },
                 beds: 3, baths: 2, area: 150, floor: 1,
@@ -192,7 +259,7 @@ const PropertyFormPage: React.FC = () => {
             setGalleryImages([]);
             setGalleryImageFiles([]);
         }
-    }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext]);
+    }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext, requestData]);
     
     // Image Handlers
     const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,10 +273,8 @@ const PropertyFormPage: React.FC = () => {
     const handleGalleryImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files: File[] = Array.from(e.target.files);
-            // Append new previews
             const newPreviews = files.map(file => URL.createObjectURL(file));
             setGalleryImages(prev => [...prev, ...newPreviews]);
-            // Append new files to the tracking array
             setGalleryImageFiles(prev => [...prev, ...files]);
         }
     };
@@ -234,24 +299,18 @@ const PropertyFormPage: React.FC = () => {
             // 1. Handle Main Image Upload
             let finalMainImage = mainImage;
             if (mainImageFile) {
-                try {
-                    finalMainImage = await uploadToCloudinary(mainImageFile);
-                } catch (e: any) {
-                     throw new Error(`Main image upload failed: ${e.message || e}`);
-                }
+                finalMainImage = await uploadToCloudinary(mainImageFile);
+            } else if (!finalMainImage && requestData) {
+                 // If coming from request and no new file, stick with existing URL (already in mainImage)
             }
 
             // 2. Handle Gallery Uploads
             const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
                 const file = galleryImageFiles[index];
                 if (file) {
-                     try {
-                        return await uploadToCloudinary(file);
-                    } catch (e: any) {
-                        throw new Error(`Gallery image ${index + 1} upload failed: ${e.message || e}`);
-                    }
+                     return await uploadToCloudinary(file);
                 }
-                return img; // Existing URL
+                return img; // Existing URL from edit or request
             }));
 
             const priceNumeric = Number(formData.priceNumeric) || 0;
@@ -264,8 +323,13 @@ const PropertyFormPage: React.FC = () => {
                 en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
             } : undefined;
 
-            // Safely parse integers (handling 0 correctly)
             const safeInt = (val: any) => (val !== '' && val !== undefined && val !== null) ? Number(val) : undefined;
+            
+            // Determine Partner ID
+            // If editing, keep existing. If new from request, maybe assign to 'individual-listings' or current admin
+            let targetPartnerId = currentUser.id;
+            if (requestData) targetPartnerId = 'individual-listings'; // Default for requests
+            if (propertyId) targetPartnerId = properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id;
 
             const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
                 ...formData,
@@ -280,7 +344,7 @@ const PropertyFormPage: React.FC = () => {
                     isImmediate: formData.delivery?.isImmediate === 'true',
                     date: formData.delivery?.isImmediate !== 'true' ? formData.delivery.date : undefined,
                 },
-                partnerId: propertyId ? properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id : currentUser.id,
+                partnerId: targetPartnerId,
                 price: { ar: formattedPriceAr, en: formattedPriceEn },
                 priceNumeric,
                 pricePerMeter,
@@ -291,7 +355,7 @@ const PropertyFormPage: React.FC = () => {
                 beds: safeInt(formData.beds) || 0,
                 baths: safeInt(formData.baths) || 0,
                 floor: safeInt(formData.floor),
-                projectId: formData.projectId || undefined, // Pass undefined if empty string
+                projectId: formData.projectId || undefined,
                 listingStartDate: formData.listingStartDate || undefined,
                 listingEndDate: formData.listingEndDate || undefined
             };
@@ -303,8 +367,7 @@ const PropertyFormPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Detailed Upload Error:", error);
-            const errorMessage = error instanceof Error ? error.message : "Failed to upload images.";
-            showToast(errorMessage, "error");
+            showToast(error.message || "Failed to save property.", "error");
         } finally {
             setIsUploading(false);
         }
@@ -313,7 +376,8 @@ const PropertyFormPage: React.FC = () => {
     if (isLoadingContext && !projects) return <div className="p-8 text-center">Loading form...</div>;
 
     const isAdmin = hasPermission(Permission.MANAGE_ALL_PROPERTIES);
-    if (isLimitReached && !propertyId && !isAdmin) {
+    // Bypass limit check if we are processing a request or editing
+    if (isLimitReached && !propertyId && !requestData && !isAdmin) {
         return <UpgradeNotice />;
     }
     
@@ -329,7 +393,16 @@ const PropertyFormPage: React.FC = () => {
                 />
             )}
 
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">{propertyId ? td.editTitle : td.addTitle}</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {propertyId ? td.editTitle : requestData ? 'Review & Publish Request' : td.addTitle}
+                </h1>
+                {requestData && (
+                    <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-200">
+                        Converting Request to Listing
+                    </span>
+                )}
+            </div>
             
             <FormProvider {...methods}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
@@ -360,7 +433,6 @@ const PropertyFormPage: React.FC = () => {
                         />
                     </div>
 
-                    {/* Contact Routing (Admin/Paid Feature) */}
                     {(isAdmin || (currentUser?.subscriptionPlan === 'paid_listing' && currentUser.type !== 'developer')) && (
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                             <fieldset className="space-y-2">
@@ -386,9 +458,15 @@ const PropertyFormPage: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-4 pb-12">
+                    <div className="flex justify-end pt-4 pb-12 gap-4">
+                        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+                            Cancel
+                        </Button>
                         <Button type="submit" isLoading={isSubmitting} size="lg" className="px-12">
-                            {isSubmitting ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...') : td.saveProperty}
+                            {isSubmitting 
+                                ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...') 
+                                : (requestData ? 'Approve & Publish' : td.saveProperty)
+                            }
                         </Button>
                     </div>
                 </form>

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllPartnersForAdmin, deletePartner } from '../../../services/partners';
+import { getInternalUsers, deletePartner } from '../../../services/partners'; // CHANGED IMPORT
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { AdminPartner, PartnerStatus, PartnerType, Role } from '../../../types';
@@ -21,32 +21,16 @@ const AdminUsersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
-    const { data: partners, isLoading } = useQuery({
-        queryKey: ['allPartnersAdmin'],
-        queryFn: getAllPartnersForAdmin,
+    // CHANGED: Use specific service function
+    const { data: users, isLoading } = useQuery({
+        queryKey: ['internalUsers'],
+        queryFn: getInternalUsers,
     });
-
-    const internalUserRoles = [
-        Role.SUPER_ADMIN,
-        Role.DECORATION_MANAGER,
-        Role.PLATFORM_FINISHING_MANAGER,
-        Role.FINISHING_MARKET_MANAGER,
-        Role.PLATFORM_REAL_ESTATE_MANAGER,
-        Role.REAL_ESTATE_MARKET_MANAGER,
-        Role.PARTNER_RELATIONS_MANAGER,
-        Role.CONTENT_MANAGER,
-        Role.SERVICE_MANAGER,
-        Role.CUSTOMER_RELATIONS_MANAGER,
-        Role.LISTINGS_MANAGER,
-    ];
-
-    const users = React.useMemo(() => (partners || []).filter(p => internalUserRoles.includes(p.role)), [partners]);
-
 
     const deleteMutation = useMutation({
         mutationFn: deletePartner,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+            queryClient.invalidateQueries({ queryKey: ['internalUsers'] });
             setUserToDelete(null);
         },
     });
@@ -75,7 +59,7 @@ const AdminUsersPage: React.FC = () => {
     });
 
     const internalUserTypes = Object.entries(t_admin.partnerTypes).filter(
-        ([key]) => !['developer', 'agency', 'finishing'].includes(key),
+        ([key]) => !['developer', 'agency', 'finishing', 'admin'].includes(key),
     );
 
     const renderTable = (items: AdminPartner[]) => (
@@ -103,7 +87,7 @@ const AdminUsersPage: React.FC = () => {
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell className="capitalize">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes]}</TableCell>
+                            <TableCell className="capitalize">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes] || user.type}</TableCell>
                             <TableCell>
                                     <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                     {user.status}
@@ -130,7 +114,7 @@ const AdminUsersPage: React.FC = () => {
                      <h3 className="font-bold text-gray-900 dark:text-white truncate">{language === 'ar' ? user.nameAr : user.name}</h3>
                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
                      <div className="flex gap-2 mt-2">
-                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes]}</span>
+                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes] || user.type}</span>
                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{user.status}</span>
                      </div>
                  </div>

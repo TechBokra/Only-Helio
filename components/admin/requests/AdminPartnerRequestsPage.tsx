@@ -1,14 +1,13 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getAllPartnerRequests } from '../../../services/partnerRequests';
-// FIX: Corrected import path for useAdminTable hook.
+import { getPartnerApplications } from '../../../services/partnerApps';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
-import type { PartnerRequest } from '../../../types';
+import type { PartnerApplicationModel } from '../../../types';
 import { Button } from '../../ui/Button';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
@@ -19,20 +18,20 @@ const AdminPartnerRequestsPage: React.FC = () => {
 
     const { data: requests, isLoading } = useQuery({ 
         queryKey: ['partnerRequests'], 
-        queryFn: getAllPartnerRequests 
+        queryFn: getPartnerApplications 
     });
 
     const { paginatedItems, totalPages, currentPage, setCurrentPage } = useAdminTable({
         data: requests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        searchFn: (item: PartnerRequest, term: string) => 
+        searchFn: (item: PartnerApplicationModel, term: string) => 
             item.companyName.toLowerCase().includes(term) || 
             item.contactName.toLowerCase().includes(term),
         filterFns: {},
     });
 
-    const renderTable = (items: PartnerRequest[]) => (
+    const renderTable = (items: PartnerApplicationModel[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
             <Table>
                 <TableHeader>
@@ -60,12 +59,12 @@ const AdminPartnerRequestsPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>{new Date(req.createdAt).toLocaleDateString(language)}</TableCell>
                                 <TableCell>
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full capitalize">
-                                        {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus]}
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${req.status === 'new' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                                        {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <Link to={`/admin/partner-requests/${req.id}`}>
+                                    <Link to={`/admin/partners/applications/${req.id}`}>
                                         <Button variant="outline" size="sm">
                                             {t_admin.table.details}
                                         </Button>
@@ -81,7 +80,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
         </div>
     );
 
-    const renderCard = (req: PartnerRequest) => (
+    const renderCard = (req: PartnerApplicationModel) => (
         <Card key={req.id}>
             <CardContent className="p-4 space-y-3">
                  <div className="flex justify-between items-start">
@@ -100,7 +99,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
                 <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                 <Link to={`/admin/partner-requests/${req.id}`} className="w-full">
+                 <Link to={`/admin/partners/applications/${req.id}`} className="w-full">
                     <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
                 </Link>
             </CardFooter>

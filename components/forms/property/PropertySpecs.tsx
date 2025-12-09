@@ -32,6 +32,14 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
         } else if (field === 'type' && propertyTypes) {
             option = propertyTypes.find(opt => opt.en === valueEn);
             valueAr = option ? option.ar : '';
+            
+            // Reset fields if type changes to Land
+            if (valueEn === 'Land') {
+                setValue('beds', 0);
+                setValue('baths', 0);
+                setValue('floor', 0);
+                setValue('finishingStatus', { en: 'Without Finishing', ar: 'بدون تشطيب' });
+            }
         } else if (field === 'finishingStatus' && finishingStatuses) {
             option = finishingStatuses.find(opt => opt.en === valueEn);
             valueAr = option ? option.ar : '';
@@ -52,6 +60,9 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
 
         setValue('amenities', { en: newAmenities, ar: amenitiesAr });
     };
+    
+    const isLand = watchType?.en === 'Land';
+    const isCommercial = watchType?.en === 'Commercial';
 
     const availableFinishingStatuses = useMemo(() => {
         if (!finishingStatuses) return [];
@@ -97,29 +108,43 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                         {(propertyTypes || []).map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
                     </select>
                 </FormField>
-                <FormField label={tp.finishing} id="finishingStatus.en">
-                    <select
-                        value={watchFinishingStatus?.en || ''}
-                        onChange={e => handleComplexChange('finishingStatus', e.target.value)}
-                        className={selectClasses}
-                        disabled={watchType?.en === 'Land' || availableFinishingStatuses.length === 0}
-                    >
-                         <option value="">{tp.allFinishes}</option>
-                         {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
-                    </select>
-                </FormField>
+                
+                {!isLand && (
+                    <FormField label={tp.finishing} id="finishingStatus.en">
+                        <select
+                            value={watchFinishingStatus?.en || ''}
+                            onChange={e => handleComplexChange('finishingStatus', e.target.value)}
+                            className={selectClasses}
+                            disabled={availableFinishingStatuses.length === 0}
+                        >
+                             <option value="">{tp.allFinishes}</option>
+                             {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
+                        </select>
+                    </FormField>
+                )}
+
                 <FormField label="Area (m²)" id="area">
                     <input type="number" {...register("area", { required: true, valueAsNumber: true })} className={inputClasses} />
                 </FormField>
-                <FormField label={t_prop.bedrooms} id="beds">
-                    <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} disabled={watchType?.en === 'Land' || watchType?.en === 'Commercial'} />
-                </FormField>
-                <FormField label={t_prop.bathrooms} id="baths">
-                    <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} disabled={watchType?.en === 'Land'} />
-                </FormField>
-                <FormField label={t_prop.floor} id="floor">
-                    <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} disabled={watchType?.en === 'Land' || watchType?.en === 'Villa'} />
-                </FormField>
+                
+                {!isLand && !isCommercial && (
+                    <FormField label={t_prop.bedrooms} id="beds">
+                        <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} />
+                    </FormField>
+                )}
+                
+                {!isLand && (
+                    <FormField label={t_prop.bathrooms} id="baths">
+                        <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} />
+                    </FormField>
+                )}
+                
+                {!isLand && (
+                     <FormField label={t_prop.floor} id="floor">
+                        <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} />
+                    </FormField>
+                )}
+                
                 <FormField label="Listing Status" id="listingStatus">
                     <select {...register("listingStatus")} className={selectClasses} >
                         <option value="active">Active</option>

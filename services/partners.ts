@@ -30,109 +30,82 @@ function getRoleForType(type: PartnerType): Role {
     }
 }
 
-// --- SUPABASE IMPLEMENTATION ---
+// --- Internal Helpers for Filtering ---
+const INTERNAL_TYPES = [
+    'admin', 'decoration_manager', 'platform_finishing_manager', 'finishing_market_manager',
+    'platform_real_estate_manager', 'real_estate_market_manager', 'partner_relations_manager',
+    'content_manager', 'service_manager', 'customer_relations_manager', 'listings_manager'
+];
+
+const EXTERNAL_TYPES = ['developer', 'agency', 'finishing'];
+
+
+// --- FETCH FUNCTIONS ---
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    if (!supabase) return [];
+    // This returns EVERYONE (Legacy support, use specific functions below preferably)
+    if (!supabase) return mapLocalData(initialPartnersData);
     
     try {
-        const { data, error } = await supabase
-            .from('partners')
-            .select('*');
-
-        if (error) {
-            console.warn('Supabase: Error fetching partners, falling back to local data:', error.message);
-            // Fallback to local data with CORRECT roles
-            return initialPartnersData.map(p => ({
-                ...p, 
-                name: (p as any).name || '', 
-                description: (p as any).description || '', 
-                // Fix: Ensure fallback data gets the correct role based on type, not just defaulting to Agency
-                role: (p as any).role || getRoleForType(p.type)
-            } as unknown as AdminPartner));
-        }
-        
-        if (!data || data.length === 0) {
-            return [];
-        }
-
+        const { data, error } = await supabase.from('partners').select('*');
+        if (error || !data) return mapLocalData(initialPartnersData);
         return data.map(mapPartnerFromDB);
     } catch (e) {
-        console.error("Critical error in getAllPartnersForAdmin:", e);
-        // Fallback on critical error too
-        return initialPartnersData.map(p => ({
-            ...p, 
-            name: (p as any).name || '', 
-            description: (p as any).description || '', 
-            role: (p as any).role || getRoleForType(p.type)
-        } as unknown as AdminPartner));
+        return mapLocalData(initialPartnersData);
     }
 };
 
+// 1. Get ONLY Internal Team (Admins, Managers)
+export const getInternalUsers = async (): Promise<AdminPartner[]> => {
+    if (!supabase) {
+        return mapLocalData(initialPartnersData.filter(p => INTERNAL_TYPES.includes(p.type)));
+    }
+    const { data, error } = await supabase.from('partners').select('*').in('type', INTERNAL_TYPES);
+    if (error || !data) return [];
+    return data.map(mapPartnerFromDB);
+};
+
+// 2. Get ONLY External Partners (Developers, Agencies, Finishing Companies)
+export const getExternalPartners = async (): Promise<AdminPartner[]> => {
+    if (!supabase) {
+        return mapLocalData(initialPartnersData.filter(p => EXTERNAL_TYPES.includes(p.type)));
+    }
+    const { data, error } = await supabase.from('partners').select('*').in('type', EXTERNAL_TYPES);
+    if (error || !data) return [];
+    return data.map(mapPartnerFromDB);
+};
+
+// --- SINGLE FETCH ---
+
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
-    if (!supabase) return undefined;
-
+    if (!supabase) {
+        const localUser = initialPartnersData.find(p => p.id === id);
+        return localUser ? mapLocalItem(localUser) : undefined;
+    }
     try {
-        const { data, error } = await supabase
-            .from('partners')
-            .select('*')
-            .eq('id', id)
-            .single();
-
+        const { data, error } = await supabase.from('partners').select('*').eq('id', id).single();
         if (error || !data) return undefined;
         return mapPartnerFromDB(data);
-    } catch (e) {
-        console.error("Error in getPartnerById:", e);
-        return undefined;
-    }
+    } catch (e) { return undefined; }
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
     if (!supabase) {
-        // Fallback for local dev if Supabase not connected
         const localUser = initialPartnersData.find(p => p.email === email);
-        if (localUser) {
-             return {
-                 ...localUser,
-                 name: (localUser as any).name,
-                 role: (localUser as any).role || getRoleForType(localUser.type)
-             } as Partner;
-        }
-        return undefined;
+        return localUser ? mapLocalItem(localUser) : undefined;
     }
-
     try {
-        const { data, error } = await supabase
-            .from('partners')
-            .select('*')
-            .ilike('email', email) // Case-insensitive
-            .maybeSingle(); 
-
-        if (error) {
-             console.warn("Supabase error finding partner:", error.message);
-             // Fallback
-             const localUser = initialPartnersData.find(p => p.email === email);
-             if (localUser) {
-                 return {
-                     ...localUser,
-                     name: (localUser as any).name,
-                     role: (localUser as any).role || getRoleForType(localUser.type)
-                 } as Partner;
-             }
-             return undefined;
-        }
-
-        if (!data) return undefined;
+        const { data, error } = await supabase.from('partners').select('*').ilike('email', email).maybeSingle();
+        if (error || !data) return undefined;
         return mapPartnerFromDB(data);
-    } catch (e) {
-        console.error("Error in getPartnerByEmail:", e);
-        return undefined;
-    }
+    } catch (e) { return undefined; }
 };
 
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
+    if (!supabase) return true;
+
     const dbUpdates: any = {};
     if (updates.nameEn) dbUpdates.name = updates.nameEn;
     if (updates.nameAr) dbUpdates.name_ar = updates.nameAr;
@@ -146,25 +119,21 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.status) dbUpdates.status = updates.status;
     if (updates.type) dbUpdates.type = updates.type;
     if (updates.email) dbUpdates.email = updates.email;
+    if (updates.password) dbUpdates.password = updates.password; // In prod, hash this!
 
-    const { error } = await supabase!
-        .from('partners')
-        .update(dbUpdates)
-        .eq('id', id);
-
+    const { error } = await supabase.from('partners').update(dbUpdates).eq('id', id);
     return !error;
 };
 
 export const updatePartnerStatus = async (id: string, status: PartnerStatus): Promise<boolean> => {
-    const { error } = await supabase!
-        .from('partners')
-        .update({ status })
-        .eq('id', id);
+    if (!supabase) return true;
+    const { error } = await supabase.from('partners').update({ status }).eq('id', id);
     return !error;
 };
 
 export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPartner> => {
-    const { data, error } = await supabase!
+    if (!supabase) throw new Error("DB connection required");
+    const { data, error } = await supabase
         .from('partners')
         .insert([{
             name: partnerData.companyName,
@@ -175,7 +144,8 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
             status: 'active',
             subscription_plan: partnerData.subscriptionPlan,
             role: getRoleForType(partnerData.companyType as PartnerType),
-            image_url: partnerData.logo
+            image_url: partnerData.logo,
+            password: 'password123' // Default temp password
         }])
         .select()
         .single();
@@ -184,10 +154,8 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
 };
 
 export const deletePartner = async (id: string): Promise<boolean> => {
-    const { error } = await supabase!
-        .from('partners')
-        .delete()
-        .eq('id', id);
+    if (!supabase) return true;
+    const { error } = await supabase.from('partners').delete().eq('id', id);
     return !error;
 };
 
@@ -199,14 +167,14 @@ export const updatePartnerAdmin = async (id: string, updates: Partial<AdminPartn
         descriptionAr: updates.descriptionAr,
         ...updates
     });
-    
     const updated = await getPartnerById(id);
     if (!updated) throw new Error("Partner not found after update");
     return updated as AdminPartner;
 };
 
 export const addInternalUser = async (userData: { name: string, nameAr: string, email: string, password?: string, type: PartnerType }): Promise<AdminPartner> => {
-    const { data, error } = await supabase!
+    if (!supabase) throw new Error("DB connection required");
+    const { data, error } = await supabase
        .from('partners')
        .insert([{
            name: userData.name,
@@ -228,40 +196,22 @@ export const updateUser = async (id: string, updates: any): Promise<boolean> => 
 }
 
 export const upgradePartnerPlan = async (partnerId: string, newPlan: SubscriptionPlan): Promise<boolean> => {
-    const { error } = await supabase!
-        .from('partners')
-        .update({ subscription_plan: newPlan })
-        .eq('id', partnerId);
+    if (!supabase) return true;
+    const { error } = await supabase.from('partners').update({ subscription_plan: newPlan }).eq('id', partnerId);
     return !error;
 }
 
-export const seedPartnersToSupabase = async () => {
-    if (!supabase) throw new Error("Supabase client not initialized");
-    
-    console.log("Starting seeding partners...");
-    const mappedData = initialPartnersData.map(p => {
-        const source = p as any;
-        const calculatedRole = source.role || getRoleForType(p.type);
-        
-        return {
-            id: p.id, 
-            email: p.email,
-            name: source.name || p.id, 
-            name_ar: source.nameAr || source.name || p.id,
-            description_en: source.description || '',
-            description_ar: source.descriptionAr || source.description || '',
-            image_url: p.imageUrl,
-            type: p.type,
-            role: calculatedRole,
-            status: p.status,
-            subscription_plan: p.subscriptionPlan,
-            contact_methods: p.contactMethods
-        };
-    });
 
-    const { error } = await supabase.from('partners').upsert(mappedData);
-    if (error) {
-        throw new Error(`Failed to seed partners: ${error.message}`);
-    }
-    return true;
-};
+// --- Local Mappers for Fallback ---
+const mapLocalItem = (p: any): Partner => ({
+    ...p, 
+    name: p.name || '', 
+    role: p.role || getRoleForType(p.type)
+} as Partner);
+
+const mapLocalData = (list: any[]): AdminPartner[] => list.map(p => ({
+    ...p, 
+    name: p.name || '', 
+    description: p.description || '', 
+    role: p.role || getRoleForType(p.type)
+} as AdminPartner));

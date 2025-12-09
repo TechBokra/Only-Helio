@@ -66,6 +66,14 @@ export const useAddPropertyForm = () => {
     const watchLongitude = watch("longitude");
     const watchAmenities = watch('amenities');
 
+    // Force reset contact method if cooperation type changes
+    React.useEffect(() => {
+        if (cooperationType === 'commission') {
+            setValue('contactMethod', 'platform');
+            setValue('ownerPhone', ''); // Clear owner phone if commission to prevent misuse
+        }
+    }, [cooperationType, setValue]);
+
     // Mutation for submission
     const mutation = useMutation({
         mutationFn: (data: any) => addRequest(RequestType.PROPERTY_LISTING_REQUEST, data),
@@ -181,20 +189,42 @@ export const useAddPropertyForm = () => {
             const lat = formData.latitude || getValues('latitude');
             const lng = formData.longitude || getValues('longitude');
             
+            // Ensure strict adherence to plan types
+            const finalContactMethod = cooperationType === 'commission' 
+                ? 'platform' 
+                : (formData.contactMethod || getValues('contactMethod'));
+            
+            // Strict check: if commission, enforce no owner phone publicly
+            const finalOwnerPhone = cooperationType === 'commission' ? '' : (formData.ownerPhone || getValues('ownerPhone'));
+
+            // SAFE LOOKUPS (Fix for "reading 'en' of undefined")
+            const foundType = (propertyTypes || []).find(o => o.en === formData.propertyType);
+            const safePropertyType = foundType 
+                ? { en: foundType.en, ar: foundType.ar }
+                : { en: formData.propertyType || 'Unknown', ar: formData.propertyType || 'غير معروف' };
+
+            const foundFinishing = (finishingStatuses || []).find(o => o.en === formData.finishingStatus);
+            const safeFinishingStatus = foundFinishing
+                ? { en: foundFinishing.en, ar: foundFinishing.ar }
+                : (formData.finishingStatus ? { en: formData.finishingStatus, ar: formData.finishingStatus } : undefined);
+
+            const foundPurpose = purposeOptions.find(o => o.en === purpose);
+            const safePurpose = foundPurpose || { en: 'For Sale', ar: 'للبيع' };
+
             const propertyDetails = {
-                purpose: purposeOptions.find(o => o.en === purpose)!,
+                purpose: safePurpose,
                 title: { ar: 'عقار جديد (في انتظار العنوان)', en: 'New Property (Pending Title)' },
                 description: { ar: formData['description.ar'] || '', en: formData['description.en'] || '' },
-                propertyType: (propertyTypes || []).find(o => o.en === formData.propertyType)!,
-                finishingStatus: (finishingStatuses || []).find(o => o.en === formData.finishingStatus)!,
-                area: parseInt(formData.area),
-                price: parseInt(formData.price),
-                bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
-                bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
-                floor: formData.floor ? parseInt(formData.floor) : undefined,
-                address: formData.address,
+                propertyType: safePropertyType,
+                finishingStatus: safeFinishingStatus,
+                area: parseInt(formData.area) || 0,
+                price: parseInt(formData.price) || 0,
+                bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 0,
+                bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : 0,
+                floor: formData.floor ? parseInt(formData.floor) : 0,
+                address: formData.address || '',
                 amenities: formData.amenities || getValues('amenities'),
-                location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+                location: { lat: parseFloat(lat || '0'), lng: parseFloat(lng || '0') },
                 isInCompound: formData.isInCompound === 'yes',
                 deliveryType: formData.deliveryType,
                 deliveryMonth: formData.deliveryMonth,
@@ -206,8 +236,8 @@ export const useAddPropertyForm = () => {
                 years: formData.years ? parseInt(formData.years) : undefined,
                 listingStartDate: formData.listingStartDate,
                 listingEndDate: formData.listingEndDate,
-                contactMethod: cooperationType === 'commission' ? 'platform' : (formData.contactMethod || getValues('contactMethod')),
-                ownerPhone: formData.ownerPhone || getValues('ownerPhone'),
+                contactMethod: finalContactMethod,
+                ownerPhone: finalOwnerPhone,
             };
             
             if (cooperationType === 'paid_listing') {
@@ -229,7 +259,7 @@ export const useAddPropertyForm = () => {
                                 contactTime: formData.contactTime,
                                 cooperationType: cooperationType,
                                 propertyDetails,
-                                images: imageUrls, // Send URLs instead of Base64
+                                images: imageUrls,
                             }
                         }
                     } 
@@ -241,14 +271,15 @@ export const useAddPropertyForm = () => {
                         contactTime: formData.contactTime,
                         cooperationType: cooperationType,
                         propertyDetails,
-                        images: imageUrls, // Send URLs instead of Base64
+                        images: imageUrls,
                     }
                 });
                 setIsUploading(false);
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error("Form Submission Error:", error);
             setIsUploading(false);
-            showToast("Error uploading images. Please check your connection.", "error");
+            showToast(error.message || "Error submitting form", "error");
         }
     };
 

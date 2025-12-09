@@ -1,38 +1,69 @@
 
-import { getAllRequests, addRequest, updateRequest } from './requests';
+import { getListingRequests, addListingRequest, updateListingRequestStatus } from './listingRequests';
 import type { AddPropertyRequest, RequestStatus } from '../types';
-import { RequestType } from '../types';
 
-// Wrapper service to filter general requests for Property Listing Requests
+// MAPPING: ListingRequestModel -> AddPropertyRequest (UI Model)
+const mapToUI = (item: any): AddPropertyRequest => ({
+    id: item.id,
+    customerName: item.ownerName,
+    customerPhone: item.ownerPhone,
+    contactTime: item.contactTime,
+    status: item.status,
+    createdAt: item.createdAt,
+    cooperationType: item.cooperationType,
+    images: item.images,
+    propertyDetails: {
+        price: item.price,
+        area: item.area,
+        address: item.address,
+        description: item.description,
+        propertyType: item.propertyType,
+        purpose: item.listingPurpose ? { en: item.listingPurpose, ar: item.listingPurpose === 'For Sale' ? 'للبيع' : 'إيجار' } : undefined,
+        bedrooms: item.bedrooms,
+        bathrooms: item.bathrooms,
+        floor: item.floorNumber,
+        finishingStatus: item.finishingStatus,
+        isInCompound: item.isInCompound,
+        location: item.location
+    }
+});
 
 export const getAllPropertyRequests = async (): Promise<AddPropertyRequest[]> => {
-  const all = await getAllRequests();
-  return all
-    .filter(r => r.type === RequestType.PROPERTY_LISTING_REQUEST)
-    .map(r => ({
-        ...r.payload as AddPropertyRequest,
-        id: r.id,
-        status: r.status,
-        createdAt: r.createdAt
-    }));
+    const raw = await getListingRequests();
+    return raw.map(mapToUI);
 };
 
 export const addPropertyRequest = async (data: Omit<AddPropertyRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<AddPropertyRequest> => {
-    const req = await addRequest(RequestType.PROPERTY_LISTING_REQUEST, {
-        requesterInfo: { name: data.customerName, phone: data.customerPhone },
-        payload: data
+    // Map UI payload to DB payload
+    const res = await addListingRequest({
+        ownerName: data.customerName,
+        ownerPhone: data.customerPhone,
+        contactTime: data.contactTime,
+        cooperationType: data.cooperationType as 'commission' | 'paid_listing',
+        propertyType: data.propertyDetails.propertyType || { en: '', ar: '' },
+        listingPurpose: (data.propertyDetails.purpose?.en as 'For Sale' | 'For Rent') || 'For Sale',
+        price: data.propertyDetails.price || 0,
+        area: data.propertyDetails.area || 0,
+        address: data.propertyDetails.address || '',
+        description: data.propertyDetails.description || { en: '', ar: '' },
+        bedrooms: data.propertyDetails.bedrooms || 0,
+        bathrooms: data.propertyDetails.bathrooms || 0,
+        floorNumber: data.propertyDetails.floor || 0,
+        finishingStatus: data.propertyDetails.finishingStatus,
+        isInCompound: data.propertyDetails.isInCompound || false,
+        images: data.images || [],
+        location: data.propertyDetails.location,
+        paymentStatus: (data as any).paymentStatus || 'pending' // passed from payment flow
     });
-    // Use 'as any' to merge payload with top-level props safely
-    return { ...(req.payload as any), id: req.id, status: req.status, createdAt: req.createdAt };
+
+    if (!res) throw new Error("Failed to add listing request");
+    return mapToUI(res);
 };
 
 export const updatePropertyRequestStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
-    const updated = await updateRequest(id, { status });
-    return !!updated;
+    return updateListingRequestStatus(id, status);
 };
 
 export const deletePropertyRequest = async (id: string): Promise<boolean> => {
-    // Soft delete by setting status to closed/rejected or implement hard delete in requests.ts if needed
-    const updated = await updateRequest(id, { status: 'closed' });
-    return !!updated;
+    return updateListingRequestStatus(id, 'closed'); // Soft delete
 };

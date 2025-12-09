@@ -1,70 +1,40 @@
 
-import { contactRequestsData as initialContactRequestsData } from '../data/contactRequests';
+import { getContactMessages, addContactMessage, updateMessageStatus } from './messages';
 import type { ContactRequest, RequestStatus } from '../types';
-import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let contactRequestsData: ContactRequest[] = [...initialContactRequestsData];
+const mapToUI = (item: any): ContactRequest => ({
+    id: item.id,
+    name: item.name,
+    phone: item.phone,
+    message: item.message,
+    inquiryType: item.inquiryType || 'general',
+    status: item.status,
+    createdAt: item.createdAt
+});
 
-const SIMULATED_DELAY = 300;
-
-export const getAllContactRequests = (): Promise<ContactRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...contactRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+export const getAllContactRequests = async (): Promise<ContactRequest[]> => {
+    const raw = await getContactMessages();
+    return raw.map(mapToUI);
 };
 
-export const addContactRequest = (data: Omit<ContactRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<ContactRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: ContactRequest = {
-        ...data,
-        id: `contact-${Date.now()}`,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        managerId: 'customer-relations-manager-1',
-      };
-      contactRequestsData.unshift(newRequest);
-
-      addNotification({
-        userId: newRequest.managerId || 'admin-user', // Fallback if managerId is undefined
-        message: {
-          ar: `رسالة تواصل جديدة من "${newRequest.name}".`,
-          en: `New contact message from "${newRequest.name}".`,
-        },
-        link: '/admin/contact-requests',
-      });
-
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
-};
-
-export const updateContactRequestStatus = (id: string, status: RequestStatus): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = contactRequestsData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                contactRequestsData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
+export const addContactRequest = async (data: Omit<ContactRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<ContactRequest> => {
+    const res = await addContactMessage({
+        name: data.name,
+        phone: data.phone,
+        email: '', // ContactRequest UI type doesn't have email, but DB does. Can be added later.
+        message: data.message,
+        inquiryType: data.inquiryType
     });
+    
+    if(!res) throw new Error("Failed to add contact message");
+    return mapToUI(res);
 };
 
-export const deleteContactRequest = (id: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = contactRequestsData.length;
-            contactRequestsData = contactRequestsData.filter(r => r.id !== id);
-            if (contactRequestsData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const updateContactRequestStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
+    return updateMessageStatus(id, status);
+};
+
+export const deleteContactRequest = async (id: string): Promise<boolean> => {
+    // Soft delete or implement hard delete in messages service
+    return updateMessageStatus(id, 'closed');
 };
