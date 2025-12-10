@@ -77,7 +77,7 @@ export const getExternalPartners = async (): Promise<AdminPartner[]> => {
 
 // --- SINGLE FETCH ---
 
-export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
+export const getPartnerById = async (id: string): Promise<AdminPartner | undefined> => {
     if (!supabase) {
         const localUser = initialPartnersData.find(p => p.id === id);
         return localUser ? mapLocalItem(localUser) : undefined;
@@ -89,7 +89,7 @@ export const getPartnerById = async (id: string): Promise<Partner | undefined> =
     } catch (e) { return undefined; }
 };
 
-export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
+export const getPartnerByEmail = async (email: string): Promise<AdminPartner | undefined> => {
     if (!supabase) {
         const localUser = initialPartnersData.find(p => p.email === email);
         return localUser ? mapLocalItem(localUser) : undefined;
@@ -203,15 +203,19 @@ export const upgradePartnerPlan = async (partnerId: string, newPlan: Subscriptio
 
 
 // --- Local Mappers for Fallback ---
-const mapLocalItem = (p: any): Partner => ({
+const mapLocalItem = (p: any): AdminPartner => ({
     ...p, 
     name: p.name || '', 
-    role: p.role || getRoleForType(p.type)
-} as Partner);
+    role: p.role || getRoleForType(p.type),
+    nameAr: p.nameAr || p.name || '',
+    description: p.description || '',
+    descriptionAr: p.descriptionAr || '',
+    imageUrl_small: p.imageUrl_small || p.imageUrl,
+    imageUrl_medium: p.imageUrl_medium || p.imageUrl,
+    imageUrl_large: p.imageUrl_large || p.imageUrl,
+    contactMethods: p.contactMethods || { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } },
+    displayType: p.displayType || 'standard',
+    createdAt: p.createdAt || new Date().toISOString()
+} as AdminPartner);
 
-const mapLocalData = (list: any[]): AdminPartner[] => list.map(p => ({
-    ...p, 
-    name: p.name || '', 
-    description: p.description || '', 
-    role: p.role || getRoleForType(p.type)
-} as AdminPartner));
+const mapLocalData = (list: any[]): AdminPartner[] => list.map(mapLocalItem);
