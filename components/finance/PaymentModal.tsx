@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { createTransaction } from '../../services/finance';
 import { Modal, ModalHeader, ModalContent, ModalFooter } from '../ui/Modal';
@@ -9,6 +9,7 @@ import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContext';
 import { CheckCircleIcon, CreditCardIcon, PhoneIcon } from '../ui/Icons';
 import type { TransactionType, PaymentMethod } from '../../types';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -22,15 +23,6 @@ interface PaymentModalProps {
     onSuccess?: () => void;
 }
 
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
-
 const PaymentModal: React.FC<PaymentModalProps> = ({ 
     isOpen, onClose, amount, description, type, userId, userName, relatedEntityId, onSuccess 
 }) => {
@@ -38,6 +30,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     const { showToast } = useToast();
     const [method, setMethod] = useState<PaymentMethod>('instapay');
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     
     const mutation = useMutation({
         mutationFn: createTransaction,
@@ -53,12 +46,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     const handleSubmit = async () => {
         let receiptUrl = undefined;
+        
         if (method === 'instapay') {
             if (!receiptFile) {
                 showToast(language === 'ar' ? 'يرجى رفع صورة الإيصال' : 'Please upload receipt image', 'error');
                 return;
             }
-            receiptUrl = await fileToBase64(receiptFile);
+            try {
+                setIsUploading(true);
+                // Optimized: Upload to Cloudinary instead of Base64
+                receiptUrl = await uploadToCloudinary(receiptFile);
+            } catch (error) {
+                console.error(error);
+                showToast(language === 'ar' ? 'فشل رفع الإيصال' : 'Receipt upload failed', 'error');
+                setIsUploading(false);
+                return;
+            }
         }
 
         mutation.mutate({
@@ -72,6 +75,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             relatedEntityId,
             receiptUrl
         });
+        setIsUploading(false);
     };
 
     return (
@@ -123,7 +127,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">{language === 'ar' ? 'صورة الإيصال' : 'Receipt Screenshot'}</label>
-                            <Input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)} />
+                            <Input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)} className="bg-white dark:bg-gray-800" />
                         </div>
                     </div>
                 ) : (
@@ -139,8 +143,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
             </ModalContent>
             <ModalFooter>
-                <Button variant="secondary" onClick={onClose}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
-                <Button onClick={handleSubmit} isLoading={mutation.isPending}>
+                <Button variant="secondary" onClick={onClose} disabled={isUploading}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
+                <Button onClick={handleSubmit} isLoading={mutation.isPending || isUploading}>
                     {method === 'card' ? (language === 'ar' ? 'الدفع الآن' : 'Pay Now') : (language === 'ar' ? 'تأكيد التحويل' : 'Confirm Transfer')}
                 </Button>
             </ModalFooter>

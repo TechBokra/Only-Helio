@@ -1,11 +1,9 @@
 
 import { supabase } from '../lib/supabase';
-import { partnersData as initialPartnersData } from '../data/partners'; 
 import type { Partner, AdminPartner, PartnerStatus, PartnerRequest, PartnerType, SubscriptionPlan } from '../types';
 import { mapPartnerFromDB } from '../utils/supabaseMapper';
 import { Role } from '../types';
 
-// Helper function defined at the bottom, but hoisted for use
 function getRoleForType(type: PartnerType): Role {
     switch (type) {
         case 'admin': return Role.SUPER_ADMIN;
@@ -30,7 +28,6 @@ function getRoleForType(type: PartnerType): Role {
     }
 }
 
-// --- Internal Helpers for Filtering ---
 const INTERNAL_TYPES = [
     'admin', 'decoration_manager', 'platform_finishing_manager', 'finishing_market_manager',
     'platform_real_estate_manager', 'real_estate_market_manager', 'partner_relations_manager',
@@ -39,66 +36,37 @@ const INTERNAL_TYPES = [
 
 const EXTERNAL_TYPES = ['developer', 'agency', 'finishing'];
 
-// --- Local Mappers for Fallback ---
-const mapLocalItem = (p: any): AdminPartner => ({
-    ...p, 
-    name: p.name || '', 
-    role: p.role || getRoleForType(p.type),
-    nameAr: p.nameAr || p.name || '',
-    description: p.description || '',
-    descriptionAr: p.descriptionAr || '',
-    imageUrl_small: p.imageUrl_small || p.imageUrl,
-    imageUrl_medium: p.imageUrl_medium || p.imageUrl,
-    imageUrl_large: p.imageUrl_large || p.imageUrl,
-    contactMethods: p.contactMethods || { whatsapp: { enabled: false, number: '' }, phone: { enabled: false, number: '' }, form: { enabled: true } },
-    displayType: p.displayType || 'standard',
-    createdAt: p.createdAt || new Date().toISOString()
-} as AdminPartner);
-
-const mapLocalData = (list: any[]): AdminPartner[] => list.map(mapLocalItem);
-
 // --- FETCH FUNCTIONS ---
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    if (!supabase) return mapLocalData(initialPartnersData);
+    if (!supabase) return [];
     
     try {
         const { data, error } = await supabase.from('partners').select('*');
-        if (error || !data) return mapLocalData(initialPartnersData);
+        if (error || !data) return [];
         return data.map(mapPartnerFromDB);
     } catch (e) {
-        return mapLocalData(initialPartnersData);
+        console.error(e);
+        return [];
     }
 };
 
-// 1. Get ONLY Internal Team (Admins, Managers)
 export const getInternalUsers = async (): Promise<AdminPartner[]> => {
-    if (!supabase) {
-        return mapLocalData(initialPartnersData.filter(p => INTERNAL_TYPES.includes(p.type)));
-    }
+    if (!supabase) return [];
     const { data, error } = await supabase.from('partners').select('*').in('type', INTERNAL_TYPES);
     if (error || !data) return [];
     return data.map(mapPartnerFromDB);
 };
 
-// 2. Get ONLY External Partners (Developers, Agencies, Finishing Companies)
 export const getExternalPartners = async (): Promise<AdminPartner[]> => {
-    if (!supabase) {
-        return mapLocalData(initialPartnersData.filter(p => EXTERNAL_TYPES.includes(p.type)));
-    }
+    if (!supabase) return [];
     const { data, error } = await supabase.from('partners').select('*').in('type', EXTERNAL_TYPES);
     if (error || !data) return [];
     return data.map(mapPartnerFromDB);
 };
 
-// --- SINGLE FETCH ---
-
-// Explicitly returning AdminPartner to support contactMethods access
 export const getPartnerById = async (id: string): Promise<AdminPartner | undefined> => {
-    if (!supabase) {
-        const localUser = initialPartnersData.find(p => p.id === id);
-        return localUser ? mapLocalItem(localUser) : undefined;
-    }
+    if (!supabase) return undefined;
     try {
         const { data, error } = await supabase.from('partners').select('*').eq('id', id).single();
         if (error || !data) return undefined;
@@ -107,10 +75,7 @@ export const getPartnerById = async (id: string): Promise<AdminPartner | undefin
 };
 
 export const getPartnerByEmail = async (email: string): Promise<AdminPartner | undefined> => {
-    if (!supabase) {
-        const localUser = initialPartnersData.find(p => p.email === email);
-        return localUser ? mapLocalItem(localUser) : undefined;
-    }
+    if (!supabase) return undefined;
     try {
         const { data, error } = await supabase.from('partners').select('*').ilike('email', email).maybeSingle();
         if (error || !data) return undefined;
@@ -121,7 +86,7 @@ export const getPartnerByEmail = async (email: string): Promise<AdminPartner | u
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    if (!supabase) return true;
+    if (!supabase) return false;
 
     const dbUpdates: any = {};
     if (updates.nameEn) dbUpdates.name = updates.nameEn;
@@ -143,7 +108,7 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
 };
 
 export const updatePartnerStatus = async (id: string, status: PartnerStatus): Promise<boolean> => {
-    if (!supabase) return true;
+    if (!supabase) return false;
     const { error } = await supabase.from('partners').update({ status }).eq('id', id);
     return !error;
 };
@@ -171,7 +136,7 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
 };
 
 export const deletePartner = async (id: string): Promise<boolean> => {
-    if (!supabase) return true;
+    if (!supabase) return false;
     const { error } = await supabase.from('partners').delete().eq('id', id);
     return !error;
 };
@@ -213,7 +178,7 @@ export const updateUser = async (id: string, updates: any): Promise<boolean> => 
 }
 
 export const upgradePartnerPlan = async (partnerId: string, newPlan: SubscriptionPlan): Promise<boolean> => {
-    if (!supabase) return true;
+    if (!supabase) return false;
     const { error } = await supabase.from('partners').update({ subscription_plan: newPlan }).eq('id', partnerId);
     return !error;
 }

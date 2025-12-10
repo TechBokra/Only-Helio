@@ -1,10 +1,6 @@
 
 import { supabase } from '../lib/supabase';
-import { projectsData as initialProjectsData } from '../data/projects';
 import type { Project } from '../types';
-
-// Create a mutable, in-memory copy of the data to simulate a database (Fallback).
-let projectsData: Project[] = [...initialProjectsData];
 
 // Helper to map DB columns to Project type
 const mapProjectFromDB = (row: any): Project => ({
@@ -13,7 +9,7 @@ const mapProjectFromDB = (row: any): Project => ({
     name: { ar: row.name_ar, en: row.name_en },
     description: { ar: row.description_ar, en: row.description_en },
     imageUrl: row.image_url,
-    imageUrl_small: row.image_url, // In a real app, you'd have resized versions
+    imageUrl_small: row.image_url, 
     imageUrl_medium: row.image_url,
     imageUrl_large: row.image_url,
     createdAt: row.created_at,
@@ -27,8 +23,7 @@ export const getAllProjects = async (): Promise<Project[]> => {
             return data.map(mapProjectFromDB);
         }
     }
-    // Fallback
-    return [...projectsData];
+    return []; // STRICT: No mock data
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
@@ -38,7 +33,7 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
             return mapProjectFromDB(data);
         }
     }
-    return projectsData.find(p => p.id === id);
+    return undefined;
 };
 
 export const getProjectsByPartnerId = async (partnerId: string): Promise<Project[]> => {
@@ -48,36 +43,24 @@ export const getProjectsByPartnerId = async (partnerId: string): Promise<Project
             return data.map(mapProjectFromDB);
         }
     }
-    return projectsData.filter(p => p.partnerId === partnerId);
+    return [];
 };
 
 export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
-    const newProject = {
-        ...project,
-        id: `proj-${Date.now()}`, // Temp ID if DB fails, otherwise DB generates UUID
-        createdAt: new Date().toISOString(),
-    };
+    if (!supabase) throw new Error("DB Connection required");
 
-    if (supabase) {
-        const { data, error } = await supabase.from('projects').insert([{
-            partner_id: project.partnerId,
-            name_en: project.name.en,
-            name_ar: project.name.ar,
-            description_en: project.description.en,
-            description_ar: project.description.ar,
-            image_url: project.imageUrl,
-            features: project.features
-        }]).select().single();
+    const { data, error } = await supabase.from('projects').insert([{
+        partner_id: project.partnerId,
+        name_en: project.name.en,
+        name_ar: project.name.ar,
+        description_en: project.description.en,
+        description_ar: project.description.ar,
+        image_url: project.imageUrl,
+        features: project.features
+    }]).select().single();
 
-        if (!error && data) {
-            return mapProjectFromDB(data);
-        } else {
-            console.error("Supabase Add Project Error:", error);
-        }
-    }
-    
-    projectsData.unshift(newProject);
-    return newProject;
+    if (error) throw error;
+    return mapProjectFromDB(data);
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
@@ -99,22 +82,13 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
             return mapProjectFromDB(data);
         }
     }
-
-    const projectIndex = projectsData.findIndex(p => p.id === projectId);
-    if (projectIndex > -1) {
-        projectsData[projectIndex] = { ...projectsData[projectIndex], ...updates };
-        return projectsData[projectIndex];
-    }
     return undefined;
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
     if (supabase) {
         const { error } = await supabase.from('projects').delete().eq('id', projectId);
-        if (!error) return true;
+        return !error;
     }
-
-    const initialLength = projectsData.length;
-    projectsData = projectsData.filter(p => p.id !== projectId);
-    return projectsData.length < initialLength;
+    return false;
 };

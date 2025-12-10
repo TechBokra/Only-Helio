@@ -1,9 +1,6 @@
 
 import { supabase } from '../lib/supabase';
-import { portfolioData as initialPortfolioData } from '../data/portfolio';
 import type { PortfolioItem } from '../types';
-
-let portfolioData: PortfolioItem[] = [...initialPortfolioData];
 
 const mapPortfolioFromDB = (row: any): PortfolioItem => ({
     id: row.id,
@@ -24,7 +21,7 @@ export const getAllPortfolioItems = async (): Promise<PortfolioItem[]> => {
             return data.map(mapPortfolioFromDB);
         }
     }
-    return [...portfolioData];
+    return [];
 };
 
 export const getPortfolioByPartnerId = async (partnerId: string): Promise<PortfolioItem[]> => {
@@ -34,33 +31,27 @@ export const getPortfolioByPartnerId = async (partnerId: string): Promise<Portfo
             return data.map(mapPortfolioFromDB);
         }
     }
-    return portfolioData.filter(item => item.partnerId === partnerId);
+    return [];
 };
 
 export const addPortfolioItem = async (item: Omit<PortfolioItem, 'id'>): Promise<PortfolioItem> => {
-    if (supabase) {
-        const { data, error } = await supabase.from('portfolio_items').insert([{
-            partner_id: item.partnerId,
-            title_en: item.title.en,
-            title_ar: item.title.ar,
-            category_en: item.category.en,
-            category_ar: item.category.ar,
-            image_url: item.imageUrl,
-            alt: item.alt,
-            price: item.price,
-            dimensions: item.dimensions,
-            availability: item.availability
-        }]).select().single();
+    if (!supabase) throw new Error("DB Connection required");
 
-        if (!error && data) return mapPortfolioFromDB(data);
-    }
+    const { data, error } = await supabase.from('portfolio_items').insert([{
+        partner_id: item.partnerId,
+        title_en: item.title.en,
+        title_ar: item.title.ar,
+        category_en: item.category.en,
+        category_ar: item.category.ar,
+        image_url: item.imageUrl,
+        alt: item.alt,
+        price: item.price,
+        dimensions: item.dimensions,
+        availability: item.availability
+    }]).select().single();
 
-    const newItem: PortfolioItem = {
-        ...item,
-        id: `port-${Date.now()}`,
-    };
-    portfolioData.unshift(newItem);
-    return newItem;
+    if (error) throw error;
+    return mapPortfolioFromDB(data);
 };
 
 export const updatePortfolioItem = async (itemId: string, updates: Partial<PortfolioItem>): Promise<PortfolioItem | undefined> => {
@@ -76,21 +67,13 @@ export const updatePortfolioItem = async (itemId: string, updates: Partial<Portf
         const { data, error } = await supabase.from('portfolio_items').update(dbUpdates).eq('id', itemId).select().single();
         if (!error && data) return mapPortfolioFromDB(data);
     }
-
-    const itemIndex = portfolioData.findIndex(p => p.id === itemId);
-    if (itemIndex > -1) {
-        portfolioData[itemIndex] = { ...portfolioData[itemIndex], ...updates };
-        return portfolioData[itemIndex];
-    }
     return undefined;
 };
 
 export const deletePortfolioItem = async (itemId: string): Promise<boolean> => {
     if (supabase) {
         const { error } = await supabase.from('portfolio_items').delete().eq('id', itemId);
-        if (!error) return true;
+        return !error;
     }
-    const initialLength = portfolioData.length;
-    portfolioData = portfolioData.filter(p => p.id !== itemId);
-    return portfolioData.length < initialLength;
+    return false;
 };

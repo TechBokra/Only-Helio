@@ -1,10 +1,6 @@
 
 import { supabase } from '../lib/supabase';
-import { routingRulesData as initialData } from '../data/routingRules';
 import type { RoutingRule } from '../data/routingRules';
-
-// Fallback
-let localRoutingRulesData: RoutingRule[] = [...initialData];
 
 const mapRuleFromDB = (row: any): RoutingRule => ({
     id: row.id,
@@ -12,7 +8,6 @@ const mapRuleFromDB = (row: any): RoutingRule => ({
     active: row.active,
     conditions: row.conditions,
     action: row.action,
-    // Priority handling if needed
 });
 
 export const getAllRoutingRules = async (): Promise<RoutingRule[]> => {
@@ -26,29 +21,23 @@ export const getAllRoutingRules = async (): Promise<RoutingRule[]> => {
             return data.map(mapRuleFromDB);
         }
     }
-    return JSON.parse(JSON.stringify(localRoutingRulesData));
+    return [];
 };
 
 export const addRoutingRule = async (rule: Omit<RoutingRule, 'id'>): Promise<RoutingRule> => {
-    const newId = `rule-${Date.now()}`;
-    
-    if (supabase) {
-        const { data, error } = await supabase.from('routing_rules').insert([{
-            id: newId,
-            name_en: rule.name.en,
-            name_ar: rule.name.ar,
-            active: rule.active,
-            conditions: rule.conditions,
-            action: rule.action,
-            priority: 99 // Default to end
-        }]).select().single();
-        
-        if (!error && data) return mapRuleFromDB(data);
-    }
+    if (!supabase) throw new Error("DB Connection required");
 
-    const newRule = { ...rule, id: newId };
-    localRoutingRulesData.push(newRule);
-    return newRule;
+    const { data, error } = await supabase.from('routing_rules').insert([{
+        name_en: rule.name.en,
+        name_ar: rule.name.ar,
+        active: rule.active,
+        conditions: rule.conditions,
+        action: rule.action,
+        priority: 99 // Default to end
+    }]).select().single();
+    
+    if (error) throw error;
+    return mapRuleFromDB(data);
 };
 
 export const updateRoutingRule = async (id: string, updates: Partial<RoutingRule>): Promise<RoutingRule | null> => {
@@ -79,15 +68,12 @@ export const deleteRoutingRule = async (id: string): Promise<boolean> => {
         const { error } = await supabase.from('routing_rules').delete().eq('id', id);
         return !error;
     }
-    localRoutingRulesData = localRoutingRulesData.filter(r => r.id !== id);
-    return true;
+    return false;
 };
 
 export const reorderRoutingRules = async (id: string, direction: 'up' | 'down'): Promise<RoutingRule[]> => {
-    // Reordering in DB usually requires swapping priority integers. 
-    // This simple implementation assumes fetching all, reordering in memory, and updating priorities.
-    // For production, use a stored procedure or separate optimized logic.
     if (supabase) {
+        // Fetch all, reorder in JS, and batch update priority.
         const allRules = await getAllRoutingRules();
         const index = allRules.findIndex(r => r.id === id);
         if (index === -1) return allRules;
@@ -98,7 +84,6 @@ export const reorderRoutingRules = async (id: string, direction: 'up' | 'down'):
             allRules.splice(index, 1);
             allRules.splice(newIndex, 0, item);
             
-            // Update priorities in DB
             const updates = allRules.map((r, idx) => ({ id: r.id, priority: idx + 1 }));
             await supabase.from('routing_rules').upsert(updates);
             
