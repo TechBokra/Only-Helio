@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Language, Project, Partner } from '../../types';
@@ -29,23 +28,14 @@ const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, developer
     return (
         <Link to={`/projects/${project.id}`} className="block group h-full">
             <Card className="transform hover:-translate-y-2 transition-transform duration-300 h-full flex flex-col overflow-hidden p-0 card-glow">
-                <div className="relative">
-                    <picture>
-                        <source
-                            type="image/webp"
-                            srcSet={`${project.imageUrl_small}&fm=webp 480w, ${project.imageUrl_medium}&fm=webp 800w, ${project.imageUrl_large || project.imageUrl}&fm=webp 1200w`}
-                            sizes="(max-width: 640px) 90vw, 100vw"
-                        />
-                        <img 
-                            src={project.imageUrl}
-                            srcSet={`${project.imageUrl_small} 480w, ${project.imageUrl_medium} 800w, ${project.imageUrl_large || project.imageUrl} 1200w`}
-                            sizes="(max-width: 640px) 90vw, 100vw"
-                            alt={project.name[language]}
-                            className="w-full h-64 object-cover disable-image-interaction"
-                            onContextMenu={(e) => e.preventDefault()}
-                            loading="lazy"
-                        />
-                    </picture>
+                <div className="relative h-64 w-full">
+                    <img 
+                        src={project.imageUrl}
+                        alt={project.name[language]}
+                        className="w-full h-full object-cover disable-image-interaction transition-transform duration-700 group-hover:scale-105"
+                        onContextMenu={(e) => e.preventDefault()}
+                        loading="lazy"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                     <div className="absolute bottom-0 left-0 p-6">
                         <h3 className="text-white text-2xl font-bold">{project.name[language]}</h3>

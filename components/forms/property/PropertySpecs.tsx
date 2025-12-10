@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -33,12 +34,13 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
             option = propertyTypes.find(opt => opt.en === valueEn);
             valueAr = option ? option.ar : '';
             
-            // Reset fields if type changes to Land
+            // Reset fields if type changes to Land or any type that hides finishing/amenities
+            // We use the availableFinishingStatuses check below to clear it if needed
             if (valueEn === 'Land') {
                 setValue('beds', 0);
                 setValue('baths', 0);
                 setValue('floor', 0);
-                setValue('finishingStatus', { en: 'Without Finishing', ar: 'بدون تشطيب' });
+                setValue('finishingStatus', { en: '', ar: '' });
             }
         } else if (field === 'finishingStatus' && finishingStatuses) {
             option = finishingStatuses.find(opt => opt.en === valueEn);
@@ -61,24 +63,29 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
         setValue('amenities', { en: newAmenities, ar: amenitiesAr });
     };
     
+    // Fallback manual check for layout
     const isLand = watchType?.en === 'Land';
     const isCommercial = watchType?.en === 'Commercial';
 
+    // Filter available Finishing Statuses based on selected Property Type
     const availableFinishingStatuses = useMemo(() => {
         if (!finishingStatuses) return [];
         const selectedType = watchType?.en;
-        if (!selectedType || selectedType === 'Land') return [];
+        
+        // Use logic consistent with Admin Panel's 'applicableTo'
+        // If applicableTo is empty, it applies to all. If present, must include selectedType.
         return finishingStatuses.filter(status => 
-            !status.applicableTo || status.applicableTo.length === 0 || status.applicableTo.includes(selectedType)
+            !status.applicableTo || status.applicableTo.length === 0 || (selectedType && status.applicableTo.includes(selectedType))
         );
     }, [finishingStatuses, watchType]);
 
+    // Filter available Amenities based on selected Property Type
     const availableAmenities = useMemo(() => {
         if (!amenities) return [];
         const selectedType = watchType?.en;
-        if (!selectedType) return amenities;
+        
         return amenities.filter(amenity => 
-            !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(selectedType)
+            !amenity.applicableTo || amenity.applicableTo.length === 0 || (selectedType && amenity.applicableTo.includes(selectedType))
         );
     }, [amenities, watchType]);
 
@@ -109,13 +116,12 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                     </select>
                 </FormField>
                 
-                {!isLand && (
+                {availableFinishingStatuses.length > 0 && (
                     <FormField label={tp.finishing} id="finishingStatus.en">
                         <select
                             value={watchFinishingStatus?.en || ''}
                             onChange={e => handleComplexChange('finishingStatus', e.target.value)}
                             className={selectClasses}
-                            disabled={availableFinishingStatuses.length === 0}
                         >
                              <option value="">{tp.allFinishes}</option>
                              {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
@@ -155,21 +161,23 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                 </FormField>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">{tp.amenities}</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {availableAmenities.map(amenity => (
-                        <label key={amenity.id} className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                                checked={(watchAmenities?.en || []).includes(amenity.en)}
-                                onCheckedChange={() => handleAmenityChange(amenity.en)}
-                                id={`amenity-${amenity.id}`}
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300 select-none">{amenity[language]}</span>
-                        </label>
-                    ))}
+            {availableAmenities.length > 0 && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">{tp.amenities}</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {availableAmenities.map(amenity => (
+                            <label key={amenity.id} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                    checked={(watchAmenities?.en || []).includes(amenity.en)}
+                                    onCheckedChange={() => handleAmenityChange(amenity.en)}
+                                    id={`amenity-${amenity.id}`}
+                                />
+                                <span className="text-sm text-gray-700 dark:text-gray-300 select-none">{amenity[language]}</span>
+                            </label>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

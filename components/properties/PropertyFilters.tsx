@@ -63,6 +63,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 
     const selectedType = getVal('type');
 
+    // Filter Amenities based on selected Property Type
     const availableAmenities = useMemo(() => {
         if (!amenities) return [];
         if (!selectedType || selectedType === 'all') return amenities;
@@ -70,6 +71,16 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
             !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(selectedType)
         );
     }, [amenities, selectedType]);
+
+    // Filter Finishing Statuses based on selected Property Type
+    const availableFinishingStatuses = useMemo(() => {
+        if (!finishingStatuses) return [];
+        if (!selectedType || selectedType === 'all') return finishingStatuses;
+        
+        return finishingStatuses.filter(status => 
+            !status.applicableTo || status.applicableTo.length === 0 || status.applicableTo.includes(selectedType)
+        );
+    }, [finishingStatuses, selectedType]);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8 transition-all">
@@ -167,16 +178,18 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                             </Select>
                         </div>
 
-                        {/* Finishing */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.finishing}</label>
-                            <Select value={getVal('finishing')} onChange={(e) => setVal('finishing', e.target.value)}>
-                                <option value="all">{t_page.allFinishes}</option>
-                                {finishingStatuses.map(fs => (
-                                    <option key={fs.id} value={fs.en}>{fs[language]}</option>
-                                ))}
-                            </Select>
-                        </div>
+                        {/* Finishing - Only show if valid for selected type */}
+                        {availableFinishingStatuses.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.finishing}</label>
+                                <Select value={getVal('finishing')} onChange={(e) => setVal('finishing', e.target.value)}>
+                                    <option value="all">{t_page.allFinishes}</option>
+                                    {availableFinishingStatuses.map(fs => (
+                                        <option key={fs.id} value={fs.en}>{fs[language]}</option>
+                                    ))}
+                                </Select>
+                            </div>
+                        )}
 
                         {/* Installments & Finance */}
                         <div>

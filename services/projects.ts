@@ -23,7 +23,7 @@ export const getAllProjects = async (): Promise<Project[]> => {
             return data.map(mapProjectFromDB);
         }
     }
-    return []; // STRICT: No mock data
+    return []; 
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
@@ -77,10 +77,39 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
         if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
         if (updates.features) dbUpdates.features = updates.features;
 
-        const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', projectId).select().single();
-        if (!error && data) {
-            return mapProjectFromDB(data);
+        // 1. Update without selecting immediately to handle RLS strictness
+        const { error: updateError } = await supabase
+            .from('projects')
+            .update(dbUpdates)
+            .eq('id', projectId);
+
+        if (updateError) {
+             console.error("Project Update Error:", updateError);
+             return undefined;
         }
+
+        // 2. Fetch updated record
+        const { data, error: fetchError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', projectId)
+            .maybeSingle();
+
+        if (fetchError || !data) {
+            // Optimistic return if fetch fails but update succeeded
+             return {
+                id: projectId,
+                ...updates,
+                name: updates.name || { ar: '', en: '' },
+                description: updates.description || { ar: '', en: '' },
+                imageUrl: updates.imageUrl || '',
+                features: updates.features || [],
+                partnerId: '', // Placeholder
+                createdAt: new Date().toISOString()
+            } as Project;
+        }
+
+        return mapProjectFromDB(data);
     }
     return undefined;
 };

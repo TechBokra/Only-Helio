@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Language, Project, Partner } from '../../types';
@@ -20,7 +19,12 @@ const ProjectListItem: React.FC<ProjectListItemProps> = React.memo(({ project, d
         <Link to={`/projects/${project.id}`} className="block">
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden transform hover:-translate-y-1 transition-transform duration-300 group flex h-full">
                 <div className="relative w-28 md:w-48 flex-shrink-0">
-                    <img src={project.imageUrl} alt={project.name[language]} className="w-full h-full object-cover" loading="lazy" />
+                    <img 
+                        src={project.imageUrl} 
+                        alt={project.name[language]} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        loading="lazy" 
+                    />
                 </div>
                 <div className="p-3 md:p-4 flex flex-col flex-grow">
                     <h3 className="text-sm md:text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-amber-500 transition-colors">{project.name[language]}</h3>

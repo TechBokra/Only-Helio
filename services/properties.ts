@@ -14,8 +14,7 @@ const sanitize = (value: any) => {
 
 const populatePropertyDetails = async (property: Property): Promise<Property> => {
     if (supabase && property.partnerId) {
-         // Try to fetch partner info, but don't fail if not found
-         const { data: partner } = await supabase.from('partners').select('name, image_url').eq('id', property.partnerId).single();
+         const { data: partner } = await supabase.from('partners').select('name, image_url').eq('id', property.partnerId).maybeSingle();
          if (partner) {
              property.partnerName = partner.name;
              property.partnerImageUrl = partner.image_url;
@@ -25,7 +24,7 @@ const populatePropertyDetails = async (property: Property): Promise<Property> =>
 };
 
 export const getAllProperties = async (): Promise<Property[]> => {
-    if (!supabase) return []; // STRICT: No mock data fallback
+    if (!supabase) return []; 
 
     try {
         const { data, error } = await supabase
@@ -46,7 +45,6 @@ export const getAllProperties = async (): Promise<Property[]> => {
     return [];
 };
 
-// Alias for compatibility
 export const getProperties = getAllProperties;
 
 export const getPaginatedProperties = async (options: {
@@ -71,7 +69,7 @@ export const getPaginatedProperties = async (options: {
 
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
     if (supabase) {
-        const { data, error } = await supabase.from('properties').select('*').eq('id', id).single();
+        const { data, error } = await supabase.from('properties').select('*').eq('id', id).maybeSingle();
         if (!error && data) {
             let prop = mapPropertyFromDB(data);
             return await populatePropertyDetails(prop);
@@ -115,8 +113,8 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         beds: property.beds,
         baths: property.baths,
         floor: property.floor,
-        image_url: property.imageUrl, // This comes from Cloudinary in the frontend
-        gallery: property.gallery,   // These come from Cloudinary in the frontend
+        image_url: property.imageUrl,
+        gallery: property.gallery,
         location: property.location,
         listing_status: property.listingStatus,
         listing_start_date: sanitize(property.listingStartDate),
@@ -127,16 +125,25 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         delivery_date: sanitize(property.delivery.date),
         contact_method: property.contactMethod,
         owner_phone: property.ownerPhone,
-        installments: property.installments
+        installments: property.installments,
+        amenities: property.amenities 
     };
 
     const { data, error } = await supabase
         .from('properties')
         .insert([dbData])
         .select()
-        .single();
+        .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase Add Property Error:", error);
+        throw error;
+    }
+
+    if (!data) {
+        throw new Error("Add failed: No data returned. Please check database permissions.");
+    }
+    
     return mapPropertyFromDB(data);
 };
 
@@ -144,6 +151,8 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
     if (!supabase) throw new Error("Database connection required to update property");
 
     const dbUpdates: any = {};
+    
+    // Explicit mapping to DB columns (snake_case)
     if (updates.priceNumeric !== undefined) dbUpdates.price = updates.priceNumeric;
     if (updates.area !== undefined) dbUpdates.area = updates.area;
     if (updates.beds !== undefined) dbUpdates.beds = updates.beds;
@@ -153,28 +162,77 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
     if (updates.listingStartDate !== undefined) dbUpdates.listing_start_date = sanitize(updates.listingStartDate);
     if (updates.listingEndDate !== undefined) dbUpdates.listing_end_date = sanitize(updates.listingEndDate);
     
-    // Allow updating other fields too
-    if (updates.title?.en) dbUpdates.title_en = updates.title.en;
-    if (updates.title?.ar) dbUpdates.title_ar = updates.title.ar;
+    if (updates.title) {
+        if (updates.title.en) dbUpdates.title_en = updates.title.en;
+        if (updates.title.ar) dbUpdates.title_ar = updates.title.ar;
+    }
+    if (updates.description) {
+        if (updates.description.en) dbUpdates.description_en = updates.description.en;
+        if (updates.description.ar) dbUpdates.description_ar = updates.description.ar;
+    }
+    if (updates.address) {
+        if (updates.address.en) dbUpdates.address_en = updates.address.en;
+        if (updates.address.ar) dbUpdates.address_ar = updates.address.ar;
+    }
+    if (updates.type) {
+        if (updates.type.en) dbUpdates.type_en = updates.type.en;
+        if (updates.type.ar) dbUpdates.type_ar = updates.type.ar;
+    }
+    if (updates.status) {
+        if (updates.status.en) dbUpdates.status_en = updates.status.en;
+        if (updates.status.ar) dbUpdates.status_ar = updates.status.ar;
+    }
+    if (updates.finishingStatus) {
+        if (updates.finishingStatus.en) dbUpdates.finishing_status_en = updates.finishingStatus.en;
+        if (updates.finishingStatus.ar) dbUpdates.finishing_status_ar = updates.finishingStatus.ar;
+    }
+    if (updates.delivery) {
+        if (updates.delivery.isImmediate !== undefined) dbUpdates.delivery_immediate = updates.delivery.isImmediate;
+        if (updates.delivery.date !== undefined) dbUpdates.delivery_date = sanitize(updates.delivery.date);
+    }
+    
     if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+    if (updates.gallery) dbUpdates.gallery = updates.gallery;
+    if (updates.location) dbUpdates.location = updates.location;
+    if (updates.installments) dbUpdates.installments = updates.installments;
+    if (updates.amenities) dbUpdates.amenities = updates.amenities;
+    if (updates.isInCompound !== undefined) dbUpdates.is_in_compound = updates.isInCompound;
+    if (updates.installmentsAvailable !== undefined) dbUpdates.installments_available = updates.installmentsAvailable;
+    if (updates.realEstateFinanceAvailable !== undefined) dbUpdates.real_estate_finance_available = updates.realEstateFinanceAvailable;
+    if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
+    if (updates.ownerPhone !== undefined) dbUpdates.owner_phone = updates.ownerPhone;
+    if (updates.projectId !== undefined) dbUpdates.project_id = sanitize(updates.projectId);
 
+    // Using maybeSingle() prevents PGRST116 if RLS hides the row
     const { data, error } = await supabase
         .from('properties')
         .update(dbUpdates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle(); 
 
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase Update Property Error:", error);
+        throw error;
+    }
+
+    if (!data) {
+        // This confirms the update ran but returned nothing (RLS blocked it or ID not found)
+        console.error("Update returned no data. Check RLS policies.");
+        throw new Error("Update failed: Property not found or permission denied.");
+    }
+
     return mapPropertyFromDB(data);
 };
 
 export const deleteProperty = async (id: string): Promise<boolean> => {
     if (!supabase) return false;
+    
     const { error } = await supabase.from('properties').delete().eq('id', id);
+    
     if (error) {
-        console.warn("Supabase Delete Error:", error.message);
+        console.error("Supabase Delete Property Error:", error);
         return false;
     }
-    return true; 
+    return true;
 };

@@ -32,8 +32,9 @@ const AdminPropertyEditModal: React.FC<AdminPropertyEditModalProps> = ({ propert
             showToast('Property updated successfully!', 'success');
             onSave();
         },
-        onError: () => {
-            showToast('Failed to update property.', 'error');
+        onError: (error: any) => {
+            console.error("Update failed:", error);
+            showToast(error.message || 'Failed to update property.', 'error');
         }
     });
 

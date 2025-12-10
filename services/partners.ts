@@ -115,9 +115,14 @@ export const updatePartnerStatus = async (id: string, status: PartnerStatus): Pr
 
 export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPartner> => {
     if (!supabase) throw new Error("DB connection required");
+    
+    // Generate UUID for the new partner
+    const id = crypto.randomUUID();
+
     const { data, error } = await supabase
         .from('partners')
         .insert([{
+            id: id,
             name: partnerData.companyName,
             name_ar: partnerData.companyName, 
             description_en: partnerData.description,
@@ -156,9 +161,14 @@ export const updatePartnerAdmin = async (id: string, updates: Partial<AdminPartn
 
 export const addInternalUser = async (userData: { name: string, nameAr: string, email: string, password?: string, type: PartnerType }): Promise<AdminPartner> => {
     if (!supabase) throw new Error("DB connection required");
+    
+    // Generate UUID for the new user
+    const id = crypto.randomUUID();
+
     const { data, error } = await supabase
        .from('partners')
        .insert([{
+           id: id,
            name: userData.name,
            name_ar: userData.nameAr,
            email: userData.email,
