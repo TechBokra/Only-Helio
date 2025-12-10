@@ -39,11 +39,27 @@ const INTERNAL_TYPES = [
 
 const EXTERNAL_TYPES = ['developer', 'agency', 'finishing'];
 
+// --- Local Mappers for Fallback ---
+const mapLocalItem = (p: any): AdminPartner => ({
+    ...p, 
+    name: p.name || '', 
+    role: p.role || getRoleForType(p.type),
+    nameAr: p.nameAr || p.name || '',
+    description: p.description || '',
+    descriptionAr: p.descriptionAr || '',
+    imageUrl_small: p.imageUrl_small || p.imageUrl,
+    imageUrl_medium: p.imageUrl_medium || p.imageUrl,
+    imageUrl_large: p.imageUrl_large || p.imageUrl,
+    contactMethods: p.contactMethods || { whatsapp: { enabled: false, number: '' }, phone: { enabled: false, number: '' }, form: { enabled: true } },
+    displayType: p.displayType || 'standard',
+    createdAt: p.createdAt || new Date().toISOString()
+} as AdminPartner);
+
+const mapLocalData = (list: any[]): AdminPartner[] => list.map(mapLocalItem);
 
 // --- FETCH FUNCTIONS ---
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    // This returns EVERYONE (Legacy support, use specific functions below preferably)
     if (!supabase) return mapLocalData(initialPartnersData);
     
     try {
@@ -77,6 +93,7 @@ export const getExternalPartners = async (): Promise<AdminPartner[]> => {
 
 // --- SINGLE FETCH ---
 
+// Explicitly returning AdminPartner to support contactMethods access
 export const getPartnerById = async (id: string): Promise<AdminPartner | undefined> => {
     if (!supabase) {
         const localUser = initialPartnersData.find(p => p.id === id);
@@ -119,7 +136,7 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.status) dbUpdates.status = updates.status;
     if (updates.type) dbUpdates.type = updates.type;
     if (updates.email) dbUpdates.email = updates.email;
-    if (updates.password) dbUpdates.password = updates.password; // In prod, hash this!
+    if (updates.password) dbUpdates.password = updates.password;
 
     const { error } = await supabase.from('partners').update(dbUpdates).eq('id', id);
     return !error;
@@ -145,7 +162,7 @@ export const addPartner = async (partnerData: PartnerRequest): Promise<AdminPart
             subscription_plan: partnerData.subscriptionPlan,
             role: getRoleForType(partnerData.companyType as PartnerType),
             image_url: partnerData.logo,
-            password: 'password123' // Default temp password
+            password: 'password123'
         }])
         .select()
         .single();
@@ -200,22 +217,3 @@ export const upgradePartnerPlan = async (partnerId: string, newPlan: Subscriptio
     const { error } = await supabase.from('partners').update({ subscription_plan: newPlan }).eq('id', partnerId);
     return !error;
 }
-
-
-// --- Local Mappers for Fallback ---
-const mapLocalItem = (p: any): AdminPartner => ({
-    ...p, 
-    name: p.name || '', 
-    role: p.role || getRoleForType(p.type),
-    nameAr: p.nameAr || p.name || '',
-    description: p.description || '',
-    descriptionAr: p.descriptionAr || '',
-    imageUrl_small: p.imageUrl_small || p.imageUrl,
-    imageUrl_medium: p.imageUrl_medium || p.imageUrl,
-    imageUrl_large: p.imageUrl_large || p.imageUrl,
-    contactMethods: p.contactMethods || { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } },
-    displayType: p.displayType || 'standard',
-    createdAt: p.createdAt || new Date().toISOString()
-} as AdminPartner);
-
-const mapLocalData = (list: any[]): AdminPartner[] => list.map(mapLocalItem);
