@@ -42,13 +42,7 @@ const Services: React.FC = () => {
         return <section className="py-20 bg-gray-50 animate-pulse h-96"></section>;
     }
 
-    // Safety check: ensure services and language key exist
-    const t = siteContent.services?.[language];
-    
-    if (!t) return null;
-
-    // Safety check: ensure features is an array
-    const features = Array.isArray(t.features) ? t.features : [];
+    const t = siteContent.services[language];
 
     return (
         <section className="py-20 bg-gray-50 subtle-bg">
@@ -58,10 +52,9 @@ const Services: React.FC = () => {
                     <p className="text-lg text-gray-500 mt-4 max-w-3xl mx-auto">{t.description}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {features.map((feature: any, index: number) => {
+                    {t.features.map((feature: any) => {
                         const IconComponent = iconMap[feature.icon] || BuildingIcon;
-                        // Use index as fallback key if title is missing to prevent crashes
-                        return <ServiceCard key={feature.title || index} {...feature} icon={<IconComponent className="w-8 h-8" />} />;
+                        return <ServiceCard key={feature.title} {...feature} icon={<IconComponent className="w-8 h-8" />} />;
                     })}
                 </div>
             </div>

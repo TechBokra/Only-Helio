@@ -1,12 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Property, AddPropertyRequest } from '../../types';
+import type { Property, FilterOption } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { addProperty as apiAddProperty, updateProperty as apiUpdateProperty, getAllProperties } from '../../services/properties';
-import { updatePropertyRequestStatus } from '../../services/propertyRequests';
 import { getAllProjects } from '../../services/projects';
 import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '../../services/filters';
 import { Role, Permission } from '../../types';
@@ -15,17 +13,25 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
+import FormField, { inputClasses } from '../ui/FormField';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
-import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 
-// Import Sub-components
+// Import new Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
 import PropertySpecs from './property/PropertySpecs';
 import PropertyFinancials from './property/PropertyFinancials';
 import PropertyLocation from './property/PropertyLocation';
 import PropertyMedia from './property/PropertyMedia';
 import LocationPickerModal from '../shared/LocationPickerModal';
-import { uploadToCloudinary } from '../../lib/cloudinary';
+
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
 
 // Define form data structure export for consistency
 export interface PropertyFormData {
@@ -51,31 +57,16 @@ export interface PropertyFormData {
     installments?: { downPayment: number; monthlyInstallment: number; years: number };
     contactMethod: 'platform' | 'direct';
     ownerPhone?: string;
-    listingStartDate?: string;
-    listingEndDate?: string;
-    
-    // Additional fields used in request mapping or form state
-    hasInstallments?: string;
-    deliveryType?: string;
-    deliveryMonth?: string;
-    deliveryYear?: string;
-    downPayment?: string;
-    monthlyInstallment?: string;
-    years?: string;
 }
 
 const PropertyFormPage: React.FC = () => {
     const { propertyId } = useParams();
     const navigate = useNavigate();
-    const locationHook = useLocation(); // Use location to get state
     const [searchParams] = useSearchParams();
     const { currentUser, hasPermission } = useAuth();
     const { language, t } = useLanguage();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
-    
-    // Check if we are editing from a Request
-    const requestData = locationHook.state?.fromRequest as AddPropertyRequest | undefined;
     
     const usageType = currentUser?.type === 'developer' ? 'units' : 'properties';
     const { isLimitReached } = useSubscriptionUsage(usageType);
@@ -95,29 +86,15 @@ const PropertyFormPage: React.FC = () => {
     const methods = useForm<PropertyFormData>();
     const { handleSubmit, setValue, reset, watch } = methods;
     
-    // Image State
     const [mainImage, setMainImage] = useState<string>('');
-    const [mainImageFile, setMainImageFile] = useState<File | null>(null);
-    
     const [galleryImages, setGalleryImages] = useState<string[]>([]);
-    const [galleryImageFiles, setGalleryImageFiles] = useState<(File | null)[]>([]);
-
     const [isMapOpen, setIsMapOpen] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
 
     const partnerProjects = useMemo(() => (projects || []).filter(p => p.partnerId === currentUser?.id), [projects, currentUser]);
     const watchContactMethod = watch('contactMethod');
 
-    const handleNavigationSuccess = async (property?: Property) => {
-        // If this was from a request, mark the request as approved
-        if (requestData) {
-            await updatePropertyRequestStatus(requestData.id, 'approved');
-            showToast('Original request marked as Approved.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
-        }
-
+    const handleNavigationSuccess = (property?: Property) => {
         queryClient.invalidateQueries({ queryKey: ['allProperties'] });
-        queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
         queryClient.invalidateQueries({ queryKey: [`partner-properties-${currentUser?.id}`] });
         if (propertyId) {
             queryClient.invalidateQueries({ queryKey: [`property-${propertyId}`] });
@@ -142,10 +119,7 @@ const PropertyFormPage: React.FC = () => {
             showToast(td.addSuccess, 'success');
             handleNavigationSuccess(newProperty);
         },
-        onError: (error: any) => {
-             console.error("Submission Error:", error);
-             showToast(`Failed to add property: ${error.message || 'Unknown error'}`, 'error');
-        },
+        onError: () => showToast('Failed to add property.', 'error'),
     });
 
     const updateMutation = useMutation({
@@ -154,60 +128,11 @@ const PropertyFormPage: React.FC = () => {
             showToast(td.updateSuccess, 'success');
             handleNavigationSuccess(updatedProperty);
         },
-        onError: (error: any) => {
-             console.error("Update Error:", error);
-             showToast(`Failed to update property: ${error.message || 'Unknown error'}`, 'error');
-        },
+        onError: () => showToast('Failed to update property.', 'error'),
     });
 
     useEffect(() => {
-        if (requestData && !propertyId) {
-            // --- PRE-FILL FROM REQUEST DATA ---
-            const pd = requestData.propertyDetails;
-            const safeVal = (val: any) => val || '';
-            const safeNum = (val: any) => Number(val) || 0;
-            const getEn = (obj: any) => obj?.en || obj || '';
-            const getAr = (obj: any) => obj?.ar || obj || '';
-
-            reset({
-                title: { ar: getAr(pd.title) || 'عقار جديد (من طلب)', en: getEn(pd.title) || 'New Property (From Request)' },
-                description: { ar: getAr(pd.description), en: getEn(pd.description) },
-                address: { ar: safeVal(pd.address), en: safeVal(pd.address) },
-                priceNumeric: safeNum(pd.price),
-                area: safeNum(pd.area),
-                status: pd.purpose || { en: 'For Sale', ar: 'للبيع' },
-                type: { en: getEn(pd.propertyType), ar: getAr(pd.propertyType) },
-                finishingStatus: pd.finishingStatus || { en: '', ar: '' },
-                beds: safeNum(pd.bedrooms),
-                baths: safeNum(pd.bathrooms),
-                floor: safeNum(pd.floor),
-                isInCompound: pd.isInCompound ? 'true' : 'false',
-                installmentsAvailable: pd.hasInstallments ? 'true' : 'false',
-                realEstateFinanceAvailable: pd.realEstateFinanceAvailable ? 'true' : 'false',
-                delivery: { isImmediate: pd.deliveryType === 'immediate' ? 'true' : 'false', date: pd.deliveryType === 'future' ? `${pd.deliveryYear}-${pd.deliveryMonth}` : '' },
-                installments: { 
-                    downPayment: safeNum(pd.downPayment), 
-                    monthlyInstallment: safeNum(pd.monthlyInstallment), 
-                    years: safeNum(pd.years) 
-                },
-                location: pd.location || { lat: 30.129, lng: 31.621 },
-                amenities: pd.amenities || { ar: [], en: [] },
-                contactMethod: pd.contactMethod || 'platform',
-                ownerPhone: pd.ownerPhone || '',
-                listingStatus: 'active', // Default to active when approving
-                projectId: '',
-            } as any);
-
-            if (requestData.images && requestData.images.length > 0) {
-                setMainImage(requestData.images[0]);
-                if (requestData.images.length > 1) {
-                     setGalleryImages(requestData.images.slice(1));
-                     setGalleryImageFiles(new Array(requestData.images.length - 1).fill(null)); // No files to upload, just URLs
-                }
-            }
-
-        } else if (propertyId && properties) {
-            // --- EDIT EXISTING PROPERTY ---
+        if (propertyId && properties) {
             const prop = properties.find(p => p.id === propertyId);
             const userCanEdit = currentUser && 'type' in currentUser && (prop?.partnerId === currentUser.id || hasPermission(Permission.MANAGE_ALL_PROPERTIES));
 
@@ -222,23 +147,16 @@ const PropertyFormPage: React.FC = () => {
                     installments: prop.installments || { downPayment: 0, monthlyInstallment: 0, years: 0 },
                     contactMethod: prop.contactMethod || 'platform',
                     ownerPhone: prop.ownerPhone || '',
-                    projectId: prop.projectId || '', 
                 } as any);
-                
                 setMainImage(prop.imageUrl);
-                setMainImageFile(null);
-                
-                setGalleryImages(prop.gallery || []);
-                setGalleryImageFiles(new Array(prop.gallery?.length || 0).fill(null));
-                
+                setGalleryImages(prop.gallery);
             } else if (propertyId && !isLoadingContext) {
                 const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/properties' : '/dashboard/properties';
                 navigate(redirectPath);
             }
-        } else if (!propertyId && !requestData) {
-             // --- NEW BLANK PROPERTY ---
+        } else if (!propertyId) {
              reset({
-                projectId: searchParams.get('projectId') || '',
+                projectId: searchParams.get('projectId') || undefined,
                 status: { en: 'For Sale', ar: 'للبيع' },
                 type: { en: 'Apartment', ar: 'شقة' },
                 beds: 3, baths: 2, area: 150, floor: 1,
@@ -254,34 +172,28 @@ const PropertyFormPage: React.FC = () => {
                 priceNumeric: 0,
                 title: { ar: '', en: '' }, description: { ar: '', en: '' }, address: { ar: '', en: '' }
             });
-            setMainImage('');
-            setMainImageFile(null);
-            setGalleryImages([]);
-            setGalleryImageFiles([]);
         }
-    }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext, requestData]);
+    }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext]);
     
     // Image Handlers
-    const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setMainImageFile(file);
-            setMainImage(URL.createObjectURL(file));
+            const base64 = await fileToBase64(e.target.files[0]);
+            setMainImage(base64);
         }
     };
 
-    const handleGalleryImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleGalleryImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const files: File[] = Array.from(e.target.files);
-            const newPreviews = files.map(file => URL.createObjectURL(file));
-            setGalleryImages(prev => [...prev, ...newPreviews]);
-            setGalleryImageFiles(prev => [...prev, ...files]);
+            const files = Array.from(e.target.files);
+            const base64Promises = files.map((file: File) => fileToBase64(file));
+            const base64Images = await Promise.all(base64Promises);
+            setGalleryImages(prev => [...prev, ...base64Images]);
         }
     };
 
     const removeGalleryImage = (index: number) => {
         setGalleryImages(prev => prev.filter((_, i) => i !== index));
-        setGalleryImageFiles(prev => prev.filter((_, i) => i !== index));
     };
     
     const handleLocationSelect = (loc: { lat: number, lng: number }) => {
@@ -291,97 +203,59 @@ const PropertyFormPage: React.FC = () => {
     }
 
     const onSubmit = async (formData: PropertyFormData) => {
-        if (!currentUser || !('type' in currentUser)) return;
+        if (!currentUser || !('type' in currentUser) || !amenities) return;
         
-        setIsUploading(true);
+        const priceNumeric = Number(formData.priceNumeric) || 0;
+        const formattedPriceAr = `${priceNumeric.toLocaleString('ar-EG')} ج.م`;
+        const formattedPriceEn = `EGP ${priceNumeric.toLocaleString('en-US')}`;
 
-        try {
-            // 1. Handle Main Image Upload
-            let finalMainImage = mainImage;
-            if (mainImageFile) {
-                finalMainImage = await uploadToCloudinary(mainImageFile);
-            } else if (!finalMainImage && requestData) {
-                 // If coming from request and no new file, stick with existing URL (already in mainImage)
-            }
+        const pricePerMeterNumeric = Math.round(priceNumeric / (Number(formData.area) || 1));
+        const pricePerMeter = formData.status?.en === 'For Sale' && pricePerMeterNumeric > 0 ? {
+            ar: `${pricePerMeterNumeric.toLocaleString('ar-EG')} ج.م/م²`,
+            en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
+        } : undefined;
 
-            // 2. Handle Gallery Uploads
-            const finalGalleryImages = await Promise.all(galleryImages.map(async (img, index) => {
-                const file = galleryImageFiles[index];
-                if (file) {
-                     return await uploadToCloudinary(file);
-                }
-                return img; // Existing URL from edit or request
-            }));
-
-            const priceNumeric = Number(formData.priceNumeric) || 0;
-            const formattedPriceAr = `${priceNumeric.toLocaleString('ar-EG')} ج.م`;
-            const formattedPriceEn = `EGP ${priceNumeric.toLocaleString('en-US')}`;
-
-            const pricePerMeterNumeric = Math.round(priceNumeric / (Number(formData.area) || 1));
-            const pricePerMeter = formData.status?.en === 'For Sale' && pricePerMeterNumeric > 0 ? {
-                ar: `${pricePerMeterNumeric.toLocaleString('ar-EG')} ج.م/م²`,
-                en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
-            } : undefined;
-
-            const safeInt = (val: any) => (val !== '' && val !== undefined && val !== null) ? Number(val) : undefined;
-            
-            // Determine Partner ID
-            // If editing, keep existing. If new from request, maybe assign to 'individual-listings' or current admin
-            let targetPartnerId = currentUser.id;
-            if (requestData) targetPartnerId = 'individual-listings'; // Default for requests
-            if (propertyId) targetPartnerId = properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id;
-
-            const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
-                ...formData,
-                status: { 
-                    en: formData.status.en as 'For Sale' | 'For Rent', 
-                    ar: formData.status.ar as 'للبيع' | 'إيجار' 
-                },
-                isInCompound: formData.isInCompound === 'true',
-                realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'true',
-                installmentsAvailable: formData.installmentsAvailable === 'true',
-                delivery: {
-                    isImmediate: formData.delivery?.isImmediate === 'true',
-                    date: formData.delivery?.isImmediate !== 'true' ? formData.delivery.date : undefined,
-                },
-                partnerId: targetPartnerId,
-                price: { ar: formattedPriceAr, en: formattedPriceEn },
-                priceNumeric,
-                pricePerMeter,
-                imageUrl: finalMainImage,
-                gallery: finalGalleryImages,
-                listingStatus: formData.listingStatus as any,
-                type: { en: formData.type.en as any, ar: formData.type.ar },
-                beds: safeInt(formData.beds) || 0,
-                baths: safeInt(formData.baths) || 0,
-                floor: safeInt(formData.floor),
-                projectId: formData.projectId || undefined,
-                listingStartDate: formData.listingStartDate || undefined,
-                listingEndDate: formData.listingEndDate || undefined
-            };
-            
-            if (propertyId) {
-                updateMutation.mutate({ propertyId, updates: propertyData });
-            } else {
-                addMutation.mutate(propertyData);
-            }
-        } catch (error: any) {
-            console.error("Detailed Upload Error:", error);
-            showToast(error.message || "Failed to save property.", "error");
-        } finally {
-            setIsUploading(false);
+        const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
+            ...formData,
+            status: { 
+                en: formData.status.en as 'For Sale' | 'For Rent', 
+                ar: formData.status.ar as 'للبيع' | 'إيجار' 
+            },
+            isInCompound: formData.isInCompound === 'true',
+            realEstateFinanceAvailable: formData.realEstateFinanceAvailable === 'true',
+            installmentsAvailable: formData.installmentsAvailable === 'true',
+            delivery: {
+                isImmediate: formData.delivery?.isImmediate === 'true',
+                date: formData.delivery?.isImmediate !== 'true' ? formData.delivery.date : undefined,
+            },
+            partnerId: propertyId ? properties?.find(p => p.id === propertyId)?.partnerId || currentUser.id : currentUser.id,
+            price: { ar: formattedPriceAr, en: formattedPriceEn },
+            priceNumeric,
+            pricePerMeter,
+            imageUrl: mainImage,
+            gallery: galleryImages,
+            listingStatus: formData.listingStatus as any,
+            type: { en: formData.type.en as any, ar: formData.type.ar },
+            beds: formData.beds || 0,
+            baths: formData.baths || 0,
+            floor: formData.floor
+        };
+        
+        if (propertyId) {
+            updateMutation.mutate({ propertyId, updates: propertyData });
+        } else {
+            addMutation.mutate(propertyData);
         }
     };
 
     if (isLoadingContext && !projects) return <div className="p-8 text-center">Loading form...</div>;
 
     const isAdmin = hasPermission(Permission.MANAGE_ALL_PROPERTIES);
-    // Bypass limit check if we are processing a request or editing
-    if (isLimitReached && !propertyId && !requestData && !isAdmin) {
+    if (isLimitReached && !propertyId && !isAdmin) {
         return <UpgradeNotice />;
     }
     
-    const isSubmitting = addMutation.isPending || updateMutation.isPending || isUploading;
+    const isSubmitting = addMutation.isPending || updateMutation.isPending;
 
     return (
         <div>
@@ -393,16 +267,7 @@ const PropertyFormPage: React.FC = () => {
                 />
             )}
 
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {propertyId ? td.editTitle : requestData ? 'Review & Publish Request' : td.addTitle}
-                </h1>
-                {requestData && (
-                    <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-amber-200">
-                        Converting Request to Listing
-                    </span>
-                )}
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">{propertyId ? td.editTitle : td.addTitle}</h1>
             
             <FormProvider {...methods}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
@@ -433,6 +298,7 @@ const PropertyFormPage: React.FC = () => {
                         />
                     </div>
 
+                    {/* Contact Routing (Admin/Paid Feature) */}
                     {(isAdmin || (currentUser?.subscriptionPlan === 'paid_listing' && currentUser.type !== 'developer')) && (
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                             <fieldset className="space-y-2">
@@ -458,15 +324,9 @@ const PropertyFormPage: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-4 pb-12 gap-4">
-                        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
-                            Cancel
-                        </Button>
+                    <div className="flex justify-end pt-4 pb-12">
                         <Button type="submit" isLoading={isSubmitting} size="lg" className="px-12">
-                            {isSubmitting 
-                                ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...') 
-                                : (requestData ? 'Approve & Publish' : td.saveProperty)
-                            }
+                            {td.saveProperty}
                         </Button>
                     </div>
                 </form>

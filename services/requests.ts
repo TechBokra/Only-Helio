@@ -1,320 +1,307 @@
+import { RequestType, Role } from '../types';
+import type { Request, Lead, LeadMessage } from '../types';
+import { addNotification } from './notifications';
+import { getAllRoutingRules } from './routingRules';
+import { getPartnerById } from './partners';
+// Import specific services
+import { getLeadById, getAllLeads, addLead, updateLead } from './leads';
+import { getAllPartnerRequests, addPartnerRequest, updatePartnerRequestStatus } from './partnerRequests';
+import { getAllPropertyRequests, addPropertyRequest, updatePropertyRequestStatus } from './propertyRequests';
+import { getAllContactRequests, addContactRequest, updateContactRequestStatus } from './contactRequests';
+import { getAllPropertyInquiries, addPropertyInquiry, updatePropertyInquiryStatus } from './propertyInquiries';
 
-import { getListingRequests, getListingRequestById, updateListingRequestStatus, addListingRequest } from './listingRequests';
-import { getPartnerApplications, updatePartnerApplicationStatus, addPartnerApplication } from './partnerApps';
-import { getContactMessages, updateMessageStatus, addContactMessage } from './messages';
-import { getAllLeads, getLeadById, updateLead, addLead } from './leads';
-import type { Request, RequestStatus, LeadMessage } from '../types';
-import { RequestType } from '../types';
-import { getAllRoutingRules } from './routingRules'; // Import the rules service
+const SIMULATED_DELAY = 300;
 
-// --- MAPPING HELPERS ---
-const mapListingToRequest = (item: any): Request => ({
-    id: item.id,
-    type: RequestType.PROPERTY_LISTING_REQUEST,
-    status: item.status,
-    assignedTo: 'customer-relations-manager-1',
-    assignedToName: 'Customer Relations',
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-    requesterInfo: {
-        name: item.ownerName,
-        phone: item.ownerPhone,
-    },
-    payload: {
-        cooperationType: item.cooperationType,
-        paymentStatus: item.paymentStatus,
-        contactTime: item.contactTime,
-        propertyDetails: {
-            price: item.price,
-            area: item.area,
-            address: item.address,
-            description: item.description,
-            propertyType: item.propertyType,
-            listingPurpose: item.listingPurpose,
-            bedrooms: item.bedrooms,
-            bathrooms: item.bathrooms,
-            floor: item.floorNumber,
-            finishingStatus: item.finishingStatus,
-            isInCompound: item.isInCompound,
-            location: item.location
-        },
-        images: item.images
+// Helper to access nested properties of an object using a string path
+const getNestedValue = (obj: any, path: string): any => {
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+};
+
+const checkCondition = (request: Request, condition: any): boolean => {
+    const value = getNestedValue(request, condition.field);
+    const conditionValue = condition.value;
+
+    switch (condition.operator) {
+        case 'equals': return value == conditionValue;
+        case 'not_equals': return value != conditionValue;
+        case 'contains': return String(value).toLowerCase().includes(String(conditionValue).toLowerCase());
+        case 'greater_than':
+        case 'less_than':
+             const numValue = parseFloat(value);
+             const numConditionValue = parseFloat(conditionValue);
+             if (isNaN(numValue) || isNaN(numConditionValue)) return false;
+             return condition.operator === 'greater_than' ? numValue > numConditionValue : numValue < numConditionValue;
+        default: return false;
     }
-});
+}
 
-const mapAppToRequest = (item: any): Request => ({
-    id: item.id,
-    type: RequestType.PARTNER_APPLICATION,
-    status: item.status,
-    assignedTo: 'partner-relations-manager-1',
-    assignedToName: 'Partner Relations',
-    createdAt: item.createdAt,
-    updatedAt: item.createdAt,
-    requesterInfo: {
-        name: item.contactName,
-        phone: item.contactPhone,
-        email: item.contactEmail
-    },
-    payload: {
-        companyName: item.companyName,
-        companyType: item.companyType,
-        companyAddress: item.companyAddress,
-        description: item.description,
-        website: item.website,
-        subscriptionPlan: item.subscriptionPlan,
-        paymentStatus: item.paymentStatus,
-        logo: item.logoUrl,
-        documents: item.documents.map((d: string) => ({ fileName: 'Document', fileContent: d }))
+export const getAllRequests = (): Promise<Request[]> => {
+    return new Promise((resolve) => {
+        setTimeout(async () => {
+            const allRequests: Request[] = [];
+
+            // 1. Leads
+            const leads = await getAllLeads();
+            allRequests.push(...leads.map(lead => ({
+                id: lead.id,
+                type: RequestType.LEAD,
+                status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress'),
+                assignedTo: lead.assignedTo || lead.managerId || lead.partnerId,
+                assignedToName: lead.partnerName,
+                createdAt: lead.createdAt,
+                updatedAt: lead.updatedAt,
+                requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
+                payload: lead
+            } as Request)));
+
+            // 2. Partner Requests
+            const partnerReqs = await getAllPartnerRequests();
+            allRequests.push(...partnerReqs.map(req => ({
+                id: req.id,
+                type: RequestType.PARTNER_APPLICATION,
+                status: req.status,
+                createdAt: req.createdAt,
+                requesterInfo: { name: req.contactName, phone: req.contactPhone, email: req.contactEmail },
+                payload: req
+            } as Request)));
+
+            // 3. Property Requests
+            const propReqs = await getAllPropertyRequests();
+            allRequests.push(...propReqs.map(req => ({
+                id: req.id,
+                type: RequestType.PROPERTY_LISTING_REQUEST,
+                status: req.status,
+                createdAt: req.createdAt,
+                requesterInfo: { name: req.customerName, phone: req.customerPhone },
+                payload: req
+            } as Request)));
+
+             // 4. Contact Requests
+            const contactReqs = await getAllContactRequests();
+            allRequests.push(...contactReqs.map(req => ({
+                id: req.id,
+                type: RequestType.CONTACT_MESSAGE,
+                status: req.status,
+                createdAt: req.createdAt,
+                requesterInfo: { name: req.name, phone: req.phone },
+                payload: req
+            } as Request)));
+
+             // 5. Property Inquiries
+            const propInquiries = await getAllPropertyInquiries();
+            allRequests.push(...propInquiries.map(req => ({
+                id: req.id,
+                type: RequestType.PROPERTY_INQUIRY,
+                status: req.status,
+                createdAt: req.createdAt,
+                requesterInfo: { name: req.customerName, phone: req.customerPhone },
+                payload: req
+            } as Request)));
+
+            // Sort all by date
+            resolve(allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        }, SIMULATED_DELAY);
+    });
+};
+
+export const getRequestById = (id: string): Promise<Request | undefined> => {
+    return new Promise((resolve) => {
+        setTimeout(async () => {
+            // Try finding in Leads first (common)
+            const lead = await getLeadById(id);
+            if (lead) {
+                resolve({
+                    id: lead.id,
+                    type: RequestType.LEAD,
+                    status: lead.status as any,
+                    assignedTo: lead.managerId || lead.partnerId,
+                    createdAt: lead.createdAt,
+                    updatedAt: lead.updatedAt,
+                    requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
+                    payload: lead
+                } as Request);
+                return;
+            }
+
+            // Try other services
+            // Note: In a real DB, we would query the specific table based on ID prefix or separate calls
+            // Here we iterate for simplicity in mock environment
+            const allRequests = await getAllRequests();
+            const found = allRequests.find(r => r.id === id);
+            resolve(found);
+        }, SIMULATED_DELAY);
+    });
+};
+
+export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | 'type' | 'status' | 'createdAt' | 'updatedAt'>): Promise<Request> => {
+    
+    let newRequest: Request;
+
+    // DELEGATION: Route to specific service based on type
+    if (type === RequestType.LEAD) {
+        const payload = data.payload as any;
+        const lead = await addLead({
+            serviceType: payload.serviceType,
+            serviceTitle: payload.serviceTitle,
+            customerName: data.requesterInfo.name,
+            customerPhone: data.requesterInfo.phone,
+            customerNotes: payload.customerNotes,
+            contactTime: payload.contactTime,
+            partnerId: payload.partnerId,
+            managerId: payload.managerId,
+            propertyId: payload.propertyId,
+            referenceImage: payload.referenceImage
+        });
+        // Wrap as Request
+        newRequest = {
+            id: lead.id,
+            type: RequestType.LEAD,
+            status: 'new',
+            createdAt: lead.createdAt,
+            updatedAt: lead.updatedAt,
+            requesterInfo: data.requesterInfo,
+            payload: lead
+        };
+
+    } else if (type === RequestType.PARTNER_APPLICATION) {
+        const payload = data.payload as any;
+        const req = await addPartnerRequest({
+            companyName: payload.companyName,
+            companyType: payload.companyType,
+            contactName: data.requesterInfo.name,
+            contactEmail: data.requesterInfo.email || '',
+            contactPhone: data.requesterInfo.phone,
+            description: payload.description,
+            website: payload.website,
+            companyAddress: payload.companyAddress,
+            logo: payload.logo,
+            documents: payload.documents,
+            subscriptionPlan: payload.subscriptionPlan
+        });
+        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+
+    } else if (type === RequestType.PROPERTY_LISTING_REQUEST) {
+        const payload = data.payload as any;
+        const req = await addPropertyRequest({
+            customerName: data.requesterInfo.name,
+            customerPhone: data.requesterInfo.phone,
+            propertyDetails: payload.propertyDetails,
+            images: payload.images,
+            cooperationType: payload.cooperationType,
+            contactTime: payload.contactTime
+        });
+        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+
+    } else if (type === RequestType.CONTACT_MESSAGE) {
+        const payload = data.payload as any;
+        const req = await addContactRequest({
+            name: data.requesterInfo.name,
+            phone: data.requesterInfo.phone,
+            message: payload.message,
+            inquiryType: payload.inquiryType
+        });
+        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+
+    } else if (type === RequestType.PROPERTY_INQUIRY) {
+        const payload = data.payload as any;
+        const req = await addPropertyInquiry({
+            customerName: data.requesterInfo.name,
+            customerPhone: data.requesterInfo.phone,
+            details: payload.details
+        });
+        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+    } else {
+        throw new Error("Unknown request type");
     }
-});
 
-const mapMsgToRequest = (item: any): Request => ({
-    id: item.id,
-    type: RequestType.CONTACT_MESSAGE,
-    status: item.status,
-    assignedTo: 'customer-relations-manager-1',
-    assignedToName: 'Customer Relations',
-    createdAt: item.createdAt,
-    updatedAt: item.createdAt,
-    requesterInfo: {
-        name: item.name,
-        phone: item.phone,
-        email: item.email
-    },
-    payload: {
-        message: item.message,
-        inquiryType: item.inquiryType
-    }
-});
-
-const mapLeadToRequest = (item: any): Request => ({
-    id: item.id,
-    type: RequestType.LEAD,
-    status: item.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(item.status) ? 'closed' : 'in-progress') as RequestStatus,
-    assignedTo: item.assignedTo || item.managerId || item.partnerId,
-    assignedToName: item.partnerName,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-    requesterInfo: {
-        name: item.customerName,
-        phone: item.customerPhone,
-    },
-    payload: item 
-});
-
-// --- HELPER: ROUTING ENGINE ---
-// This function evaluates the request against all active routing rules
-const determineAssignee = async (type: RequestType, payload: any): Promise<string | undefined> => {
-    try {
+    // --- Dynamic Routing Logic (Applies primarily to Leads/Requests where assignment makes sense) ---
+    // Note: For simplicity in this refactor, we are mostly relying on the specific service's default notification logic
+    // but we can update the 'assignedTo' field on the entity if a rule matches.
+    
+    // For LEADs, we might want to update the Lead entity with a new manager if a rule matches.
+    if (type === RequestType.LEAD) {
         const rules = await getAllRoutingRules();
         const activeRules = rules.filter(r => r.active);
-
-        // Flatten data for easier condition checking
-        const requestContext = {
-            type,
-            payload
-        };
-
-        const getValue = (obj: any, path: string) => {
-            return path.split('.').reduce((o, i) => o?.[i], obj);
-        };
-
         for (const rule of activeRules) {
-            let match = true;
-            for (const condition of rule.conditions) {
-                const actualValue = getValue(requestContext, condition.field);
-                const targetValue = condition.value;
+            const isMatch = rule.conditions.every(condition => checkCondition(newRequest, condition));
+            if (isMatch) {
+                // Update the underlying Lead
+                await updateLead(newRequest.id, { assignedTo: rule.action.assignTo, status: 'in-progress' });
+                // Notify the new assignee
+                addNotification({
+                    userId: rule.action.assignTo,
+                    message: { ar: `تم تعيين طلب جديد لك.`, en: `A new request has been assigned to you.` },
+                    link: `/dashboard/leads/${newRequest.id}`
+                });
+                break; 
+            }
+        }
+    }
+
+    return newRequest;
+};
+
+export const updateRequest = (id: string, updates: Partial<Request>): Promise<Request | undefined> => {
+    return new Promise(async (resolve) => {
+        setTimeout(async () => {
+             // 1. Try Leads
+            const lead = await getLeadById(id);
+            if (lead) {
+                const leadUpdates: any = {};
+                // Map status back to lead status
+                if (updates.status === 'in-progress') leadUpdates.status = 'in-progress';
+                if (updates.status === 'closed') leadUpdates.status = 'completed';
+                if (updates.status === 'rejected') leadUpdates.status = 'cancelled';
+                if (updates.assignedTo) leadUpdates.assignedTo = updates.assignedTo;
                 
-                // Type-safe comparison
-                switch (condition.operator) {
-                    case 'equals':
-                        if (String(actualValue) != String(targetValue)) match = false;
-                        break;
-                    case 'not_equals':
-                        if (String(actualValue) == String(targetValue)) match = false;
-                        break;
-                    case 'contains':
-                        if (!String(actualValue).toLowerCase().includes(String(targetValue).toLowerCase())) match = false;
-                        break;
-                    case 'greater_than':
-                        if (Number(actualValue) <= Number(targetValue)) match = false;
-                        break;
-                    case 'less_than':
-                        if (Number(actualValue) >= Number(targetValue)) match = false;
-                        break;
+                await updateLead(id, leadUpdates);
+                const updated = await getLeadById(id);
+                 resolve({
+                    id: updated!.id,
+                    type: RequestType.LEAD,
+                    status: updated!.status as any, // mapping approximation
+                    createdAt: updated!.createdAt,
+                    requesterInfo: { name: updated!.customerName, phone: updated!.customerPhone },
+                    payload: updated
+                } as Request);
+                return;
+            }
+
+            // 2. Partner Requests
+            const partReqs = await getAllPartnerRequests();
+            if (partReqs.find(r => r.id === id)) {
+                if (updates.status === 'approved' || updates.status === 'rejected') {
+                    await updatePartnerRequestStatus(id, updates.status);
                 }
-                if (!match) break; // Rule failed, move to next rule
+                resolve(undefined); // Returning undefined triggers reload in UI usually
+                return;
             }
-
-            if (match) {
-                console.log(`[Routing] Rule matched: "${rule.name.en}". Assigning to ${rule.action.assignTo}`);
-                return rule.action.assignTo;
-            }
-        }
-    } catch (error) {
-        console.error("Error in routing engine:", error);
-    }
-    return undefined; // No rule matched
-};
-
-
-// --- AGGREGATOR FUNCTIONS ---
-
-export const getAllRequests = async (): Promise<Request[]> => {
-    const [listings, apps, msgs, leads] = await Promise.all([
-        getListingRequests(),
-        getPartnerApplications(),
-        getContactMessages(),
-        getAllLeads()
-    ]);
-
-    const requests = [
-        ...listings.map(mapListingToRequest),
-        ...apps.map(mapAppToRequest),
-        ...msgs.map(mapMsgToRequest),
-        ...leads.map(mapLeadToRequest)
-    ];
-
-    return requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-};
-
-export const getRequestById = async (id: string): Promise<Request | undefined> => {
-    const lead = await getLeadById(id);
-    if (lead) return mapLeadToRequest(lead);
-
-    const listing = await getListingRequestById(id);
-    if (listing) return mapListingToRequest(listing);
-
-    const apps = await getPartnerApplications();
-    const app = apps.find(a => a.id === id);
-    if (app) return mapAppToRequest(app);
-
-    const msgs = await getContactMessages();
-    const msg = msgs.find(m => m.id === id);
-    if (msg) return mapMsgToRequest(msg);
-
-    return undefined;
-};
-
-export const updateRequest = async (id: string, updates: Partial<Request>): Promise<Request | undefined> => {
-    // 1. Try Lead
-    const lead = await getLeadById(id);
-    if (lead) {
-        const leadUpdates: any = {};
-        if (updates.status === 'new') leadUpdates.status = 'new';
-        else if (updates.status === 'closed') leadUpdates.status = 'completed';
-        else if (updates.status === 'rejected') leadUpdates.status = 'cancelled';
-        else if (updates.status) leadUpdates.status = 'in-progress';
-        
-        if (updates.assignedTo) leadUpdates.assignedTo = updates.assignedTo;
-        if (updates.payload) {
-             // Allow updating specific payload fields like internal notes if simulated
-        }
-
-        await updateLead(id, leadUpdates);
-        const updated = await getLeadById(id);
-        return updated ? mapLeadToRequest(updated) : undefined;
-    }
-
-    // 2. Try Listing
-    const listing = await getListingRequestById(id);
-    if (listing) {
-        await updateListingRequestStatus(id, updates.status || listing.status);
-        const updated = await getListingRequestById(id);
-        return updated ? mapListingToRequest(updated) : undefined;
-    }
-
-    // 3. Partner App
-    const apps = await getPartnerApplications();
-    const app = apps.find(a => a.id === id);
-    if (app) {
-         await updatePartnerApplicationStatus(id, updates.status || app.status);
-         return { ...mapAppToRequest(app), status: updates.status || app.status };
-    }
-
-    // 4. Message
-    const msgs = await getContactMessages();
-    const msg = msgs.find(m => m.id === id);
-    if (msg) {
-        await updateMessageStatus(id, updates.status || msg.status);
-        return { ...mapMsgToRequest(msg), status: updates.status || msg.status };
-    }
-
-    return undefined;
-};
-
-export const addRequest = async (type: RequestType, data: any): Promise<any> => {
-    const { requesterInfo, payload } = data;
-    
-    // 1. Execute Routing Engine to get Assignee
-    // This allows the Admin > Automation Rules to effectively route the request
-    const assignedTo = await determineAssignee(type, payload);
-
-    switch (type) {
-        case RequestType.LEAD:
-            return addLead({
-                ...payload,
-                customerName: requesterInfo.name,
-                customerPhone: requesterInfo.phone,
-                assignedTo: assignedTo || payload.managerId || payload.partnerId, // Use routed assignee or fallback
-            });
             
-        case RequestType.PROPERTY_LISTING_REQUEST:
-            return addListingRequest({
-                ownerName: requesterInfo.name,
-                ownerPhone: requesterInfo.phone,
-                contactTime: payload.contactTime,
-                cooperationType: payload.cooperationType,
-                propertyType: payload.propertyDetails.propertyType,
-                listingPurpose: payload.propertyDetails.purpose?.en || 'For Sale',
-                price: payload.propertyDetails.price,
-                area: payload.propertyDetails.area,
-                address: payload.propertyDetails.address,
-                description: payload.propertyDetails.description,
-                bedrooms: payload.propertyDetails.bedrooms,
-                bathrooms: payload.propertyDetails.bathrooms,
-                floorNumber: payload.propertyDetails.floor,
-                finishingStatus: payload.propertyDetails.finishingStatus,
-                isInCompound: payload.propertyDetails.isInCompound,
-                images: payload.images,
-                location: payload.propertyDetails.location,
-                paymentStatus: payload.paymentStatus
-                // Note: Listing Requests don't strictly support 'assignedTo' column in this mock yet, 
-                // but if they did, we would pass `assignedTo` here.
-            });
+            // 3. Property Requests
+            const propReqs = await getAllPropertyRequests();
+             if (propReqs.find(r => r.id === id)) {
+                 // Map generic status to RequestStatus
+                if (['approved', 'rejected', 'pending'].includes(updates.status as string)) {
+                    await updatePropertyRequestStatus(id, updates.status as any);
+                }
+                resolve(undefined);
+                return;
+            }
 
-        case RequestType.PARTNER_APPLICATION:
-             return addPartnerApplication({
-                 companyName: payload.companyName,
-                 companyType: payload.companyType,
-                 companyAddress: payload.companyAddress || '',
-                 description: payload.description,
-                 website: payload.website,
-                 contactName: requesterInfo.name,
-                 contactEmail: requesterInfo.email,
-                 contactPhone: requesterInfo.phone,
-                 subscriptionPlan: payload.subscriptionPlan,
-                 logoUrl: payload.logo,
-                 documents: payload.documents?.map((d: any) => d.fileContent) || [],
-                 paymentStatus: payload.paymentStatus
-             });
-
-        case RequestType.CONTACT_MESSAGE:
-             return addContactMessage({
-                 name: requesterInfo.name,
-                 phone: requesterInfo.phone,
-                 email: requesterInfo.email,
-                 message: payload.message,
-                 inquiryType: payload.inquiryType
-             });
-
-        default:
-            console.warn("Unknown request type:", type);
-            return null;
-    }
+            // 4. Contact & Inquiries
+            // ... similar logic for others if status updates are supported
+            
+            resolve(undefined);
+        }, SIMULATED_DELAY);
+    });
 };
 
-export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<void> => {
-    const { addMessageToLead: serviceAddMsg } = await import('./leads');
-    await serviceAddMsg(leadId, messageData);
+export const addMessageToLead = (requestId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Request | undefined> => {
+    return new Promise(async (resolve) => {
+        // Re-import to be safe
+        const { addMessageToLead: serviceAddMessage } = await import('./leads');
+        await serviceAddMessage(requestId, messageData);
+        const updatedReq = await getRequestById(requestId);
+        resolve(updatedReq);
+    });
 };

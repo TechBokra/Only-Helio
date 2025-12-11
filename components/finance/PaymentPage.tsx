@@ -15,15 +15,7 @@ import { useToast } from '../shared/ToastContext';
 import { CheckCircleIcon, CreditCardIcon, PhoneIcon, ArrowLeftIcon, LockClosedIcon, ClockIcon, ArrowRightIcon } from '../ui/Icons';
 import type { TransactionType, PaymentMethod } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../ui/Card';
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
+import { fileToBase64 } from '../../utils/fileUtils';
 
 const PaymentPage: React.FC = () => {
     const { language, t } = useLanguage();

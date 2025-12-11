@@ -19,8 +19,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, className, ...
         if (dialog) {
             if (isOpen) {
                 dialog.showModal();
-                document.body.style.overflow = 'hidden'; 
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
                 
+                // Move focus to first focusable element
                 const firstFocusable = dialog.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as HTMLElement;
                 if (firstFocusable) firstFocusable.focus();
                 

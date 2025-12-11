@@ -6,7 +6,8 @@ import { Role } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { BuildingIcon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
-import { getAllProperties } from '../../services/properties'; // Corrected Import
+import { getProperties } from '../../services/properties';
+// FIX: Corrected import path for UpgradePlanModal from root 'components' to 'shared'.
 import UpgradePlanModal from '../shared/UpgradePlanModal';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import { useLanguage } from '../shared/LanguageContext';
@@ -30,7 +31,7 @@ const DashboardProjectsPage: React.FC = () => {
 
     const { data: properties, isLoading: isLoadingProperties, isError: isErrorProperties, refetch: refetchProperties } = useQuery({
         queryKey: ['all-dashboard-properties'],
-        queryFn: getAllProperties,
+        queryFn: getProperties,
         enabled: !!currentUser && currentUser.role === Role.DEVELOPER_PARTNER,
     });
     

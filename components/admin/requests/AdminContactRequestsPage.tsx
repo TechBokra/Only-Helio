@@ -1,39 +1,56 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getContactMessages, updateMessageStatus } from '../../../services/messages';
+import {
+    getAllContactRequests,
+    updateContactRequestStatus,
+    deleteContactRequest,
+} from '../../../services/contactRequests';
+// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import Pagination from '../../shared/Pagination';
-import type { ContactMessageModel, RequestStatus } from '../../../types';
+import type { ContactRequest, RequestStatus } from '../../../types';
 import { Select } from '../../ui/Select';
 import { Button } from '../../ui/Button';
-import { Link } from 'react-router-dom';
+import ConfirmationModal from '../../shared/ConfirmationModal';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
 
-const statusColors: { [key in RequestStatus]?: string } = {
+const statusColors: { [key in RequestStatus]: string } = {
     new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
     pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
     reviewed: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+    assigned: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
+    'in-progress': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
 const AdminContactRequestsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
     const queryClient = useQueryClient();
+    const [requestToDelete, setRequestToDelete] = React.useState<string | null>(null);
 
     const { data: requests, isLoading } = useQuery({
         queryKey: ['contactRequests'],
-        queryFn: getContactMessages,
+        queryFn: getAllContactRequests,
     });
 
     const mutation = useMutation({
-        mutationFn: ({ id, status }: { id: string; status: RequestStatus }) => updateMessageStatus(id, status),
+        mutationFn: ({ id, status }: { id: string; status: RequestStatus }) => updateContactRequestStatus(id, status),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['contactRequests'] });
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteContactRequest,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['contactRequests'] });
+            setRequestToDelete(null);
         },
     });
 
@@ -41,11 +58,11 @@ const AdminContactRequestsPage: React.FC = () => {
         data: requests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        searchFn: (item: ContactMessageModel, term: string) => item.name.toLowerCase().includes(term) || item.phone.includes(term),
+        searchFn: (item: ContactRequest, term: string) => item.name.toLowerCase().includes(term) || item.phone.includes(term),
         filterFns: {},
     });
 
-    const renderTable = (items: ContactMessageModel[]) => (
+    const renderTable = (items: ContactRequest[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
             <Table>
                 <TableHeader>
@@ -59,7 +76,11 @@ const AdminContactRequestsPage: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                     {isLoading ? (
-                        <TableRow><TableCell colSpan={5} className="text-center p-8">Loading...</TableCell></TableRow>
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center p-8">
+                                Loading...
+                            </TableCell>
+                        </TableRow>
                     ) : items.length > 0 ? (
                         items.map((req) => (
                             <TableRow key={req.id}>
@@ -74,31 +95,46 @@ const AdminContactRequestsPage: React.FC = () => {
                                 <TableCell>
                                     <Select
                                         value={req.status}
-                                        onChange={(e) => mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })}
-                                        className={`text-xs font-medium w-32 ${statusColors[req.status] || 'bg-gray-100'}`}
+                                        onChange={(e) =>
+                                            mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })
+                                        }
+                                        className={`text-xs font-medium w-32 ${statusColors[req.status]}`}
                                     >
-                                        <option value="new">New</option>
-                                        <option value="pending">Pending</option>
-                                        <option value="reviewed">Reviewed</option>
-                                        <option value="closed">Closed</option>
+                                        {Object.entries(t_admin.requestStatus).map(([key, value]) => (
+                                            <option
+                                                key={key}
+                                                value={key}
+                                                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                            >
+                                                {value as string}
+                                            </option>
+                                        ))}
                                     </Select>
                                 </TableCell>
                                 <TableCell>
-                                    <Link to={`/admin/communication/messages/${req.id}`}>
-                                        <Button variant="link" size="sm">{t_admin.table.details}</Button>
-                                    </Link>
+                                    <Button
+                                        variant="link"
+                                        className="text-red-500"
+                                        onClick={() => setRequestToDelete(req.id)}
+                                    >
+                                        {t_admin.table.delete}
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))
                     ) : (
-                        <TableRow><TableCell colSpan={5} className="text-center p-8">{t_admin.noContactRequests}</TableCell></TableRow>
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center p-8">
+                                {t_admin.noContactRequests}
+                            </TableCell>
+                        </TableRow>
                     )}
                 </TableBody>
             </Table>
         </div>
     );
 
-    const renderCard = (req: ContactMessageModel) => (
+    const renderCard = (req: ContactRequest) => (
         <Card key={req.id}>
             <CardContent className="p-4 space-y-3">
                  <div className="flex justify-between items-start">
@@ -111,16 +147,46 @@ const AdminContactRequestsPage: React.FC = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3 bg-gray-50 dark:bg-gray-800 p-2 rounded">{req.message}</p>
             </CardContent>
             <CardFooter className="p-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                 <span className={`px-2 py-1 rounded text-xs capitalize ${statusColors[req.status] || 'bg-gray-100'}`}>{req.status}</span>
-                 <Link to={`/admin/communication/messages/${req.id}`}>
-                    <Button variant="ghost" size="sm">{t_admin.table.details}</Button>
-                </Link>
+                <Select
+                    value={req.status}
+                    onChange={(e) =>
+                        mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })
+                    }
+                    className={`text-xs font-medium w-32 h-8 py-1 ${statusColors[req.status]}`}
+                >
+                    {Object.entries(t_admin.requestStatus).map(([key, value]) => (
+                        <option
+                            key={key}
+                            value={key}
+                            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        >
+                            {value as string}
+                        </option>
+                    ))}
+                </Select>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={() => setRequestToDelete(req.id)}
+                >
+                    {t_admin.table.delete}
+                </Button>
             </CardFooter>
         </Card>
     );
 
     return (
         <div>
+            {requestToDelete && (
+                <ConfirmationModal
+                    isOpen={!!requestToDelete}
+                    onClose={() => setRequestToDelete(null)}
+                    onConfirm={() => deleteMutation.mutate(requestToDelete)}
+                    title={t.adminShared.delete}
+                    message={t_admin.confirmDelete}
+                />
+            )}
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.contactRequestsTitle}</h1>
             <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.contactRequestsSubtitle}</p>
 

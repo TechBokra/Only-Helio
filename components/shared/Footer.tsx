@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { TwitterIcon, LinkedInIcon, FacebookIcon, InstagramIcon, WhatsAppIcon, PhoneIcon } from '../ui/Icons';
@@ -35,7 +34,6 @@ const Footer: React.FC = () => {
 
     const content = siteContent.footer;
     const contentLang = content[language];
-    const siteName = siteContent.siteName?.[language] || 'ONLY HELIO';
 
     const phoneLink = content.isWhatsAppOnly 
         ? `https://wa.me/${content.phone.replace(/\D/g, '')}` 
@@ -50,7 +48,7 @@ const Footer: React.FC = () => {
                     <div className="md:col-span-2 lg:col-span-1">
                         <Link to="/" className="flex items-center gap-3 text-3xl font-bold text-amber-500 mb-4">
                             <SiteLogo className="h-10 w-10" />
-                            <span className="text-2xl">{siteName}</span>
+                            <span className="text-2xl">ONLY HELIO</span>
                         </Link>
                         <p className="text-gray-600 max-w-md">{contentLang.description}</p>
                     </div>
@@ -102,7 +100,7 @@ const Footer: React.FC = () => {
                 <div className="mt-12 pt-8 border-t border-gray-300 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2 text-sm">
                         <p className="text-gray-500">
-                            {content.copyright[language].replace('ONLY HELIO', siteName)}
+                            {content.copyright[language]}
                         </p>
                         
                          {/* Legal Links Moved Here */}
@@ -120,26 +118,18 @@ const Footer: React.FC = () => {
                             {content.feedbackText[language]}
                         </a>
                         <div className={`flex space-x-6 ${language === 'ar' ? 'space-x-reverse' : ''}`}>
-                            {content.social.facebook && content.social.facebook !== '#' && (
-                                <SocialLink href={content.social.facebook}>
-                                    <FacebookIcon className="h-6 w-6" />
-                                </SocialLink>
-                            )}
-                            {content.social.twitter && content.social.twitter !== '#' && (
-                                <SocialLink href={content.social.twitter}>
-                                    <TwitterIcon className="h-6 w-6" />
-                                </SocialLink>
-                            )}
-                            {content.social.instagram && content.social.instagram !== '#' && (
-                                <SocialLink href={content.social.instagram}>
-                                    <InstagramIcon className="h-6 w-6" />
-                                </SocialLink>
-                            )}
-                            {content.social.linkedin && content.social.linkedin !== '#' && (
-                                <SocialLink href={content.social.linkedin}>
-                                    <LinkedInIcon className="h-6 w-6" />
-                                </SocialLink>
-                            )}
+                            <SocialLink href={content.social.facebook}>
+                                <FacebookIcon className="h-6 w-6" />
+                            </SocialLink>
+                            <SocialLink href={content.social.twitter}>
+                                <TwitterIcon className="h-6 w-6" />
+                            </SocialLink>
+                            <SocialLink href={content.social.instagram}>
+                                <InstagramIcon className="h-6 w-6" />
+                            </SocialLink>
+                            <SocialLink href={content.social.linkedin}>
+                                <LinkedInIcon className="h-6 w-6" />
+                            </SocialLink>
                         </div>
                     </div>
                 </div>

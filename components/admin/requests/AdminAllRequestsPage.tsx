@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -83,31 +82,16 @@ const AdminAllRequestsPage: React.FC = () => {
 
     const getSubject = (request: Request) => {
         const payload = request.payload as any;
-        if (!payload) return 'N/A';
-
         switch (request.type) {
-            case RequestType.LEAD: 
-                return payload.serviceTitle || 'Lead Request';
-            
-            case RequestType.PROPERTY_LISTING_REQUEST: 
-                const pd = payload.propertyDetails;
-                if (!pd) return 'Property Listing Request';
-                // Safe access: Use optional chaining for everything nested
-                const type = pd.propertyType?.[language] || pd.propertyType?.en || 'Unknown Type';
-                const address = pd.address || 'Unknown Location';
-                return `${type} - ${address}`;
-
+            case RequestType.LEAD: return payload.serviceTitle;
+            case RequestType.PROPERTY_LISTING_REQUEST: return `${payload.propertyDetails.propertyType[language]} - ${payload.propertyDetails.address}`;
             case RequestType.CONTACT_MESSAGE: 
                 const message = payload.message || '';
                 return message.length > 70 ? message.substring(0, 70) + '...' : message;
-            
             case RequestType.PROPERTY_INQUIRY: 
                 const details = payload.details || '';
                 return details.length > 70 ? details.substring(0, 70) + '...' : details;
-            
-            case RequestType.PARTNER_APPLICATION: 
-                return payload.companyName || 'Partner Application';
-            
+            case RequestType.PARTNER_APPLICATION: return payload.companyName;
             default: return 'N/A';
         }
     };

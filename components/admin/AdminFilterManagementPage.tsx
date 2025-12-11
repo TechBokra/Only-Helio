@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { FilterOption } from '../../types';
 import FilterItemFormModal from './FilterItemFormModal';
@@ -42,7 +43,9 @@ const FilterManagerSection: React.FC<{
     );
 };
 
+
 const AdminFilterManagementPage: React.FC = () => {
+    const { t } = useLanguage();
     const queryClient = useQueryClient();
     const [modalState, setModalState] = useState<{ isOpen: boolean; dataType?: DataType; itemToEdit?: FilterOption }>({ isOpen: false });
 
@@ -58,7 +61,7 @@ const AdminFilterManagementPage: React.FC = () => {
             } else if (dataType === 'finishingStatus') {
                  queryClient.invalidateQueries({ queryKey: ['finishingStatuses'] });
             } else if (dataType === 'amenity') {
-                queryClient.invalidateQueries({ queryKey: ['amenities'] });
+                 queryClient.invalidateQueries({ queryKey: ['amenities'] });
             }
         }
     });
@@ -71,6 +74,7 @@ const AdminFilterManagementPage: React.FC = () => {
 
     const handleSave = () => {
         setModalState({ isOpen: false });
+        // Invalidate all queries on save
         queryClient.invalidateQueries({ queryKey: ['propertyTypes'] });
         queryClient.invalidateQueries({ queryKey: ['finishingStatuses'] });
         queryClient.invalidateQueries({ queryKey: ['amenities'] });
@@ -79,7 +83,7 @@ const AdminFilterManagementPage: React.FC = () => {
     if (ptLoading || fsLoading || amLoading) return <div>Loading filters...</div>;
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-8">
             {modalState.isOpen && modalState.dataType && (
                 <FilterItemFormModal
                     dataType={modalState.dataType}

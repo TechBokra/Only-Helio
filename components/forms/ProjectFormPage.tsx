@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Language, Project } from '../../types';
+import type { Project, ProjectType } from '../../types';
 import { useAuth } from '../auth/AuthContext';
-import FormField, { inputClasses } from '../ui/FormField';
+import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { addProject, updateProject, getAllProjects } from '../../services/projects';
 import { Role, Permission } from '../../types';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
@@ -13,8 +13,7 @@ import UpgradeNotice from '../shared/UpgradeNotice';
 import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContext';
 import { Button } from '../ui/Button';
-// CHANGED: Import Cloudinary
-import { uploadToCloudinary } from '../../lib/cloudinary';
+import { fileToBase64 } from '../../utils/fileUtils';
 
 const ProjectFormPage: React.FC = () => {
     const { language, t } = useLanguage();
@@ -27,11 +26,9 @@ const ProjectFormPage: React.FC = () => {
     const t_form = t.projectDashboard.projectForm;
 
     const { isLimitReached } = useSubscriptionUsage('projects');
-    const { register, handleSubmit, reset, formState: { isSubmitting: isFormSubmitting, errors } } = useForm<Project>();
+    const { register, handleSubmit, reset, formState: { isSubmitting: isFormSubmitting } } = useForm<Project>();
     
     const [image, setImage] = useState<string>('');
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         if (projectId && projects) {
@@ -70,43 +67,28 @@ const ProjectFormPage: React.FC = () => {
         onError: () => showToast('Failed to update project.', 'error'),
     });
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setImageFile(file);
-            // Show local preview
-            setImage(URL.createObjectURL(file));
+            const base64 = await fileToBase64(e.target.files[0]);
+            setImage(base64);
         }
     };
 
     const onSubmit = async (formData: any) => {
         if (!currentUser || !('type' in currentUser)) return;
-        setIsUploading(true);
 
-        try {
-            let imageUrl = image;
-            if (imageFile) {
-                // CHANGED: Upload to Cloudinary
-                imageUrl = await uploadToCloudinary(imageFile);
-            }
+        const existingProject = projectId ? projects?.find(p => p.id === projectId) : undefined;
+        const projectData = {
+            ...formData,
+            imageUrl: image,
+            partnerId: existingProject?.partnerId || currentUser.id,
+            features: existingProject?.features || [],
+        };
 
-            const existingProject = projectId ? projects?.find(p => p.id === projectId) : undefined;
-            const projectData = {
-                ...formData,
-                imageUrl,
-                partnerId: existingProject?.partnerId || currentUser.id,
-                features: existingProject?.features || [],
-            };
-
-            if (projectId) {
-                updateMutation.mutate({ projectId, updates: projectData });
-            } else {
-                addMutation.mutate(projectData);
-            }
-        } catch (error) {
-            showToast("Error uploading image", "error");
-        } finally {
-            setIsUploading(false);
+        if (projectId) {
+            updateMutation.mutate({ projectId, updates: projectData });
+        } else {
+            addMutation.mutate(projectData);
         }
     };
     
@@ -117,7 +99,9 @@ const ProjectFormPage: React.FC = () => {
         return <UpgradeNotice />;
     }
     
-    const isSubmitting = addMutation.isPending || updateMutation.isPending || isUploading;
+    const isSubmitting = addMutation.isPending || updateMutation.isPending;
+
+    const projectTypes: ProjectType[] = ['Compound', 'Commercial_Mall', 'Residential_Building', 'Mixed_Use'];
 
     return (
         <div>
@@ -133,6 +117,16 @@ const ProjectFormPage: React.FC = () => {
                         <input type="text" {...register("name.en", { required: true })} className={inputClasses} />
                     </FormField>
                 </div>
+
+                <FormField label={language === 'ar' ? 'نوع المشروع' : 'Project Type'} id="projectType">
+                    <select {...register("projectType", { required: true })} className={selectClasses}>
+                        <option value="">{language === 'ar' ? 'اختر النوع...' : 'Select Type...'}</option>
+                        {projectTypes.map(type => (
+                            <option key={type} value={type}>{type.replace('_', ' ')}</option>
+                        ))}
+                    </select>
+                </FormField>
+
                 <div>
                      <FormField label={t_form.descriptionAr} id="description.ar">
                         <textarea {...register("description.ar", { required: true })} className={inputClasses} rows={4} />

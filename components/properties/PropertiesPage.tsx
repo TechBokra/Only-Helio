@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+// FIX: Imported 'keepPreviousData' for use with TanStack Query v5's placeholderData option.
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import SEO from '../shared/SEO';
 import { useLanguage } from '../shared/LanguageContext';
@@ -11,6 +12,7 @@ import PropertyCardSkeleton from '../shared/PropertyCardSkeleton';
 import PropertyListItemSkeleton from '../shared/PropertyListItemSkeleton';
 import PropertyInquiryModal from '../shared/PropertyInquiryModal';
 import { getAllProjects } from '../../services/projects';
+import { getAllPartnersForAdmin } from '../../services/partners';
 import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '../../services/filters';
 import { getPaginatedProperties } from '../../services/properties';
 import { usePropertyFilters } from '../../hooks/usePropertyFilters';
@@ -24,51 +26,53 @@ const PropertiesPage: React.FC = () => {
     const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
     
     const filterControls = usePropertyFilters();
+    const { 
+        page, view, status, type, query, minPrice, maxPrice, project, 
+        finishing, installments, realEstateFinance, floor, compound, delivery, 
+        amenities: amenitiesFilter, beds, baths, setFilter, setPage
+    } = filterControls;
     
-    const page = filterControls.page;
-    const view = filterControls.view;
+    // Fetch dependencies (dropdown options)
+    const { data: projects, isLoading: pLoading } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
+    const { data: partners, isLoading: paLoading } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
+    const { data: propertyTypes, isLoading: ptLoading } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
+    const { data: finishingStatuses, isLoading: fsLoading } = useQuery({ queryKey: ['finishingStatuses'], queryFn: getAllFinishingStatuses });
+    const { data: amenities, isLoading: amLoading } = useQuery({ queryKey: ['amenities'], queryFn: getAllAmenities });
     
-    // Fetch filter options
-    const { data: projects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
-    const { data: propertyTypes } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
-    const { data: finishingStatuses } = useQuery({ queryKey: ['finishingStatuses'], queryFn: getAllFinishingStatuses });
-    const { data: amenities } = useQuery({ queryKey: ['amenities'], queryFn: getAllAmenities });
-    
+    // Memoize filters to prevent unnecessary query refetches
     const queryFilters = useMemo(() => ({
-        view: filterControls.view,
-        status: filterControls.status,
-        type: filterControls.type,
-        query: filterControls.query,
-        minPrice: filterControls.minPrice,
-        maxPrice: filterControls.maxPrice,
-        project: filterControls.project,
-        finishing: filterControls.finishing,
-        installments: filterControls.installments,
-        realEstateFinance: filterControls.realEstateFinance,
-        floor: filterControls.floor,
-        compound: filterControls.compound,
-        delivery: filterControls.delivery,
-        amenities: filterControls.amenities,
-        beds: filterControls.beds,
-        baths: filterControls.baths,
-    }), [filterControls]);
+        view, // Include view property
+        status, type, query, minPrice, maxPrice, project, finishing, 
+        installments, realEstateFinance, floor, compound, delivery, 
+        amenities: amenitiesFilter, beds, baths
+    }), [
+        view,
+        status, type, query, minPrice, maxPrice, project, finishing, 
+        installments, realEstateFinance, floor, compound, delivery, 
+        amenitiesFilter, beds, baths
+    ]);
 
+    // Fetch properties
     const { data: propertiesData, isLoading: propsLoading } = useQuery({
         queryKey: ['properties', page, queryFilters],
         queryFn: () => getPaginatedProperties({ 
             page: page, 
             limit: ITEMS_PER_PAGE, 
-            filters: queryFilters as any,
+            filters: queryFilters,
             disablePagination: false,
         }),
+        // FIX: Replaced deprecated `keepPreviousData: true` with `placeholderData: keepPreviousData` for TanStack Query v5.
         placeholderData: keepPreviousData,
     });
     
+    const isLoadingDependencies = pLoading || paLoading || ptLoading || fsLoading || amLoading;
+    const isLoadingAny = isLoadingDependencies || propsLoading;
     const properties = propertiesData?.properties || [];
     const totalProperties = propertiesData?.total || 0;
     const totalPages = Math.ceil(totalProperties / ITEMS_PER_PAGE);
 
-    const gridClasses = view === 'list' 
+    // This logic was incorrect in the original file, it should depend on filterControls.view
+    const gridClasses = filterControls.view === 'list' 
         ? 'grid-cols-1 gap-4' 
         : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8';
 
@@ -79,14 +83,16 @@ const PropertiesPage: React.FC = () => {
             
             <div className="container mx-auto px-6 py-8">
                 <PropertyFilters
-                    filters={filterControls}
+                    filters={filterControls as any}
                     projects={projects || []}
+                    partners={partners || []}
                     propertyTypes={propertyTypes || []}
                     finishingStatuses={finishingStatuses || []}
                     amenities={amenities || []}
                 />
             </div>
             
+            {/* Toolbar Section */}
             <div className="bg-gray-50 dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700 py-4 sticky top-16 lg:top-20 z-30 shadow-sm">
                 <div className="container mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">
@@ -95,16 +101,18 @@ const PropertiesPage: React.FC = () => {
 
                     <div className="flex items-center gap-2 bg-white dark:bg-gray-700 p-1 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
                         <button
-                            onClick={() => filterControls.setFilter('view', 'grid')}
-                            className={`p-2 rounded-md transition-all ${view === 'grid' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                            onClick={() => setFilter('view', 'grid')}
+                            className={`p-2 rounded-md transition-all ${filterControls.view === 'grid' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="Grid View"
+                            title={language === 'ar' ? 'عرض شبكي' : 'Grid View'}
                         >
                             <GridIcon className="w-5 h-5" />
                         </button>
                         <button
-                            onClick={() => filterControls.setFilter('view', 'list')}
-                            className={`p-2 rounded-md transition-all ${view === 'list' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                            onClick={() => setFilter('view', 'list')}
+                            className={`p-2 rounded-md transition-all ${filterControls.view === 'list' ? 'bg-amber-500 text-white shadow' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                             aria-label="List View"
+                            title={language === 'ar' ? 'عرض قائمة' : 'List View'}
                         >
                             <ListIcon className="w-5 h-5" />
                         </button>
@@ -112,17 +120,18 @@ const PropertiesPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Main Content Area */}
             <div className="container mx-auto px-6 py-12">
-                {propsLoading ? (
+                {isLoadingAny ? (
                     <div className={`grid ${gridClasses}`}>
-                        {Array.from({ length: 6 }).map((_, i) => view === 'list' ? <PropertyListItemSkeleton key={i} /> : <PropertyCardSkeleton key={i} />)}
+                        {Array.from({ length: 6 }).map((_, i) => filterControls.view === 'list' ? <PropertyListItemSkeleton key={i} /> : <PropertyCardSkeleton key={i} />)}
                     </div>
                 ) : (
                     <>
                         {properties.length > 0 ? (
                             <div className={`grid ${gridClasses}`}>
                                 {properties.map(prop => (
-                                    view === 'list' ? (
+                                    filterControls.view === 'list' ? (
                                         <PropertyListItem key={prop.id} {...prop} />
                                     ) : (
                                         <PropertyCard key={prop.id} {...prop} />
@@ -142,7 +151,7 @@ const PropertiesPage: React.FC = () => {
                             </div>
                         )}
                         <div className="mt-12">
-                            <Pagination currentPage={page} totalPages={totalPages} onPageChange={filterControls.setPage} />
+                            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
                         </div>
                     </>
                 )}

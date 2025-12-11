@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { AdminPartner } from '../../types';
@@ -9,7 +8,7 @@ import { Card, CardContent } from '../ui/Card';
 
 const PartnerCard: React.FC<{ partner: AdminPartner }> = ({ partner }) => {
     const { t } = useLanguage();
-    const localizedPartner = t.partnerInfo?.[partner.id];
+    const localizedPartner = t.partnerInfo[partner.id];
 
     if (!localizedPartner) return null;
 
@@ -55,7 +54,7 @@ const Partners: React.FC = () => {
     const isLoading = isLoadingPartners || isLoadingContent;
 
     const content = useMemo(() => {
-        if (!siteContent || !siteContent.partners) return null;
+        if (!siteContent) return null;
         return siteContent.partners[language];
     }, [siteContent, language]);
 
@@ -71,8 +70,8 @@ const Partners: React.FC = () => {
         );
 
         const sections = [
-            { title: content.finishing_companies_title || 'Finishing Companies', partners: otherPartners.filter((p) => p.type === 'finishing') },
-            { title: content.agencies_title || 'Real Estate Agencies', partners: otherPartners.filter((p) => p.type === 'agency') },
+            { title: content.finishing_companies_title, partners: otherPartners.filter((p) => p.type === 'finishing') },
+            { title: content.agencies_title, partners: otherPartners.filter((p) => p.type === 'agency') },
         ].filter((section) => section.partners.length > 0);
 
         return { majorDevelopers, cityDevelopers, sections };

@@ -1,7 +1,10 @@
 
+
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Banner } from '../../../types';
 import FormField, { inputClasses, selectClasses } from '../../ui/FormField';
+// FIX: Corrected import path for Icons
 import { CloseIcon, PhotoIcon, CheckCircleIcon, SparklesIcon } from '../../ui/Icons';
 import { addBanner, updateBanner } from '../../../services/banners';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -9,16 +12,21 @@ import { Checkbox } from '../../ui/Checkbox';
 import { Input } from '../../ui/Input';
 import { Select } from '../../ui/Select';
 import { Button } from '../../ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '../../shared/ToastContext';
-// CHANGED: Import Cloudinary uploader
-import { uploadToCloudinary } from '../../../lib/cloudinary';
+import { Card, CardContent } from '../../ui/Card';
 
 interface AdminBannerFormModalProps {
     bannerToEdit?: Banner;
     onClose: () => void;
 }
+
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
 
 const LOCATION_GUIDE = {
     home: {
@@ -57,8 +65,6 @@ const AdminBannerFormModal: React.FC<AdminBannerFormModalProps> = ({ bannerToEdi
     const { language, t } = useLanguage();
     const t_page = t.adminDashboard.manageBanners;
     const t_shared = t.adminShared;
-    const { showToast } = useToast();
-    const queryClient = useQueryClient();
     const modalRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(false);
 
@@ -105,37 +111,29 @@ const AdminBannerFormModal: React.FC<AdminBannerFormModalProps> = ({ bannerToEdi
         e.preventDefault();
         setLoading(true);
 
-        try {
-            let imageUrl = bannerToEdit?.imageUrl || '';
-            if (imageFile) {
-                // CHANGED: Use Cloudinary upload
-                imageUrl = await uploadToCloudinary(imageFile);
-            }
-
-            const dataToSave = {
-                ...formData,
-                imageUrl,
-                locations: formData.locations as any,
-                startDate: formData.startDate || undefined,
-                endDate: formData.endDate || undefined,
-            };
-
-            if (bannerToEdit) {
-                await updateBanner(bannerToEdit.id, dataToSave);
-            } else {
-                await addBanner(dataToSave as Omit<Banner, 'id'>);
-            }
-            showToast('Banner saved successfully', 'success');
-            queryClient.invalidateQueries({ queryKey: ['banners'] });
-            onClose();
-        } catch (error) {
-            console.error("Banner save error:", error);
-            showToast('Failed to save banner. Check image upload.', 'error');
-        } finally {
-            setLoading(false);
+        let imageUrl = bannerToEdit?.imageUrl || '';
+        if (imageFile) {
+            imageUrl = await fileToBase64(imageFile);
         }
+
+        const dataToSave = {
+            ...formData,
+            imageUrl,
+            startDate: formData.startDate || undefined,
+            endDate: formData.endDate || undefined,
+        };
+
+        if (bannerToEdit) {
+            await updateBanner(bannerToEdit.id, dataToSave);
+        } else {
+            await addBanner(dataToSave as Omit<Banner, 'id'>);
+        }
+        setLoading(false);
+        onClose();
     };
     
+    const locationOptions = ['home', 'properties', 'details', 'finishing', 'decorations'] as const;
+
     const activeRecommendation = useMemo(() => {
         if (formData.locations.length === 0) return null;
         const lastSelected = formData.locations[formData.locations.length - 1] as keyof typeof LOCATION_GUIDE;
@@ -238,6 +236,7 @@ const AdminBannerFormModal: React.FC<AdminBannerFormModalProps> = ({ bannerToEdi
                                     <FormField label={t_page.startDate} id="startDate">
                                         <Input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className={inputClasses}/>
                                     </FormField>
+                                    {/* FIX: FormField was missing id and child Input component. */}
                                     <FormField label={t_page.endDate} id="endDate">
                                         <Input type="date" name="endDate" value={formData.endDate} onChange={handleChange} className={inputClasses} />
                                     </FormField>
@@ -245,7 +244,7 @@ const AdminBannerFormModal: React.FC<AdminBannerFormModalProps> = ({ bannerToEdi
                             </div>
                         </div>
 
-                         <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                         <div className="p-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 -mx-6 -mb-6 mt-8">
                             <Button type="button" variant="secondary" onClick={onClose}>{t_shared.cancel}</Button>
                             <Button type="submit" isLoading={loading}>
                                 {t_shared.save}

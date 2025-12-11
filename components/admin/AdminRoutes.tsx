@@ -23,16 +23,18 @@ const AdminPlatformPropertiesPage = React.lazy(() => import('./platform-ops/Admi
 const AdminPlatformFinishingPage = React.lazy(() => import('./platform-ops/AdminPlatformFinishingPage'));
 const AdminPlatformDecorationsPage = React.lazy(() => import('./platform-ops/AdminPlatformDecorationsPage'));
 
-// DECOUPLED REQUEST PAGES
+// --- Specific Request Pages (Separated) ---
+const AdminPartnerRequestsPage = React.lazy(() => import('./requests/AdminPartnerRequestsPage'));
 const AdminPropertyRequestsPage = React.lazy(() => import('./requests/AdminPropertyRequestsPage'));
-const AdminPropertyRequestDetailsPage = React.lazy(() => import('./requests/AdminPropertyRequestDetailsPage'));
 const AdminPropertyInquiriesPage = React.lazy(() => import('./requests/AdminPropertyInquiriesPage'));
 const AdminContactRequestsPage = React.lazy(() => import('./requests/AdminContactRequestsPage'));
-const AdminContactRequestDetailsPage = React.lazy(() => import('./requests/AdminContactRequestDetailsPage'));
-const AdminPartnerRequestsPage = React.lazy(() => import('./requests/AdminPartnerRequestsPage'));
-const AdminPartnerRequestDetailsPage = React.lazy(() => import('./requests/AdminPartnerRequestDetailsPage'));
+const AdminFinishingRequestsPage = React.lazy(() => import('./requests/AdminFinishingRequestsPage'));
 
+const AdminPartnerRequestDetailsPage = React.lazy(() => import('./requests/AdminPartnerRequestDetailsPage'));
+const AdminPropertyRequestDetailsPage = React.lazy(() => import('./requests/AdminPropertyRequestDetailsPage'));
+const AdminRequestDetailsPage = React.lazy(() => import('./requests/AdminRequestDetailsPage')); // Generic fallback for details
 const AdminCreateRequestPage = React.lazy(() => import('./requests/AdminCreateRequestPage'));
+
 const AdminPartnersLayout = React.lazy(() => import('./partners/AdminPartnersLayout'));
 const AdminPartnersDashboard = React.lazy(() => import('./partners/AdminPartnersDashboard'));
 const AdminPartnersPage = React.lazy(() => import('./partners/AdminPartnersPage'));
@@ -63,7 +65,6 @@ const RoutingRulesPage = React.lazy(() => import('./automation/RoutingRulesPage'
 const AllNotificationsPage = React.lazy(() => import('../shared/AllNotificationsPage'));
 const AdminFinancePage = React.lazy(() => import('./finance/AdminFinancePage'));
 const AdminFormsPage = React.lazy(() => import('./forms/AdminFormsPage'));
-const AdminAIEstimatorPage = React.lazy(() => import('./AdminAIEstimatorPage'));
 const AdminPortfolioFormPage = React.lazy(() => import('./decorations/AdminPortfolioFormPage'));
 
 const AdminRoutes: React.FC = () => {
@@ -79,20 +80,11 @@ const AdminRoutes: React.FC = () => {
                 <Route path="notifications" element={<AllNotificationsPage />} />
                 
                 <Route path="forms" element={<AdminFormsPage />} />
-                <Route path="ai-estimator" element={<AdminAIEstimatorPage />} />
 
-                {/* NEW: Manual Create is global, but lists are separate */}
                 <Route path="requests/new" element={<AdminCreateRequestPage />} /> 
-                
-                {/* COMMUNICATION GROUP */}
-                <Route path="communication/messages" element={<AdminContactRequestsPage />} />
-                <Route path="communication/messages/:id" element={<AdminContactRequestDetailsPage />} />
+                {/* Removed generic /requests route to enforce separation */}
+                <Route path="requests/:requestId" element={<AdminRequestDetailsPage />} />
 
-                {/* LEGACY REDIRECTS */}
-                <Route path="requests" element={<Navigate to="/admin/communication/messages" replace />} />
-                <Route path="contact-requests" element={<Navigate to="/admin/communication/messages" replace />} />
-                <Route path="partner-requests" element={<Navigate to="/admin/partners/applications" replace />} />
-                
                 <Route path="platform-properties" element={<AdminPlatformPropertiesPage />} />
                 <Route path="platform-finishing/*" element={<AdminPlatformFinishingPage />} />
                 
@@ -104,13 +96,23 @@ const AdminRoutes: React.FC = () => {
                 <Route path="decorations-management/*" element={<Navigate to="platform-decorations" replace />} />
                 <Route path="finishing-management/*" element={<Navigate to="platform-finishing" replace />} />
 
-                <Route path="leads" element={<Navigate to="/admin/platform-finishing" replace />} />
+                {/* Dedicated Request Routes */}
+                <Route path="partner-requests" element={<AdminPartnerRequestsPage />} />
+                <Route path="partner-requests/:requestId" element={<AdminPartnerRequestDetailsPage />} />
+                
+                <Route path="property-requests" element={<AdminPropertyRequestsPage />} />
+                <Route path="property-requests/:requestId" element={<AdminPropertyRequestDetailsPage />} />
+                
+                <Route path="contact-requests" element={<AdminContactRequestsPage />} />
+                
+                <Route path="property-inquiries" element={<AdminPropertyInquiriesPage />} />
+                
+                <Route path="leads" element={<AdminFinishingRequestsPage />} /> 
+                <Route path="finishing-requests" element={<AdminFinishingRequestsPage />} />
                 
                 <Route path="partners" element={<AdminPartnersLayout />}>
                     <Route index element={<AdminPartnersDashboard />} />
                     <Route path="list" element={<AdminPartnersPage />} />
-                    <Route path="applications" element={<AdminPartnerRequestsPage />} />
-                    <Route path="applications/:requestId" element={<AdminPartnerRequestDetailsPage />} />
                     <Route path="new" element={<AdminPartnerFormPage />} />
                     <Route path="edit/:partnerId" element={<AdminPartnerFormPage />} />
                     <Route path="inquiry-routing" element={<AdminInquiryManagementPage />} />
@@ -128,12 +130,9 @@ const AdminRoutes: React.FC = () => {
                 <Route path="properties" element={<AdminPropertiesLayout />}>
                     <Route index element={<AdminPropertiesDashboard />} />
                     <Route path="list" element={<AdminPropertiesListPage />} />
-                    
-                    {/* Property Specific Request Routes */}
-                    <Route path="listing-requests" element={<AdminPropertyRequestsPage />} />
-                    <Route path="listing-requests/:requestId" element={<AdminPropertyRequestDetailsPage />} />
-                    <Route path="search-requests" element={<AdminPropertyInquiriesPage />} />
-                    
+                    {/* Maps to specific request pages instead of generic with query params */}
+                    <Route path="listing-requests" element={<Navigate to="/admin/property-requests" replace />} />
+                    <Route path="search-requests" element={<Navigate to="/admin/property-inquiries" replace />} />
                     <Route path="filters" element={<AdminFilterManagementPage />} />
                 </Route>
                 <Route path="properties/new" element={<PropertyFormPage />} />

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm, SubmitHandler, FormProvider, FieldValues, RegisterOptions } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -14,7 +15,7 @@ import { Select } from '../ui/Select';
 import { Checkbox } from '../ui/Checkbox';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { PATTERNS, MESSAGES, CONFIG } from '../../utils/validation';
-import { uploadToCloudinary } from '../../lib/cloudinary';
+import { fileToBase64 } from '../../utils/fileUtils';
 
 interface DynamicFormProps {
     slug: string;
@@ -64,13 +65,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         for (const field of fileFields) {
             const fileList = formData[field.key];
             if (fileList && fileList.length > 0) {
-                try {
-                    // Upload the first file
-                    processedData[field.key] = await uploadToCloudinary(fileList[0]);
-                } catch (error) {
-                    console.error(`Failed to upload file for ${field.key}`, error);
-                    throw new Error(language === 'ar' ? 'فشل رفع الملف' : 'File upload failed');
-                }
+                processedData[field.key] = await fileToBase64(fileList[0]);
             } else {
                 delete processedData[field.key];
             }
@@ -152,7 +147,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             }
         } catch (error) {
             console.error("Form processing error:", error);
-            showToast("Error processing form data (Check file uploads)", "error");
+            showToast("Error processing form data", "error");
         }
     };
 
@@ -228,16 +223,13 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             return <input type="hidden" {...commonProps} />;
         }
 
-        // Check for errors
-        const hasError = !!errors[field.key];
-
         switch (field.type) {
             case 'textarea':
-                return <Textarea {...commonProps} rows={4} className={`${inputClasses} ${hasError ? 'border-red-500' : ''}`} />;
+                return <Textarea {...commonProps} rows={4} className={inputClasses} />;
             case 'select':
                 const options = Array.isArray(field.options) ? field.options : (typeof field.options === 'string' ? field.options.split(',').map(o => o.trim()) : []);
                 return (
-                    <Select {...commonProps} className={`${selectClasses} ${hasError ? 'border-red-500' : ''}`}>
+                    <Select {...commonProps} className={selectClasses}>
                         <option value="">{language === 'ar' ? 'اختر...' : 'Select...'}</option>
                         {options.map(opt => {
                             const label = t.formOptions?.[opt as keyof typeof t.formOptions] || opt;
@@ -257,13 +249,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                     <Input 
                         type="file" 
                         {...commonProps} 
-                        error={hasError}
                         className="p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900 dark:file:text-amber-300" 
                         accept="image/*,application/pdf" 
                     />
                 );
             default:
-                return <Input type={field.type} {...commonProps} error={hasError} className={inputClasses} />;
+                return <Input type={field.type} {...commonProps} className={inputClasses} />;
         }
     };
 

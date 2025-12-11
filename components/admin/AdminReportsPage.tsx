@@ -48,7 +48,7 @@ const AdminReportsPage: React.FC = () => {
     });
 
     const dataSource = watch('dataSource') || 'leads';
-    const selectedColumns = watch('columns') || [];
+    const selectedColumns = watch('columns');
     const startDate = watch('startDate');
     const endDate = watch('endDate');
     const statusFilter = watch('statusFilter');

@@ -10,6 +10,9 @@
 
 
 
+
+
+
 import type { SiteContent, Quote } from '../types';
 
 const quotesData: Quote[] = [
@@ -613,6 +616,7 @@ export let siteContentData: SiteContent = {
   },
   finishingServices: [
     {
+      id: 'service-1',
       title: { ar: 'الاستشارة ووضع التصور', en: 'Consultation & Concept Design' },
       description: {
         ar: 'جلسات استشارية معمقة مع مهندسينا لفهم رؤيتك ومتطلباتك، نترجمها إلى تصورات مبدئية مبتكرة للتصميم الداخلي مع تقديم مقايسات تقديرية دقيقة للتكاليف وخيارات المواد.',
@@ -625,6 +629,7 @@ export let siteContentData: SiteContent = {
       ]
     },
     {
+      id: 'service-2',
       title: { ar: 'التصميم ثلاثي الأبعاد', en: '3D Design & Visualization' },
       description: {
         ar: 'نحول التصور المبدئي إلى تصميم ثلاثي الأبعاد واقعي وتفاعلي، مما يسمح لك بالتجول افتراضيًا في منزلك المستقبلي وتعديل التفاصيل قبل البدء في أي أعمال تنفيذ.',

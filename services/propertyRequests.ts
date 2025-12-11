@@ -1,69 +1,70 @@
 
-import { getListingRequests, addListingRequest, updateListingRequestStatus } from './listingRequests';
+import { propertyRequestsData as initialPropertyRequestsData } from '../data/propertyRequests';
 import type { AddPropertyRequest, RequestStatus } from '../types';
+import { addNotification } from './notifications';
 
-// MAPPING: ListingRequestModel -> AddPropertyRequest (UI Model)
-const mapToUI = (item: any): AddPropertyRequest => ({
-    id: item.id,
-    customerName: item.ownerName,
-    customerPhone: item.ownerPhone,
-    contactTime: item.contactTime,
-    status: item.status,
-    createdAt: item.createdAt,
-    cooperationType: item.cooperationType,
-    images: item.images,
-    propertyDetails: {
-        price: item.price,
-        area: item.area,
-        address: item.address,
-        description: item.description,
-        propertyType: item.propertyType,
-        purpose: item.listingPurpose ? { en: item.listingPurpose, ar: item.listingPurpose === 'For Sale' ? 'للبيع' : 'إيجار' } : undefined,
-        bedrooms: item.bedrooms,
-        bathrooms: item.bathrooms,
-        floor: item.floorNumber,
-        finishingStatus: item.finishingStatus,
-        isInCompound: item.isInCompound,
-        location: item.location
-    }
-});
+// Create a mutable, in-memory copy of the data to simulate a database.
+let propertyRequestsData: AddPropertyRequest[] = [...initialPropertyRequestsData];
 
-export const getAllPropertyRequests = async (): Promise<AddPropertyRequest[]> => {
-    const raw = await getListingRequests();
-    return raw.map(mapToUI);
+const SIMULATED_DELAY = 300;
+
+export const getAllPropertyRequests = (): Promise<AddPropertyRequest[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve([...propertyRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, SIMULATED_DELAY);
+  });
 };
 
-export const addPropertyRequest = async (data: Omit<AddPropertyRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<AddPropertyRequest> => {
-    // Map UI payload to DB payload
-    const res = await addListingRequest({
-        ownerName: data.customerName,
-        ownerPhone: data.customerPhone,
-        contactTime: data.contactTime,
-        cooperationType: data.cooperationType as 'commission' | 'paid_listing',
-        propertyType: data.propertyDetails.propertyType || { en: '', ar: '' },
-        listingPurpose: (data.propertyDetails.purpose?.en as 'For Sale' | 'For Rent') || 'For Sale',
-        price: data.propertyDetails.price || 0,
-        area: data.propertyDetails.area || 0,
-        address: data.propertyDetails.address || '',
-        description: data.propertyDetails.description || { en: '', ar: '' },
-        bedrooms: data.propertyDetails.bedrooms || 0,
-        bathrooms: data.propertyDetails.bathrooms || 0,
-        floorNumber: data.propertyDetails.floor || 0,
-        finishingStatus: data.propertyDetails.finishingStatus,
-        isInCompound: data.propertyDetails.isInCompound || false,
-        images: data.images || [],
-        location: data.propertyDetails.location,
-        paymentStatus: (data as any).paymentStatus || 'pending' // passed from payment flow
+export const addPropertyRequest = (data: Omit<AddPropertyRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<AddPropertyRequest> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newRequest: AddPropertyRequest = {
+        ...data,
+        id: `prop-req-${Date.now()}`,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        managerId: 'customer-relations-manager-1',
+      };
+      propertyRequestsData.unshift(newRequest);
+      
+      addNotification({
+        userId: newRequest.managerId || 'admin-user', // Fallback
+        message: {
+          ar: `طلب عرض عقار جديد من "${newRequest.customerName}".`,
+          en: `New property listing request from "${newRequest.customerName}".`,
+        },
+        link: `/admin/property-requests/${newRequest.id}`,
+      });
+
+      resolve(newRequest);
+    }, SIMULATED_DELAY);
+  });
+};
+
+export const updatePropertyRequestStatus = (id: string, status: RequestStatus): Promise<boolean> => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const requestIndex = propertyRequestsData.findIndex(r => r.id === id);
+            if (requestIndex > -1) {
+                propertyRequestsData[requestIndex].status = status;
+                resolve(true);
+            }
+            resolve(false);
+        }, SIMULATED_DELAY);
     });
-
-    if (!res) throw new Error("Failed to add listing request");
-    return mapToUI(res);
 };
 
-export const updatePropertyRequestStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
-    return updateListingRequestStatus(id, status);
-};
-
-export const deletePropertyRequest = async (id: string): Promise<boolean> => {
-    return updateListingRequestStatus(id, 'closed'); // Soft delete
+export const deletePropertyRequest = (id: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const initialLength = propertyRequestsData.length;
+            propertyRequestsData = propertyRequestsData.filter(r => r.id !== id);
+            if (propertyRequestsData.length < initialLength) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        }, SIMULATED_DELAY);
+    });
 };

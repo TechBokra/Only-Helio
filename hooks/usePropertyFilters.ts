@@ -28,7 +28,6 @@ export const usePropertyFilters = () => {
     const setFilter = useCallback((filterName: string, value: string | string[]) => {
         setSearchParams(prev => {
             const newParams = new URLSearchParams(prev);
-            
             if (Array.isArray(value)) {
                  if (value.length > 0) {
                     newParams.set(filterName, value.join(','));
@@ -36,13 +35,12 @@ export const usePropertyFilters = () => {
                     newParams.delete(filterName);
                 }
             } else {
-                if (value === 'all' || value === '') {
+                if (value === 'all' || !value) {
                     newParams.delete(filterName);
                 } else {
                     newParams.set(filterName, value);
                 }
             }
-            
             // Always reset to page 1 when a filter is changed, except for the 'view' filter
             if (filterName !== 'view') {
                 newParams.delete('page');
@@ -60,6 +58,7 @@ export const usePropertyFilters = () => {
     }, [setSearchParams]);
 
     const resetFilters = useCallback(() => {
+        // Preserve the current view when resetting other filters
         setSearchParams(prev => {
             const currentView = prev.get('view');
             const newParams = new URLSearchParams();

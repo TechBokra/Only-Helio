@@ -1,271 +1,249 @@
 
-import React, { useMemo, useState } from 'react';
-import { SearchIcon, XCircleIcon, CheckBadgeIcon, ChevronDownIcon, ChevronRightIcon } from '../ui/Icons';
+import React, { useState, useMemo } from 'react';
+import type { Project, AdminPartner, FilterOption } from '../../types';
+import { SearchIcon, AdjustmentsHorizontalIcon, CloseIcon } from '../ui/Icons';
+import type { usePropertyFilters } from '../../hooks/usePropertyFilters';
 import { useLanguage } from '../shared/LanguageContext';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
-import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
-import type { Project, FilterOption } from '../../types';
+import { Button } from '../ui/Button';
 
 interface PropertyFiltersProps {
-  filters: any; 
-  projects?: Project[];
-  propertyTypes?: FilterOption[];
-  finishingStatuses?: FilterOption[];
-  amenities?: FilterOption[];
+  filters: ReturnType<typeof usePropertyFilters>;
+  projects: Project[];
+  partners: AdminPartner[];
+  propertyTypes: FilterOption[];
+  finishingStatuses: FilterOption[];
+  amenities: FilterOption[];
 }
 
-const PropertyFilters: React.FC<PropertyFiltersProps> = ({ 
-    filters, 
-    projects = [], 
-    propertyTypes = [], 
-    finishingStatuses = [],
-    amenities = []
+const PropertyFilters: React.FC<PropertyFiltersProps> = ({
+  filters,
+  projects,
+  partners,
+  propertyTypes,
+  finishingStatuses,
+  amenities,
 }) => {
-    const { language, t } = useLanguage();
-    const t_page = t.propertiesPage;
-    const t_card = t.propertyCard;
-    const [showMoreFilters, setShowMoreFilters] = useState(false);
-
-    // --- STRICT SAFETY LAYER ---
-    const safeFilters = filters || {};
+    const { language, t: translations } = useLanguage();
+    const t = translations.propertiesPage;
+    // Access propertyCard translations from the root translation object
+    const t_card = translations.propertyCard;
     
-    const getVal = (key: string) => {
-        const val = safeFilters[key];
-        return val !== undefined && val !== null ? val : '';
+    // Control advanced filter visibility
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
+    const { 
+        setFilter, 
+        resetFilters,
+        status: statusFilter, type: typeFilter, query: queryFilter, 
+        minPrice: minPriceFilter, maxPrice: maxPriceFilter, project: projectFilter, 
+        finishing: finishingFilter, installments: installmentsFilter, floor: floorFilter, 
+        compound: compoundFilter, delivery: deliveryFilter, amenities: amenitiesFilter,
+        beds: bedsFilter, baths: bathsFilter, realEstateFinance: realEstateFinanceFilter,
+    } = filters;
+
+    // Determine if any filter (basic or advanced) is active to show "Reset"
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (statusFilter !== 'all') count++;
+        if (typeFilter !== 'all') count++;
+        if (queryFilter !== '') count++;
+        if (minPriceFilter !== '') count++;
+        if (maxPriceFilter !== '') count++;
+        if (projectFilter !== 'all') count++;
+        if (finishingFilter !== 'all') count++;
+        if (installmentsFilter !== 'all') count++;
+        if (realEstateFinanceFilter !== 'all') count++;
+        if (floorFilter !== '') count++;
+        if (compoundFilter !== 'all') count++;
+        if (deliveryFilter !== 'all') count++;
+        if (amenitiesFilter.length > 0) count++;
+        if (bedsFilter !== '') count++;
+        if (bathsFilter !== '') count++;
+        return count;
+    }, [filters]);
+
+    const handleAmenitiesChange = (amenityEn: string) => {
+        const newAmenities = amenitiesFilter.includes(amenityEn)
+            ? amenitiesFilter.filter(a => a !== amenityEn)
+            : [...amenitiesFilter, amenityEn];
+        setFilter('amenities', newAmenities);
     };
 
-    const setVal = (key: string, val: any) => {
-        if (typeof safeFilters.setFilter === 'function') {
-            safeFilters.setFilter(key, val);
-        }
+    // Helper to filter amenities/finishing based on Property Type
+    const isApplicable = (option: FilterOption) => {
+        if (typeFilter === 'all' || typeFilter === '') return true;
+        if (!option.applicableTo || option.applicableTo.length === 0) return true;
+        return option.applicableTo.includes(typeFilter);
     };
 
-    const handleReset = () => {
-        if (typeof safeFilters.resetFilters === 'function') {
-            safeFilters.resetFilters();
-        }
-    };
-
-    const handleAmenityToggle = (amenityEn: string) => {
-        const currentAmenities = safeFilters.amenities || [];
-        let newAmenities: string[];
-        
-        if (currentAmenities.includes(amenityEn)) {
-            newAmenities = currentAmenities.filter((a: string) => a !== amenityEn);
-        } else {
-            newAmenities = [...currentAmenities, amenityEn];
-        }
-        
-        setVal('amenities', newAmenities);
-    };
-
-    const selectedType = getVal('type');
-
-    // Filter Amenities based on selected Property Type
-    const availableAmenities = useMemo(() => {
-        if (!amenities) return [];
-        if (!selectedType || selectedType === 'all') return amenities;
-        return amenities.filter(amenity => 
-            !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(selectedType)
-        );
-    }, [amenities, selectedType]);
-
-    // Filter Finishing Statuses based on selected Property Type
-    const availableFinishingStatuses = useMemo(() => {
-        if (!finishingStatuses) return [];
-        if (!selectedType || selectedType === 'all') return finishingStatuses;
-        
-        return finishingStatuses.filter(status => 
-            !status.applicableTo || status.applicableTo.length === 0 || status.applicableTo.includes(selectedType)
-        );
-    }, [finishingStatuses, selectedType]);
+    const availableAmenities = useMemo(() => amenities.filter(isApplicable), [amenities, typeFilter]);
+    const availableFinishingStatuses = useMemo(() => finishingStatuses.filter(isApplicable), [finishingStatuses, typeFilter]);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8 transition-all">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <SearchIcon className="w-5 h-5 text-amber-500"/>
-                    {t_page.searchLabel}
-                </h2>
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={handleReset} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">
-                        <XCircleIcon className="w-4 h-4 mr-1" />
-                        {language === 'ar' ? 'إعادة تعيين' : 'Reset'}
-                    </Button>
-                    <button 
-                        onClick={() => setShowMoreFilters(!showMoreFilters)}
-                        className="text-sm font-semibold text-amber-600 hover:text-amber-700 flex items-center"
-                    >
-                        {showMoreFilters ? t_page.hideFilters : t_page.advancedFilters}
-                        {showMoreFilters ? <ChevronDownIcon className="w-4 h-4 ml-1" /> : <ChevronRightIcon className="w-4 h-4 ml-1" />}
-                    </button>
-                </div>
+        <div className="space-y-6">
+            <div className="text-center mb-8">
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">{t.title}</h1>
+                <p className="text-lg text-gray-500 dark:text-gray-400 mt-4 max-w-2xl mx-auto">{t.subtitle}</p>
             </div>
 
-            {/* Main Filters Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                
-                {/* 1. Search Query */}
-                <div className="col-span-1 sm:col-span-2 lg:col-span-4 relative">
-                    <Input 
-                        placeholder={t_page.searchPlaceholder} 
-                        value={getVal('query')}
-                        onChange={(e) => setVal('query', e.target.value)}
-                        className="pl-10 bg-gray-50 dark:bg-gray-900/50"
-                    />
-                    <SearchIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-
-                {/* 2. Status */}
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.statusLabel}</label>
-                    <Select value={getVal('status')} onChange={(e) => setVal('status', e.target.value)}>
-                        <option value="all">{t_page.allStatuses}</option>
-                        <option value="For Sale">{t_page.forSale}</option>
-                        <option value="For Rent">{t_page.forRent}</option>
-                    </Select>
-                </div>
-
-                {/* 3. Type */}
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.typeLabel}</label>
-                    <Select value={getVal('type')} onChange={(e) => setVal('type', e.target.value)}>
-                        <option value="all">{t_page.allTypes}</option>
-                        {propertyTypes.map(pt => (
-                            <option key={pt.id} value={pt.en}>{pt[language]}</option>
-                        ))}
-                    </Select>
-                </div>
-
-                {/* 4. Price Range */}
-                <div className="sm:col-span-2 flex gap-2">
-                    <div className="w-1/2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.minPricePlaceholder}</label>
+            {/* Main Filter Bar */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4 lg:p-6 transition-all duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+                    
+                    {/* Search Input (Takes 2 cols on tablet, 1 on desktop if compacted, but let's give it prominence) */}
+                    <div className="relative md:col-span-2 lg:col-span-1">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <Input 
-                            type="number" 
-                            value={getVal('minPrice')}
-                            onChange={(e) => setVal('minPrice', e.target.value)}
-                            placeholder="0"
+                            type="text" 
+                            value={queryFilter} 
+                            onChange={e => setFilter('q', e.target.value)}
+                            placeholder={t.searchPlaceholder}
+                            className="pl-10 h-12"
                         />
                     </div>
-                    <div className="w-1/2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.maxPricePlaceholder}</label>
-                        <Input 
-                            type="number" 
-                            value={getVal('maxPrice')}
-                            onChange={(e) => setVal('maxPrice', e.target.value)}
-                             placeholder="∞"
-                        />
+
+                    {/* Basic Dropdowns */}
+                    <div className="relative">
+                         <Select value={statusFilter} onChange={e => setFilter('status', e.target.value)} className="h-12">
+                            <option value="all">{t.allStatuses}</option>
+                            <option value="For Sale">{t.forSale}</option>
+                            <option value="For Rent">{t.forRent}</option>
+                        </Select>
+                    </div>
+
+                    <div className="relative">
+                        <Select value={typeFilter} onChange={e => setFilter('type', e.target.value)} className="h-12">
+                            <option value="all">{t.allTypes}</option>
+                            {propertyTypes.map(type => (
+                                <option key={type.id} value={type.en}>{type[language]}</option>
+                            ))}
+                        </Select>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="secondary" 
+                            className={`flex-1 h-12 justify-between ${isAdvancedOpen ? 'bg-amber-100 text-amber-700 border-amber-300' : ''}`}
+                            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                        >
+                            <span className="flex items-center gap-2">
+                                <AdjustmentsHorizontalIcon className="w-5 h-5" />
+                                {t.advancedFilters}
+                            </span>
+                            {activeFilterCount > 0 && (
+                                <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{activeFilterCount}</span>
+                            )}
+                        </Button>
+                        
+                        {activeFilterCount > 0 && (
+                            <Button variant="ghost" className="h-12 w-12 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={resetFilters} title="Reset All">
+                                <CloseIcon className="w-6 h-6" />
+                            </Button>
+                        )}
                     </div>
                 </div>
-            </div>
-            
-            {/* Advanced Filters (Collapsible) */}
-            {showMoreFilters && (
-                <div className="animate-fadeIn border-t border-gray-100 dark:border-gray-700 pt-6 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Project */}
-                        <div>
-                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.project}</label>
-                            <Select value={getVal('project')} onChange={(e) => setVal('project', e.target.value)}>
-                                <option value="all">{t_page.allProjects}</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name[language]}</option>
-                                ))}
-                            </Select>
-                        </div>
 
-                        {/* Finishing - Only show if valid for selected type */}
-                        {availableFinishingStatuses.length > 0 && (
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.finishing}</label>
-                                <Select value={getVal('finishing')} onChange={(e) => setVal('finishing', e.target.value)}>
-                                    <option value="all">{t_page.allFinishes}</option>
-                                    {availableFinishingStatuses.map(fs => (
-                                        <option key={fs.id} value={fs.en}>{fs[language]}</option>
-                                    ))}
+                {/* Advanced Filters Panel */}
+                <div className={`grid transition-all duration-500 ease-in-out overflow-hidden ${isAdvancedOpen ? 'grid-rows-[1fr] opacity-100 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700' : 'grid-rows-[0fr] opacity-0 p-0 m-0 border-none'}`}>
+                    <div className="min-h-0 space-y-6">
+                        
+                        {/* Row 1: Price & Area & Location */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.priceRange}</label>
+                                <div className="flex gap-2">
+                                    <Input type="number" placeholder={t.minPricePlaceholder} value={minPriceFilter} onChange={e => setFilter('minPrice', e.target.value)} />
+                                    <Input type="number" placeholder={t.maxPricePlaceholder} value={maxPriceFilter} onChange={e => setFilter('maxPrice', e.target.value)} />
+                                </div>
+                            </div>
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.finishing}</label>
+                                <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
+                                    <option value="all">{t.allFinishes}</option>
+                                    {availableFinishingStatuses.map(status => <option key={status.id} value={status.en}>{status[language]}</option>)}
                                 </Select>
                             </div>
-                        )}
-
-                        {/* Installments & Finance */}
-                        <div>
-                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.installments}</label>
-                             <Select value={getVal('installments')} onChange={(e) => setVal('installments', e.target.value)}>
-                                <option value="all">{t_page.allInstallments}</option>
-                                <option value="yes">{t_page.installmentsYes}</option>
-                                <option value="no">{t_page.installmentsNo}</option>
-                            </Select>
-                        </div>
-                         <div>
-                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.realEstateFinance}</label>
-                             <Select value={getVal('realEstateFinance')} onChange={(e) => setVal('realEstateFinance', e.target.value)}>
-                                <option value="all">{t_page.allRealEstateFinance}</option>
-                                <option value="yes">{t_page.realEstateFinanceYes}</option>
-                                <option value="no">{t_page.realEstateFinanceNo}</option>
-                            </Select>
-                        </div>
-
-                         {/* Compound */}
-                         <div>
-                             <label className="block text-xs font-medium text-gray-500 mb-1">{t_page.inCompound}</label>
-                             <Select value={getVal('compound')} onChange={(e) => setVal('compound', e.target.value)}>
-                                <option value="all">{t_page.allCompound}</option>
-                                <option value="yes">{t_page.compoundYes}</option>
-                                <option value="no">{t_page.compoundNo}</option>
-                            </Select>
-                        </div>
-                        
-                         {/* Beds & Baths */}
-                        <div className="flex gap-2">
-                            <div className="w-1/2">
-                                 <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.beds}</label>
-                                <Input 
-                                    type="number" 
-                                    value={getVal('beds')} 
-                                    onChange={(e) => setVal('beds', e.target.value)}
-                                    placeholder="+"
-                                />
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.project}</label>
+                                <Select value={projectFilter} onChange={e => setFilter('project', e.target.value)}>
+                                    <option value="all">{t.allProjects}</option>
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name[language]}</option>)}
+                                </Select>
                             </div>
-                            <div className="w-1/2">
-                                 <label className="block text-xs font-medium text-gray-500 mb-1">{t_card.baths}</label>
-                                <Input 
-                                    type="number" 
-                                    value={getVal('baths')}
-                                    onChange={(e) => setVal('baths', e.target.value)}
-                                     placeholder="+"
-                                />
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
+                                <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)}>
+                                    <option value="all">{t.allCompound}</option>
+                                    <option value="yes">{t.compoundYes}</option>
+                                    <option value="no">{t.compoundNo}</option>
+                                </Select>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Amenities Section */}
-                    {availableAmenities.length > 0 && (
-                        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
-                                <CheckBadgeIcon className="w-4 h-4 text-amber-500" />
-                                {t_page.amenities}
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                         {/* Row 2: Specs */}
+                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t_card.beds}</label>
+                                <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} placeholder="0+" />
+                            </div>
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t_card.baths}</label>
+                                <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" />
+                            </div>
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
+                                <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" />
+                            </div>
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.delivery}</label>
+                                <Select value={deliveryFilter} onChange={e => setFilter('delivery', e.target.value)}>
+                                    <option value="all">{t.allDelivery}</option>
+                                    <option value="immediate">{t.immediateDelivery}</option>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.installments}</label>
+                                <Select value={installmentsFilter} onChange={e => setFilter('installments', e.target.value)}>
+                                    <option value="all">{t.allInstallments}</option>
+                                    <option value="yes">{t.installmentsYes}</option>
+                                    <option value="no">{t.installmentsNo}</option>
+                                </Select>
+                            </div>
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.realEstateFinance}</label>
+                                <Select value={realEstateFinanceFilter} onChange={e => setFilter('realEstateFinance', e.target.value)}>
+                                    <option value="all">{t.allRealEstateFinance}</option>
+                                    <option value="yes">{t.realEstateFinanceYes}</option>
+                                    <option value="no">{t.realEstateFinanceNo}</option>
+                                </Select>
+                            </div>
+                         </div>
+
+                        {/* Row 3: Amenities */}
+                        <div className="space-y-2">
+                             <label className="text-xs font-bold text-gray-500 uppercase block">{t.amenities}</label>
+                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                                 {availableAmenities.map(amenity => (
-                                    <label key={amenity.id} className="flex items-center gap-2 cursor-pointer group p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <label key={amenity.id} className="flex items-center gap-2 cursor-pointer hover:text-amber-600 transition-colors">
                                         <Checkbox 
-                                            checked={(safeFilters.amenities || []).includes(amenity.en)}
-                                            onCheckedChange={() => handleAmenityToggle(amenity.en)}
+                                            id={`amenity-${amenity.id}`}
+                                            checked={amenitiesFilter.includes(amenity.en)}
+                                            onCheckedChange={() => handleAmenitiesChange(amenity.en)}
                                         />
-                                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 select-none">
-                                            {amenity[language]}
-                                        </span>
+                                        <span className="text-sm select-none">{amenity[language]}</span>
                                     </label>
                                 ))}
-                            </div>
+                                {availableAmenities.length === 0 && <span className="text-xs text-gray-400 col-span-full">Select a property type to see relevant amenities.</span>}
+                             </div>
                         </div>
-                    )}
+
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

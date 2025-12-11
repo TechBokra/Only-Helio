@@ -9,7 +9,7 @@ import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContext';
 import { CheckCircleIcon, CreditCardIcon, PhoneIcon } from '../ui/Icons';
 import type { TransactionType, PaymentMethod } from '../../types';
-import { uploadToCloudinary } from '../../lib/cloudinary';
+import { fileToBase64 } from '../../utils/fileUtils';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -30,7 +30,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     const { showToast } = useToast();
     const [method, setMethod] = useState<PaymentMethod>('instapay');
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
     
     const mutation = useMutation({
         mutationFn: createTransaction,
@@ -46,22 +45,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     const handleSubmit = async () => {
         let receiptUrl = undefined;
-        
         if (method === 'instapay') {
             if (!receiptFile) {
                 showToast(language === 'ar' ? 'يرجى رفع صورة الإيصال' : 'Please upload receipt image', 'error');
                 return;
             }
-            try {
-                setIsUploading(true);
-                // Optimized: Upload to Cloudinary instead of Base64
-                receiptUrl = await uploadToCloudinary(receiptFile);
-            } catch (error) {
-                console.error(error);
-                showToast(language === 'ar' ? 'فشل رفع الإيصال' : 'Receipt upload failed', 'error');
-                setIsUploading(false);
-                return;
-            }
+            receiptUrl = await fileToBase64(receiptFile);
         }
 
         mutation.mutate({
@@ -75,7 +64,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             relatedEntityId,
             receiptUrl
         });
-        setIsUploading(false);
     };
 
     return (
@@ -127,7 +115,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">{language === 'ar' ? 'صورة الإيصال' : 'Receipt Screenshot'}</label>
-                            <Input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)} className="bg-white dark:bg-gray-800" />
+                            <Input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)} />
                         </div>
                     </div>
                 ) : (
@@ -143,8 +131,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
             </ModalContent>
             <ModalFooter>
-                <Button variant="secondary" onClick={onClose} disabled={isUploading}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
-                <Button onClick={handleSubmit} isLoading={mutation.isPending || isUploading}>
+                <Button variant="secondary" onClick={onClose}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
+                <Button onClick={handleSubmit} isLoading={mutation.isPending}>
                     {method === 'card' ? (language === 'ar' ? 'الدفع الآن' : 'Pay Now') : (language === 'ar' ? 'تأكيد التحويل' : 'Confirm Transfer')}
                 </Button>
             </ModalFooter>

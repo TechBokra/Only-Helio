@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -66,11 +65,7 @@ const AdminUserFormPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
             navigate('/admin/users');
         },
-        onError: (error: any) => {
-            console.error("Add user error:", error);
-            const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-            showToast(`Failed to add user: ${msg}`, 'error');
-        },
+        onError: () => showToast('Failed to add user.', 'error'),
     });
 
     const updateMutation = useMutation({
@@ -86,11 +81,7 @@ const AdminUserFormPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
             navigate('/admin/users');
         },
-        onError: (error: any) => {
-            console.error("Update user error:", error);
-            const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-            showToast(`Failed to update user: ${msg}`, 'error');
-        },
+        onError: () => showToast('Failed to update user.', 'error'),
     });
 
     const onSubmit = (data: UserFormData) => {

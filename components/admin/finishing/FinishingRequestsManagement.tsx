@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +22,6 @@ const statusColors: { [key in LeadStatus]: string } = {
     'in-progress': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
     cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    reviewing: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
 };
 
 const FinishingRequestsManagement: React.FC = () => {

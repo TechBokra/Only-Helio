@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Banner } from '../../../types';
-import { addBanner, updateBanner, getAllBanners } from '../../../services/banners';
-import { uploadToCloudinary } from '../../../lib/cloudinary';
-import { useLanguage } from '../../shared/LanguageContext';
-import { useToast } from '../../shared/ToastContext';
-import { Button } from '../../ui/Button';
-import { Input } from '../../ui/Input';
-import { Select } from '../../ui/Select';
-import { Checkbox } from '../../ui/Checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import FormField, { inputClasses, selectClasses } from '../../ui/FormField';
 import { ArrowLeftIcon, PhotoIcon, SparklesIcon, CloseIcon } from '../../ui/Icons';
+import { addBanner, updateBanner, getAllBanners } from '../../../services/banners';
+import { useLanguage } from '../../shared/LanguageContext';
+import { Checkbox } from '../../ui/Checkbox';
+import { Input } from '../../ui/Input';
+import { Select } from '../../ui/Select';
+import { Button } from '../../ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../../shared/ToastContext';
+import { fileToBase64 } from '../../../utils/fileUtils';
 
 const LOCATION_GUIDE = {
     home: {
@@ -52,71 +52,51 @@ const AdminBannerFormPage: React.FC = () => {
     const { bannerId } = useParams();
     const navigate = useNavigate();
     const { language, t } = useLanguage();
-    const { showToast } = useToast();
-    const queryClient = useQueryClient();
-    const isEdit = !!bannerId;
     const t_page = t.adminDashboard.manageBanners;
     const t_shared = t.adminShared;
+    const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
-    const { data: banners } = useQuery({ queryKey: ['banners'], queryFn: getAllBanners });
-    const bannerToEdit = banners?.find(b => b.id === bannerId);
+    const { data: banners, isLoading: loadingBanner } = useQuery({ queryKey: ['banners'], queryFn: getAllBanners });
+    const bannerToEdit = useMemo(() => banners?.find(b => b.id === bannerId), [banners, bannerId]);
 
+    const [formData, setFormData] = useState({
+        title: '',
+        link: '',
+        locations: [] as string[],
+        status: 'active',
+        startDate: '',
+        endDate: '',
+    });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
-
-    const { register, handleSubmit, setValue, watch, reset } = useForm<Partial<Banner>>({
-        defaultValues: {
-            status: 'active',
-            locations: [],
-            startDate: '',
-            endDate: ''
-        }
-    });
-
-    const watchedLocations = watch('locations') || [];
 
     useEffect(() => {
-        if (isEdit && bannerToEdit) {
-            reset({
+        if (bannerToEdit) {
+            setFormData({
                 title: bannerToEdit.title,
-                link: bannerToEdit.link,
-                status: bannerToEdit.status,
+                link: bannerToEdit.link || '',
                 locations: bannerToEdit.locations,
-                startDate: bannerToEdit.startDate ? bannerToEdit.startDate.split('T')[0] : '',
-                endDate: bannerToEdit.endDate ? bannerToEdit.endDate.split('T')[0] : '',
+                status: bannerToEdit.status,
+                startDate: bannerToEdit.startDate?.split('T')[0] || '',
+                endDate: bannerToEdit.endDate?.split('T')[0] || '',
             });
             setImagePreview(bannerToEdit.imageUrl);
         }
-    }, [isEdit, bannerToEdit, reset]);
+    }, [bannerToEdit]);
 
-    const addMutation = useMutation({
-        mutationFn: (data: Omit<Banner, 'id'>) => addBanner(data),
-        onSuccess: () => {
-            showToast('Banner created successfully', 'success');
-            queryClient.invalidateQueries({ queryKey: ['banners'] });
-            navigate('/admin/banners');
-        },
-        onError: () => showToast('Failed to create banner', 'error')
-    });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-    const updateMutation = useMutation({
-        mutationFn: (data: { id: string, updates: Partial<Banner> }) => updateBanner(data.id, data.updates),
-        onSuccess: () => {
-            showToast('Banner updated successfully', 'success');
-            queryClient.invalidateQueries({ queryKey: ['banners'] });
-            navigate('/admin/banners');
-        },
-        onError: () => showToast('Failed to update banner', 'error')
-    });
-
-    const handleLocationChange = (loc: string, checked: boolean) => {
-        const current = watchedLocations;
-        if (checked) {
-            setValue('locations', [...current, loc]);
-        } else {
-            setValue('locations', current.filter(l => l !== loc));
-        }
+    const handleLocationChange = (location: 'home' | 'properties' | 'details' | 'finishing' | 'decorations') => {
+        setFormData(prev => {
+            const newLocations = prev.locations.includes(location)
+                ? prev.locations.filter(l => l !== location)
+                : [...prev.locations, location];
+            return { ...prev, locations: newLocations as ('home' | 'properties' | 'details' | 'finishing' | 'decorations')[] };
+        });
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,69 +107,87 @@ const AdminBannerFormPage: React.FC = () => {
         }
     };
 
-    const onSubmit = async (data: any) => {
-        setIsUploading(true);
-        try {
-            let imageUrl = isEdit ? bannerToEdit?.imageUrl : '';
+    const addMutation = useMutation({
+        mutationFn: addBanner,
+        onSuccess: () => {
+            showToast('Banner added successfully', 'success');
+            queryClient.invalidateQueries({ queryKey: ['banners'] });
+            navigate('/admin/banners');
+        }
+    });
 
-            if (imageFile) {
-                imageUrl = await uploadToCloudinary(imageFile);
-            }
+    const updateMutation = useMutation({
+        mutationFn: ({id, data}: {id: string, data: any}) => updateBanner(id, data),
+        onSuccess: () => {
+            showToast('Banner updated successfully', 'success');
+            queryClient.invalidateQueries({ queryKey: ['banners'] });
+            navigate('/admin/banners');
+        }
+    });
 
-            if (!imageUrl) {
-                showToast('Please upload an image', 'error');
-                setIsUploading(false);
-                return;
-            }
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-            const bannerData = {
-                ...data,
-                imageUrl,
-                locations: data.locations || [],
-                startDate: data.startDate || undefined,
-                endDate: data.endDate || undefined,
-            };
+        let imageUrl = bannerToEdit?.imageUrl || '';
+        if (imageFile) {
+            imageUrl = await fileToBase64(imageFile);
+        }
 
-            if (isEdit && bannerId) {
-                updateMutation.mutate({ id: bannerId, updates: bannerData });
-            } else {
-                addMutation.mutate(bannerData);
-            }
-        } catch (error) {
-            console.error("Submission error", error);
-            showToast('Failed to save banner', 'error');
-        } finally {
-            setIsUploading(false);
+        const dataToSave = {
+            ...formData,
+            imageUrl,
+            locations: formData.locations as any,
+            startDate: formData.startDate || undefined,
+            endDate: formData.endDate || undefined,
+        };
+
+        if (bannerId) {
+            updateMutation.mutate({ id: bannerId, data: dataToSave });
+        } else {
+            addMutation.mutate(dataToSave as Omit<Banner, 'id'>);
         }
     };
     
+    const isLoading = loadingBanner || addMutation.isPending || updateMutation.isPending;
     const activeRecommendation = useMemo(() => {
-        if (watchedLocations.length === 0) return null;
-        const lastSelected = watchedLocations[watchedLocations.length - 1] as keyof typeof LOCATION_GUIDE;
+        if (formData.locations.length === 0) return null;
+        const lastSelected = formData.locations[formData.locations.length - 1] as keyof typeof LOCATION_GUIDE;
         return LOCATION_GUIDE[lastSelected];
-    }, [watchedLocations]);
+    }, [formData.locations]);
 
-    const isLoading = addMutation.isPending || updateMutation.isPending || isUploading;
+    if (bannerId && !bannerToEdit && !loadingBanner) return <div>Banner not found</div>;
 
     return (
         <div className="max-w-5xl mx-auto animate-fadeIn">
-            <div className="mb-6">
+             <div className="mb-6">
                 <Link to="/admin/banners" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                     <ArrowLeftIcon className="w-5 h-5" />
-                    Back to Banners
+                    {t.adminShared.backToList}
                 </Link>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {isEdit ? t_page.editBanner : t_page.addBanner}
+                    {bannerId ? t_page.editBanner : t_page.addBanner}
                 </h1>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Image */}
-                    <div className="lg:col-span-1 space-y-6">
-                         <Card>
-                            <CardHeader><CardTitle className="text-lg">{t_page.bannerImage}</CardTitle></CardHeader>
-                            <CardContent>
+            <Card>
+                <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                            <PhotoIcon className="w-6 h-6 text-amber-600 dark:text-amber-500" />
+                        </div>
+                        <div>
+                            <CardTitle>Banner Details</CardTitle>
+                            <p className="text-sm text-gray-500">Configure visual, text, and placement settings.</p>
+                        </div>
+                    </div>
+                </CardHeader>
+
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Left: Image Upload */}
+                            <div className="lg:col-span-1 space-y-4">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t_page.bannerImage}</label>
                                 <div className={`relative aspect-video rounded-lg overflow-hidden border-2 border-dashed ${!imagePreview ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50' : 'border-amber-500'} transition-all group`}>
                                     {imagePreview ? (
                                         <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -201,12 +199,11 @@ const AdminBannerFormPage: React.FC = () => {
                                     )}
                                     <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-sm">
                                         {imagePreview ? 'Change Image' : 'Upload Image'}
-                                        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                                        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" required={!bannerToEdit} />
                                     </label>
                                 </div>
-                                
                                 {activeRecommendation && (
-                                    <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 text-sm">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 text-sm">
                                         <p className="font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
                                             <SparklesIcon className="w-4 h-4" /> 
                                             {language === 'ar' ? 'الأبعاد الموصى بها:' : 'Recommended:'}
@@ -219,67 +216,64 @@ const AdminBannerFormPage: React.FC = () => {
                                         </p>
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </div>
+                            </div>
 
-                    {/* Right Column: Details */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg">Banner Details</CardTitle></CardHeader>
-                            <CardContent className="space-y-6">
+                            {/* Right: Form Details */}
+                            <div className="lg:col-span-2 space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField label={t_page.bannerTitle} id="title">
-                                        <Input {...register('title', { required: true })} className={inputClasses} placeholder="Ex: Summer Sale 2024" />
+                                        <Input name="title" value={formData.title} onChange={handleChange} required className={inputClasses} placeholder="Ex: Summer Sale 2024" />
                                     </FormField>
                                     <FormField label={t_page.bannerLink} id="link">
-                                        <Input {...register('link')} className={inputClasses} placeholder="e.g., /properties" />
+                                        <Input name="link" value={formData.link} onChange={handleChange} placeholder="e.g., /properties" />
                                     </FormField>
                                 </div>
-
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t_page.displayLocations}</label>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         {(Object.keys(LOCATION_GUIDE) as (keyof typeof LOCATION_GUIDE)[]).map(loc => (
-                                            <label key={loc} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${watchedLocations.includes(loc) ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : 'bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
+                                            <label key={loc} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${formData.locations.includes(loc) ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : 'bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
                                                 <Checkbox
-                                                    checked={watchedLocations.includes(loc)}
-                                                    onCheckedChange={(checked) => handleLocationChange(loc, checked)}
+                                                    checked={formData.locations.includes(loc)}
+                                                    onChange={() => handleLocationChange(loc)}
+                                                    id={`loc-${loc}`}
                                                 />
                                                 <div className="flex-grow">
                                                     <span className="font-medium text-gray-800 dark:text-white capitalize">{loc}</span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400 block">{LOCATION_GUIDE[loc].aspectRatio}</span>
                                                 </div>
                                             </label>
                                         ))}
                                     </div>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                                     <FormField label={t_page.status} id="status">
-                                        <Select {...register('status')} className={selectClasses}>
+                                        <Select name="status" value={formData.status} onChange={handleChange} className={selectClasses}>
                                             <option value="active">{t_page.active}</option>
                                             <option value="inactive">{t_page.inactive}</option>
                                         </Select>
                                     </FormField>
                                     <FormField label={t_page.startDate} id="startDate">
-                                        <Input type="date" {...register('startDate')} className={inputClasses} />
+                                        <Input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className={inputClasses}/>
                                     </FormField>
                                     <FormField label={t_page.endDate} id="endDate">
-                                        <Input type="date" {...register('endDate')} className={inputClasses} />
+                                        <Input type="date" name="endDate" value={formData.endDate} onChange={handleChange} className={inputClasses} />
                                     </FormField>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
+                            </div>
+                        </div>
 
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <Button variant="secondary" type="button" onClick={() => navigate('/admin/banners')}>{t_shared.cancel}</Button>
-                    <Button type="submit" isLoading={isLoading}>
-                        {t_shared.save}
-                    </Button>
-                </div>
-            </form>
+                         <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <Button type="button" variant="secondary" onClick={() => navigate('/admin/banners')}>{t_shared.cancel}</Button>
+                            <Button type="submit" isLoading={isLoading}>
+                                {t_shared.save}
+                            </Button>
+                        </div>
+
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     );
 };

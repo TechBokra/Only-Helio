@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -57,11 +56,7 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
             onClose();
         },
-        onError: (error: any) => {
-            console.error("Add user error:", error);
-            const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-            showToast(`Failed to add user: ${msg}`, 'error');
-        },
+        onError: () => showToast('Failed to add user.', 'error'),
     });
 
     const updateMutation = useMutation({
@@ -77,11 +72,7 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
             onClose();
         },
-        onError: (error: any) => {
-            console.error("Update user error:", error);
-            const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-            showToast(`Failed to update user: ${msg}`, 'error');
-        },
+        onError: () => showToast('Failed to update user.', 'error'),
     });
 
     const onSubmit = (data: UserFormData) => {

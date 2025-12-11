@@ -1,5 +1,4 @@
 
-
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -77,7 +76,7 @@ const RealEstateMarketHomePage: React.FC = () => {
                             <Link to={`/admin/requests/${item.id}`} className="flex justify-between items-center group">
                                 <div>
                                     <p className="font-medium group-hover:text-amber-600">{item.customerName}</p>
-                                    <p className="text-sm text-gray-500">{item.propertyDetails?.propertyType?.[language] || 'N/A'} - {item.propertyDetails?.area || 0}m²</p>
+                                    <p className="text-sm text-gray-500">{item.propertyDetails.propertyType[language]} - {item.propertyDetails.area}m²</p>
                                 </div>
                                 <p className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString(language)}</p>
                             </Link>

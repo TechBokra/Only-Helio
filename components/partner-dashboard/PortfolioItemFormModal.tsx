@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PortfolioItem } from '../../types';
@@ -8,7 +9,7 @@ import { addPortfolioItem, updatePortfolioItem } from '../../services/portfolio'
 import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContext';
 import { Button } from '../ui/Button';
-import { uploadToCloudinary } from '../../lib/cloudinary';
+import { fileToBase64 } from '../../utils/fileUtils';
 
 interface PortfolioItemFormModalProps {
     itemToEdit?: PortfolioItem;
@@ -25,7 +26,6 @@ const PortfolioItemFormModal: React.FC<PortfolioItemFormModalProps> = ({ itemToE
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const modalRef = useRef<HTMLDivElement>(null);
-    const [isUploading, setIsUploading] = useState(false);
 
     const [formData, setFormData] = useState({
         title: { ar: itemToEdit?.title.ar || '', en: itemToEdit?.title.en || '' },
@@ -80,36 +80,27 @@ const PortfolioItemFormModal: React.FC<PortfolioItemFormModalProps> = ({ itemToE
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentUser) return;
-        
-        setIsUploading(true);
 
-        try {
-            let imageSrc = itemToEdit?.imageUrl || '';
-            if (imageFile) {
-                imageSrc = await uploadToCloudinary(imageFile);
-            }
+        let imageSrc = itemToEdit?.imageUrl || '';
+        if (imageFile) {
+            imageSrc = await fileToBase64(imageFile);
+        }
 
-            const dataToSave = {
-                ...formData,
-                partnerId: currentUser.id,
-                imageUrl: imageSrc,
-                alt: formData.title.en || 'Portfolio work',
-            };
+        const dataToSave = {
+            ...formData,
+            partnerId: currentUser.id,
+            imageUrl: imageSrc,
+            alt: formData.title.en || 'Portfolio work',
+        };
 
-            if (itemToEdit) {
-                updateMutation.mutate({ id: itemToEdit.id, updates: dataToSave });
-            } else {
-                addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
-            }
-        } catch (error) {
-            console.error("Upload failed", error);
-            showToast("Failed to upload image", "error");
-        } finally {
-            setIsUploading(false);
+        if (itemToEdit) {
+            updateMutation.mutate({ id: itemToEdit.id, updates: dataToSave });
+        } else {
+            addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
         }
     };
 
-    const isLoading = addMutation.isPending || updateMutation.isPending || isUploading;
+    const isLoading = addMutation.isPending || updateMutation.isPending;
 
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center p-4 animate-fadeIn" onClick={onClose}>

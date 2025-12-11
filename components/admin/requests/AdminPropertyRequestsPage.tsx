@@ -2,12 +2,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getListingRequests } from '../../../services/listingRequests';
+import { getAllPropertyRequests } from '../../../services/propertyRequests';
+// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
+// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
-import type { PropertyListingRequestModel } from '../../../types';
+import type { AddPropertyRequest } from '../../../types';
 import { Button } from '../../ui/Button';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
@@ -18,22 +20,20 @@ const AdminPropertyRequestsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
 
-    // CHANGED: Use specific service for faster, direct access to the correct table
     const { data: requests, isLoading } = useQuery({
-        queryKey: ['listingRequests'],
-        queryFn: getListingRequests,
+        queryKey: ['propertyRequests'],
+        queryFn: getAllPropertyRequests,
     });
 
     const { paginatedItems, totalPages, currentPage, setCurrentPage } = useAdminTable({
         data: requests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        // Changed search to use ownerName from new model
-        searchFn: (item: PropertyListingRequestModel, term: string) => item.ownerName.toLowerCase().includes(term),
+        searchFn: (item: AddPropertyRequest, term: string) => item.customerName.toLowerCase().includes(term),
         filterFns: {},
     });
 
-    const renderTable = (items: PropertyListingRequestModel[]) => (
+    const renderTable = (items: AddPropertyRequest[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
             <Table>
                 <TableHeader>
@@ -50,30 +50,26 @@ const AdminPropertyRequestsPage: React.FC = () => {
                         <TableRow key={req.id}>
                             <TableCell>
                                 <div className="font-medium text-gray-900 dark:text-white">
-                                    {req.ownerName}
+                                    {req.customerName}
                                 </div>
-                                <div className="text-sm text-gray-500">{req.ownerPhone}</div>
+                                <div className="text-sm text-gray-500">{req.customerPhone}</div>
                             </TableCell>
                             <TableCell>
                                 <div className="font-medium">
-                                    {req.propertyType?.[language] || 'N/A'} - {req.area || 0}m²
+                                    {req.propertyDetails?.propertyType?.[language] || 'N/A'} - {req.propertyDetails?.area || 0}m²
                                 </div>
                                 <div className="text-sm text-gray-500">
                                     {new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', {
                                         style: 'currency',
                                         currency: 'EGP',
                                         minimumFractionDigits: 0,
-                                    }).format(req.price || 0)}
+                                    }).format(req.propertyDetails?.price || 0)}
                                 </div>
                             </TableCell>
                             <TableCell>{new Date(req.createdAt).toLocaleDateString(language)}</TableCell>
                             <TableCell>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                                    req.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                                    req.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                    req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                    {req.status}
+                                <span className="px-2 py-1 text-xs font-medium rounded-full capitalize">
+                                    {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus]}
                                 </span>
                             </TableCell>
                             <TableCell>
@@ -90,23 +86,23 @@ const AdminPropertyRequestsPage: React.FC = () => {
         </div>
     );
 
-    const renderCard = (req: PropertyListingRequestModel) => (
+    const renderCard = (req: AddPropertyRequest) => (
         <Card key={req.id}>
             <CardContent className="p-4 space-y-3">
                  <div className="flex justify-between items-start">
                     <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">{req.ownerName}</h3>
-                        <p className="text-sm text-gray-500">{req.ownerPhone}</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{req.customerName}</h3>
+                        <p className="text-sm text-gray-500">{req.customerPhone}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize bg-gray-100 dark:bg-gray-700`}>
-                         {req.status}
+                    <span className="px-2 py-1 text-xs font-medium rounded-full capitalize bg-gray-100 dark:bg-gray-700">
+                         {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
                     </span>
                 </div>
                 <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
-                    <p className="text-sm font-semibold text-amber-600">{req.propertyType?.[language] || 'Unknown Type'}</p>
+                    <p className="text-sm font-semibold text-amber-600">{req.propertyDetails?.propertyType?.[language] || 'Unknown Type'}</p>
                     <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mt-1">
-                         <span>{req.area} m²</span>
-                         <span>{new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'EGP', minimumFractionDigits: 0 }).format(req.price || 0)}</span>
+                         <span>{req.propertyDetails?.area} m²</span>
+                         <span>{new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'EGP', minimumFractionDigits: 0 }).format(req.propertyDetails?.price || 0)}</span>
                     </div>
                 </div>
                 <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>

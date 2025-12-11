@@ -1,50 +1,56 @@
 
-import { getPartnerApplications, addPartnerApplication, updatePartnerApplicationStatus } from './partnerApps';
+
+import { partnerRequestsData as initialPartnerRequestsData } from '../data/partnerRequests';
 import type { PartnerRequest } from '../types';
+import { addNotification } from './notifications';
 
-// MAPPING
-const mapToUI = (item: any): PartnerRequest => ({
-    id: item.id,
-    companyName: item.companyName,
-    companyType: item.companyType,
-    companyAddress: item.companyAddress || '', // Ensure mapping includes address
-    description: item.description,
-    website: item.website,
-    contactName: item.contactName,
-    contactEmail: item.contactEmail,
-    contactPhone: item.contactPhone,
-    subscriptionPlan: item.subscriptionPlan,
-    status: item.status,
-    createdAt: item.createdAt,
-    logo: item.logoUrl,
-    documents: item.documents.map((d: string) => ({ fileName: 'Document', fileContent: d }))
-});
+// Create a mutable, in-memory copy of the data to simulate a database.
+let partnerRequestsData: PartnerRequest[] = [...initialPartnerRequestsData];
 
-export const getAllPartnerRequests = async (): Promise<PartnerRequest[]> => {
-    const raw = await getPartnerApplications();
-    return raw.map(mapToUI);
+const SIMULATED_DELAY = 300;
+
+export const getAllPartnerRequests = (): Promise<PartnerRequest[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve([...partnerRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, SIMULATED_DELAY);
+  });
 };
 
-export const addPartnerRequest = async (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
-    const res = await addPartnerApplication({
-        companyName: data.companyName,
-        companyType: data.companyType as any,
-        companyAddress: data.companyAddress, // Added
-        description: data.description,
-        website: data.website,
-        contactName: data.contactName,
-        contactEmail: data.contactEmail,
-        contactPhone: data.contactPhone,
-        subscriptionPlan: data.subscriptionPlan,
-        logoUrl: data.logo,
-        documents: data.documents?.map(d => d.fileContent) || [],
-        paymentStatus: (data as any).paymentStatus || 'pending'
+export const addPartnerRequest = (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newRequest: PartnerRequest = {
+        ...data,
+        id: `preq-${Date.now()}`,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+      partnerRequestsData.unshift(newRequest);
+      
+      addNotification({
+        userId: 'partner-relations-manager-1',
+        message: {
+          ar: `لديك طلب انضمام شريك جديد من "${newRequest.companyName}".`,
+          en: `New partner request from "${newRequest.companyName}".`,
+        },
+        link: `/admin/partner-requests/${newRequest.id}`,
+      });
+
+      resolve(newRequest);
+    }, SIMULATED_DELAY);
+  });
+};
+
+export const updatePartnerRequestStatus = (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const requestIndex = partnerRequestsData.findIndex(r => r.id === id);
+            if (requestIndex > -1) {
+                partnerRequestsData[requestIndex].status = status;
+                resolve(true);
+            }
+            resolve(false);
+        }, SIMULATED_DELAY);
     });
-    
-    if(!res) throw new Error("Failed to add partner request");
-    return mapToUI(res);
-};
-
-export const updatePartnerRequestStatus = async (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
-    return updatePartnerApplicationStatus(id, status);
 };

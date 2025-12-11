@@ -1,4 +1,3 @@
-
 import { propertiesData } from '../data/properties';
 import { partnersData } from '../data/partners';
 import { projectsData } from '../data/projects';
@@ -14,6 +13,7 @@ import { bannersData } from '../data/banners';
 import { leadsData } from '../data/leads';
 import { requestsData } from '../data/requests';
 import { arTranslations, enTranslations } from '../data/translations';
+import { routingRulesData } from '../data/routingRules';
 
 // @ts-ignore
 import { PrismaClient } from '@prisma/client';
@@ -23,117 +23,132 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Start seeding...');
 
-  console.log('Deleting existing data...');
-  // Delete in an order that respects foreign key constraints
-  await prisma.notification.deleteMany();
-  await prisma.leadMessage.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.request.deleteMany();
-  await prisma.amenityOnProperty.deleteMany();
-  await prisma.property.deleteMany();
-  await prisma.project.deleteMany();
-  await prisma.portfolioItem.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.partner.deleteMany(); // Cascades to most things above, but good to be explicit
-  await prisma.amenity.deleteMany();
-  await prisma.propertyType.deleteMany();
-  await prisma.finishingStatus.deleteMany();
-  await prisma.decorationCategory.deleteMany();
-  await prisma.banner.deleteMany();
-  await prisma.quote.deleteMany();
-  await prisma.siteContent.deleteMany();
-  // Legacy tables if they exist
-  try {
-      await prisma.partnerApplication.deleteMany();
-      await prisma.propertyListingRequest.deleteMany();
-      await prisma.contactMessage.deleteMany();
-  } catch(e) {}
+  // --- CLEANUP ---
+  console.log('Cleaning up existing data...');
+  const deleteOrder = [
+      'Notification', 'LeadMessage', 'Lead', 'Request', 'AmenitiesOnProperties',
+      'Property', 'Project', 'PortfolioItem', 'Transaction', 'User',
+      'Amenity', 'PropertyType', 'FinishingStatus', 'DecorationCategory',
+      'Banner', 'Quote', 'StaticPage', 'SystemSetting', 'RoutingRule'
+  ];
 
+  for (const model of deleteOrder) {
+      try {
+          await (prisma as any)[model.charAt(0).toLowerCase() + model.slice(1)].deleteMany();
+      } catch (e) {
+          console.log(`Skipping delete for ${model} (might not exist yet or error)`);
+      }
+  }
 
+  // --- LOOKUP TABLES ---
   console.log('Seeding lookup tables...');
+  
   await prisma.propertyType.createMany({
     data: propertyTypesData.map((pt) => ({
       id: pt.id,
-      nameEn: pt.en,
-      nameAr: pt.ar,
+      name_en: pt.en,
+      name_ar: pt.ar,
     })),
   });
 
   await prisma.finishingStatus.createMany({
     data: finishingStatusesData.map((fs) => ({
       id: fs.id,
-      nameEn: fs.en,
-      nameAr: fs.ar,
-      applicableTo: fs.applicableTo ? JSON.stringify(fs.applicableTo) : null,
+      name_en: fs.en,
+      name_ar: fs.ar,
+      applicableTo: fs.applicableTo,
     })),
   });
 
   await prisma.amenity.createMany({
     data: amenitiesData.map((a) => ({
       id: a.id,
-      nameEn: a.en,
-      nameAr: a.ar,
-      applicableTo: a.applicableTo ? JSON.stringify(a.applicableTo) : null,
+      name_en: a.en,
+      name_ar: a.ar,
+      applicableTo: a.applicableTo,
     })),
   });
 
   await prisma.decorationCategory.createMany({
       data: decorationCategoriesData.map(dc => ({
           id: dc.id,
-          nameEn: dc.name.en,
-          nameAr: dc.name.ar,
-          descriptionEn: dc.description.en,
-          descriptionAr: dc.description.ar,
+          name_en: dc.name.en,
+          name_ar: dc.name.ar,
+          description_en: dc.description.en,
+          description_ar: dc.description.ar,
       }))
   });
 
-  console.log('Seeding partners...');
-  await prisma.partner.createMany({
-    data: partnersData.map((p) => {
+  // --- USERS (Partners & Admins) ---
+  console.log('Seeding users...');
+  
+  // Use a map to track roles based on type string from legacy data
+  const roleMap: Record<string, string> = {
+      'admin': 'SUPER_ADMIN',
+      'developer': 'DEVELOPER_PARTNER',
+      'finishing': 'FINISHING_PARTNER',
+      'agency': 'AGENCY_PARTNER',
+      'decoration_manager': 'DECORATION_MANAGER',
+      'platform_finishing_manager': 'PLATFORM_FINISHING_MANAGER',
+      'finishing_market_manager': 'FINISHING_MARKET_MANAGER',
+      'platform_real_estate_manager': 'PLATFORM_REAL_ESTATE_MANAGER',
+      'real_estate_market_manager': 'REAL_ESTATE_MARKET_MANAGER',
+      'partner_relations_manager': 'PARTNER_RELATIONS_MANAGER',
+      'content_manager': 'CONTENT_MANAGER',
+      'service_manager': 'SERVICE_MANAGER',
+      'customer_relations_manager': 'CUSTOMER_RELATIONS_MANAGER',
+      'listings_manager': 'LISTINGS_MANAGER'
+  };
+
+  const statusMap: Record<string, string> = {
+      'active': 'ACTIVE',
+      'pending': 'PENDING',
+      'disabled': 'DISABLED'
+  };
+
+  for (const p of partnersData) {
       const enInfo = (enTranslations.partnerInfo as any)[p.id];
       const arInfo = (arTranslations.partnerInfo as any)[p.id];
-      // Map roles manually or use the simple string
-      let role = "AGENCY_PARTNER";
-      if (p.type === 'admin') role = 'SUPER_ADMIN';
-      else if (p.type === 'developer') role = 'DEVELOPER_PARTNER';
-      else if (p.type === 'finishing') role = 'FINISHING_PARTNER';
-      else if (p.type.includes('_manager')) role = p.type.toUpperCase();
+      const role = roleMap[p.type] || 'AGENCY_PARTNER';
+      const status = statusMap[p.status] || 'PENDING';
 
-      return {
-        id: p.id,
-        email: p.email,
-        password: p.password!,
-        imageUrl: p.imageUrl,
-        type: p.type as any, // Cast to enum
-        role: role as any,
-        status: p.status as any, // Cast to enum
-        subscriptionPlan: p.subscriptionPlan,
-        subscriptionEndDate: p.subscriptionEndDate ? new Date(p.subscriptionEndDate) : null,
-        displayType: p.displayType || 'standard',
-        name: enInfo?.name || p.id,
-        nameAr: arInfo?.name || p.id,
-        descriptionEn: enInfo?.description || '',
-        descriptionAr: arInfo?.description || '',
-        contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : '{}',
-      };
-    }),
-  });
-  
+      await prisma.user.create({
+          data: {
+            id: p.id,
+            email: p.email,
+            password: p.password!,
+            imageUrl: p.imageUrl,
+            role: role as any,
+            status: status as any,
+            subscriptionPlan: p.subscriptionPlan,
+            subscriptionEndDate: p.subscriptionEndDate ? new Date(p.subscriptionEndDate) : null,
+            displayType: p.displayType,
+            name_en: enInfo?.name || p.id,
+            name_ar: arInfo?.name || p.id,
+            description_en: enInfo?.description || '',
+            description_ar: arInfo?.description || '',
+            contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : undefined,
+          }
+      });
+  }
+
+  // --- PROJECTS ---
   console.log('Seeding projects...');
   await prisma.project.createMany({
     data: projectsData.map((p) => ({
       id: p.id,
       partnerId: p.partnerId,
-      nameEn: p.name.en,
-      nameAr: p.name.ar,
-      descriptionEn: p.description.en,
-      descriptionAr: p.description.ar,
+      name_en: p.name.en,
+      name_ar: p.name.ar,
+      description_en: p.description.en,
+      description_ar: p.description.ar,
       imageUrl: p.imageUrl,
       createdAt: new Date(p.createdAt),
       features: JSON.stringify(p.features),
     })),
   });
-  
+
+  // --- PROPERTIES ---
   console.log('Seeding properties...');
   for (const prop of propertiesData) {
     await prisma.property.create({
@@ -143,71 +158,122 @@ async function main() {
         projectId: prop.projectId,
         imageUrl: prop.imageUrl,
         gallery: prop.gallery,
-        statusEn: prop.status.en,
-        statusAr: prop.status.ar,
-        priceEn: prop.price.en,
-        priceAr: prop.price.ar,
+        listingStatus: prop.listingStatus,
         price: prop.priceNumeric,
-        typeEn: prop.type.en,
-        typeAr: prop.type.ar,
-        titleEn: prop.title.en,
-        titleAr: prop.title.ar,
-        addressEn: prop.address.en,
-        addressAr: prop.address.ar,
-        descriptionEn: prop.description.en,
-        descriptionAr: prop.description.ar,
+        price_en: prop.price.en,
+        price_ar: prop.price.ar,
+        area: prop.area,
         beds: prop.beds,
         baths: prop.baths,
-        area: prop.area,
-        floor: prop.floor || 0,
-        finishingStatusEn: prop.finishingStatus?.en,
-        finishingStatusAr: prop.finishingStatus?.ar,
+        floor: prop.floor,
+        
+        type_en: prop.type.en,
+        type_ar: prop.type.ar,
+        title_en: prop.title.en,
+        title_ar: prop.title.ar,
+        address_en: prop.address.en,
+        address_ar: prop.address.ar,
+        description_en: prop.description.en,
+        description_ar: prop.description.ar,
+        
+        finishingStatus_en: prop.finishingStatus?.en,
+        finishingStatus_ar: prop.finishingStatus?.ar,
+        
         installmentsAvailable: prop.installmentsAvailable,
         isInCompound: prop.isInCompound,
         realEstateFinanceAvailable: prop.realEstateFinanceAvailable,
+        
         deliveryImmediate: prop.delivery.isImmediate,
         deliveryDate: prop.delivery.date ? new Date(prop.delivery.date) : null,
-        installments: prop.installments ? JSON.stringify(prop.installments) : null,
+        
+        installments: prop.installments ? JSON.stringify(prop.installments) : undefined,
         location: JSON.stringify(prop.location),
+        
         listingStartDate: prop.listingStartDate ? new Date(prop.listingStartDate) : null,
-        listingStatus: prop.listingStatus as any,
         contactMethod: prop.contactMethod,
         ownerPhone: prop.ownerPhone,
+        
         amenities: {
           create: (prop.amenities?.en || []).map(amenityName => {
             const amenity = amenitiesData.find(a => a.en === amenityName);
-            if (!amenity) {
-               // Skip if not found to avoid crashing seed
-               return undefined;
+            if (amenity) {
+               return { amenity: { connect: { id: amenity.id } } };
             }
-            return {
-              amenity: {
-                connect: { id: amenity.id }
-              }
-            };
+            return null; // Skip unknown amenities
           }).filter(Boolean) as any
         }
       },
     });
   }
-  
-  console.log('Seeding portfolio items...');
+
+  // --- PORTFOLIO ---
+  console.log('Seeding portfolio...');
   await prisma.portfolioItem.createMany({
     data: portfolioData.map(item => ({
         id: item.id,
         partnerId: item.partnerId,
         imageUrl: item.imageUrl,
         alt: item.alt,
-        titleEn: item.title.en,
-        titleAr: item.title.ar,
-        categoryEn: item.category.en,
-        categoryAr: item.category.ar,
+        title_en: item.title.en,
+        title_ar: item.title.ar,
+        category_en: item.category.en,
+        category_ar: item.category.ar,
         price: item.price,
         dimensions: item.dimensions,
         availability: item.availability,
+        // Try to link category relation if match found
+        categoryId: decorationCategoriesData.find(c => c.name.en === item.category.en)?.id
     }))
   });
+
+  // --- CMS: QUOTES ---
+  console.log('Seeding quotes...');
+  if (siteContentData.quotes) {
+      await prisma.quote.createMany({
+          data: siteContentData.quotes.map(q => ({
+              quote_en: q.quote.en,
+              quote_ar: q.quote.ar,
+              author_en: q.author.en,
+              author_ar: q.author.ar,
+          }))
+      });
+  }
+
+  // --- CMS: STATIC PAGES ---
+  console.log('Seeding static pages...');
+  const pages = [
+      { slug: 'privacy-policy', data: siteContentData.privacyPolicy },
+      { slug: 'terms-of-use', data: siteContentData.termsOfUse }
+  ];
   
+  for (const page of pages) {
+      if (page.data) {
+          // Flatten complex objects to string for simple storage or use JSON
+          // Here we assume content is markdown/html string, but data has sections.
+          // We will store the structure as JSON in a "content" field for simplicity or stringify it.
+          await prisma.staticPage.create({
+              data: {
+                  slug: page.slug,
+                  title_en: page.data.en.title,
+                  title_ar: page.data.ar.title,
+                  content_en: JSON.stringify(page.data.en.sections),
+                  content_ar: JSON.stringify(page.data.ar.sections),
+              }
+          });
+      }
+  }
+
+  // --- CMS: SETTINGS ---
+  console.log('Seeding system settings...');
+  const settings = [
+      { key: 'contact_email', value: siteContentData.footer.email, group: 'contact' },
+      { key: 'contact_phone', value: siteContentData.footer.phone, group: 'contact' },
+      { key: 'social_facebook', value: siteContentData.footer.social.facebook, group: 'social' },
+      { key: 'social_instagram', value: siteContentData.footer.social.instagram, group: 'social' },
+  ];
+  await prisma.systemSetting.createMany({ data: settings });
+
+  // --- BANNERS ---
   console.log('Seeding banners...');
   await prisma.banner.createMany({
     data: bannersData.map(b => ({
@@ -222,73 +288,48 @@ async function main() {
     }))
   });
 
-  console.log('Seeding site content...');
-  const { quotes, ...restOfSiteContent } = siteContentData;
-  await prisma.siteContent.create({
-      data: {
-          id: 'main_content',
-          content: JSON.stringify(restOfSiteContent),
-      }
-  });
-
-  await prisma.quote.createMany({
-      data: quotes.map(q => ({
-          quoteEn: q.quote.en,
-          quoteAr: q.quote.ar,
-          authorEn: q.author.en,
-          authorAr: q.author.ar,
-      }))
-  });
-  
+  // --- CRM: LEADS ---
   console.log('Seeding leads...');
-  await prisma.lead.createMany({
-      data: leadsData.map(lead => ({
-          id: lead.id,
-          partnerId: lead.partnerId,
-          managerId: lead.managerId,
-          propertyId: lead.propertyId,
-          serviceType: lead.serviceType,
-          serviceTitle: lead.serviceTitle,
-          customerName: lead.customerName,
-          customerPhone: lead.customerPhone,
-          customerNotes: lead.customerNotes,
-          contactTime: lead.contactTime,
-          status: lead.status as any,
-          createdAt: new Date(lead.createdAt),
-          updatedAt: new Date(lead.updatedAt),
-          assignedTo: lead.assignedTo,
-      }))
-  });
-  
-  // Seed Lead Messages
   for (const lead of leadsData) {
-      if (lead.messages && lead.messages.length > 0) {
-          await prisma.leadMessage.createMany({
-              data: lead.messages.map(msg => ({
-                  id: msg.id,
-                  leadId: lead.id,
-                  sender: msg.sender,
-                  senderId: msg.senderId,
-                  type: msg.type,
-                  content: msg.content,
-                  timestamp: new Date(msg.timestamp)
-              }))
-          });
-      }
+      await prisma.lead.create({
+          data: {
+              id: lead.id,
+              partnerId: lead.partnerId,
+              managerId: lead.managerId,
+              propertyId: lead.propertyId,
+              customerName: lead.customerName,
+              customerPhone: lead.customerPhone,
+              contactTime: lead.contactTime,
+              serviceTitle: lead.serviceTitle,
+              serviceType: lead.serviceType,
+              status: lead.status,
+              notes: lead.customerNotes,
+              createdAt: new Date(lead.createdAt),
+              updatedAt: new Date(lead.updatedAt),
+              messages: {
+                  create: (lead.messages || []).map(msg => ({
+                      sender: msg.sender,
+                      senderId: msg.senderId,
+                      type: msg.type,
+                      content: msg.content,
+                      timestamp: new Date(msg.timestamp)
+                  }))
+              }
+          }
+      });
   }
 
-  console.log('Seeding requests...');
-  await prisma.request.createMany({
-    data: requestsData.map(req => ({
-      id: req.id,
-      type: req.type as any,
-      requesterInfo: JSON.stringify(req.requesterInfo),
-      payload: JSON.stringify(req.payload),
-      status: req.status as any,
-      assignedTo: req.assignedTo,
-      createdAt: new Date(req.createdAt),
-      updatedAt: req.updatedAt ? new Date(req.updatedAt) : null,
-    }))
+  // --- AUTOMATION ---
+  console.log('Seeding routing rules...');
+  await prisma.routingRule.createMany({
+      data: routingRulesData.map(rule => ({
+          id: rule.id,
+          name_en: rule.name.en,
+          name_ar: rule.name.ar,
+          active: rule.active,
+          conditions: JSON.stringify(rule.conditions),
+          action: JSON.stringify(rule.action)
+      }))
   });
 
   console.log('Seeding finished.');

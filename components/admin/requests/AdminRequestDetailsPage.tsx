@@ -4,20 +4,19 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRequestById, updateRequest, addMessageToLead } from '../../../services/requests';
 import { getAllPartnersForAdmin, addPartner } from '../../../services/partners';
+import { addProperty } from '../../../services/properties';
 import { useLanguage } from '../../shared/LanguageContext';
 import { useToast } from '../../shared/ToastContext';
 import { useAuth } from '../../auth/AuthContext';
-import { RequestType, RequestStatus, Role, LeadStatus } from '../../../types';
+import { RequestType, Property, RequestStatus, Role, LeadStatus } from '../../../types';
 import DetailItem from '../../shared/DetailItem';
-import { ArrowLeftIcon, CheckCircleIcon, UserPlusIcon } from '../../ui/Icons';
+import { ArrowLeftIcon, CheckCircleIcon, UserPlusIcon, BuildingIcon } from '../../ui/Icons';
 import { Button } from '../../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import { Select } from '../../ui/Select';
 import { Textarea } from '../../ui/Textarea';
 import ConversationThread from '../../shared/ConversationThread';
 import RequestPayloadViewer from './RequestPayloadViewer';
-// Import the specialized component
-import AdminPropertyRequestDetailsPage from './AdminPropertyRequestDetailsPage';
 
 const AdminRequestDetailsPage: React.FC = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -52,14 +51,6 @@ const AdminRequestDetailsPage: React.FC = () => {
         }
     }, [request]);
 
-    // === REDIRECTION LOGIC ===
-    // If this is a Property Listing Request, delegate rendering to the specialized component immediately.
-    // This ensures the "Edit & Publish" workflow is available regardless of the URL used to access the request.
-    if (request && request.type === RequestType.PROPERTY_LISTING_REQUEST) {
-        return <AdminPropertyRequestDetailsPage />;
-    }
-    // =========================
-
     const statusOptions = useMemo(() => {
         if (!request) return [];
         if (request.type === RequestType.LEAD) {
@@ -77,6 +68,7 @@ const AdminRequestDetailsPage: React.FC = () => {
             
             if (request.type === RequestType.LEAD) {
                  updates.payload = { ...(request.payload as any), status: actionStatus };
+                 // Map generic lead statuses to request statuses for consistency
                  if (['contacted', 'quoted', 'site-visit'].includes(actionStatus as string)) statusToSave = 'in-progress';
                  if (actionStatus === 'completed') statusToSave = 'closed';
                  if (actionStatus === 'cancelled') statusToSave = 'rejected';
@@ -115,6 +107,75 @@ const AdminRequestDetailsPage: React.FC = () => {
             if (action === 'approved') {
                 if (request.type === RequestType.PARTNER_APPLICATION) {
                     await addPartner(request.payload as any);
+                } else if (request.type === RequestType.PROPERTY_LISTING_REQUEST) {
+                     const r = request.payload as any;
+                     const pd = r.propertyDetails || {};
+
+                     // Safety Check for required fields
+                     if (!pd) {
+                         throw new Error("Incomplete property details. Cannot create listing.");
+                     }
+                     
+                     // Helper to safe parse numbers and text
+                     const safeNum = (val: any) => Number(val) || 0;
+                     const getEn = (obj: any) => obj?.en || '';
+                     const getAr = (obj: any) => obj?.ar || '';
+
+                     const newProperty: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl' | 'projectName'> = {
+                        partnerId: 'individual-listings',
+                        title: { 
+                            en: getEn(pd.title) || 'Untitled Property', 
+                            ar: getAr(pd.title) || 'عقار بدون عنوان' 
+                        },
+                        description: { 
+                            en: getEn(pd.description) || '', 
+                            ar: getAr(pd.description) || '' 
+                        },
+                        address: { en: pd.address || '', ar: pd.address || '' },
+                        location: pd.location || { lat: 30.0, lng: 31.0 },
+                        status: pd.purpose || { en: 'For Sale', ar: 'للبيع' },
+                        type: { 
+                            en: (getEn(pd.propertyType) || 'Apartment') as any, 
+                            ar: getAr(pd.propertyType) || 'شقة' 
+                        },
+                        finishingStatus: pd.finishingStatus ? { 
+                            en: getEn(pd.finishingStatus), 
+                            ar: getAr(pd.finishingStatus) 
+                        } : undefined,
+                        area: safeNum(pd.area),
+                        price: { 
+                            en: `EGP ${safeNum(pd.price).toLocaleString('en-US')}`,
+                            ar: `${safeNum(pd.price).toLocaleString('ar-EG')} ج.م`
+                        },
+                        priceNumeric: safeNum(pd.price),
+                        pricePerMeter: safeNum(pd.area) > 0 ? {
+                            en: `EGP ${Math.round(safeNum(pd.price) / safeNum(pd.area)).toLocaleString('en-US')}/m²`,
+                            ar: `${Math.round(safeNum(pd.price) / safeNum(pd.area)).toLocaleString('ar-EG')} ج.م/م²`
+                        } : undefined,
+                        beds: safeNum(pd.bedrooms),
+                        baths: safeNum(pd.bathrooms),
+                        floor: safeNum(pd.floor),
+                        amenities: pd.amenities || { en: [], ar: [] },
+                        isInCompound: !!pd.isInCompound,
+                        delivery: { 
+                            isImmediate: pd.deliveryType === 'immediate', 
+                            date: pd.deliveryType === 'future' ? `${pd.deliveryYear}-${pd.deliveryMonth}` : undefined
+                        },
+                        installmentsAvailable: !!pd.hasInstallments,
+                        installments: pd.hasInstallments ? {
+                            downPayment: safeNum(pd.downPayment),
+                            monthlyInstallment: safeNum(pd.monthlyInstallment),
+                            years: safeNum(pd.years)
+                        } : undefined,
+                        realEstateFinanceAvailable: !!pd.realEstateFinanceAvailable,
+                        imageUrl: r.images && r.images[0] ? r.images[0] : 'https://via.placeholder.com/800x600?text=No+Image',
+                        gallery: r.images ? r.images.slice(1) : [],
+                        listingStatus: 'active',
+                        contactMethod: pd.contactMethod || 'platform',
+                        ownerPhone: pd.ownerPhone,
+                        listingStartDate: pd.listingStartDate || new Date().toISOString().split('T')[0],
+                    };
+                    await addProperty(newProperty);
                 }
             }
             await updateRequest(request.id, { status: action });
@@ -132,7 +193,7 @@ const AdminRequestDetailsPage: React.FC = () => {
     if (isLoading) return <div>Loading request...</div>;
     if (!request) return <div>Request not found.</div>;
     
-    const showApprovalActions = ['new', 'pending', 'reviewed'].includes(request.status) && request.type === RequestType.PARTNER_APPLICATION;
+    const showApprovalActions = ['new', 'pending', 'reviewed'].includes(request.status) && (request.type === RequestType.PARTNER_APPLICATION || request.type === RequestType.PROPERTY_LISTING_REQUEST);
 
     return (
         <div className="max-w-6xl mx-auto animate-fadeIn">
@@ -173,7 +234,7 @@ const AdminRequestDetailsPage: React.FC = () => {
                                  <RequestPayloadViewer request={request} />
                              </div>
                              
-                             {/* Approval Actions for Partner Requests */}
+                             {/* Approval Actions */}
                              {showApprovalActions && (
                                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6 flex gap-4">
                                      <Button 
@@ -181,8 +242,8 @@ const AdminRequestDetailsPage: React.FC = () => {
                                         isLoading={approvalMutation.isPending} 
                                         className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
                                      >
-                                         <UserPlusIcon className="w-4 h-4" />
-                                         Approve & Create Partner
+                                         {request.type === RequestType.PARTNER_APPLICATION ? <UserPlusIcon className="w-4 h-4" /> : <BuildingIcon className="w-4 h-4" />}
+                                         Approve & Create {request.type === RequestType.PARTNER_APPLICATION ? 'Partner' : 'Listing'}
                                      </Button>
                                      <Button 
                                         onClick={() => approvalMutation.mutate('rejected')} 

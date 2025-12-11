@@ -11,8 +11,7 @@ import { useLanguage } from '../../shared/LanguageContext';
 import { useToast } from '../../shared/ToastContext';
 import { Button } from '../../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
-// CHANGED: Import Cloudinary
-import { uploadToCloudinary } from '../../../lib/cloudinary';
+import { fileToBase64 } from '../../../utils/fileUtils';
 
 const AdminPortfolioFormPage: React.FC = () => {
     const { itemId } = useParams();
@@ -29,6 +28,7 @@ const AdminPortfolioFormPage: React.FC = () => {
     
     const itemToEdit = itemId ? portfolioItems?.find(i => i.id === itemId) : undefined;
 
+    // Explicitly define the type for the state to avoid "as const" type narrowing issues
     const [formData, setFormData] = useState<{
         title: { ar: string; en: string };
         categoryId: string;
@@ -45,7 +45,6 @@ const AdminPortfolioFormPage: React.FC = () => {
 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
     
     useEffect(() => {
         if (itemToEdit) {
@@ -62,6 +61,7 @@ const AdminPortfolioFormPage: React.FC = () => {
         }
     }, [itemToEdit, decorationCategories]);
     
+    // Initialize default category if creating new
     useEffect(() => {
          if (!itemId && decorationCategories && decorationCategories.length > 0 && !formData.categoryId) {
             setFormData(prev => ({...prev, categoryId: decorationCategories[0].id}));
@@ -111,46 +111,37 @@ const AdminPortfolioFormPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsUploading(true);
 
-        try {
-            let imageSrc = itemToEdit?.imageUrl || '';
-            if (imageFile) {
-                // CHANGED: Use Cloudinary upload
-                imageSrc = await uploadToCloudinary(imageFile);
-            }
-            
-            const selectedCategory = decorationCategories?.find(c => c.id === formData.categoryId);
-            if (!selectedCategory) {
-                showToast("Please select a valid category.", "error");
-                return;
-            }
+        let imageSrc = itemToEdit?.imageUrl || '';
+        if (imageFile) {
+            imageSrc = await fileToBase64(imageFile);
+        }
+        
+        const selectedCategory = decorationCategories?.find(c => c.id === formData.categoryId);
+        if (!selectedCategory) {
+            showToast("Please select a valid category.", "error");
+            return;
+        }
 
-            const dataToSave = {
-                title: formData.title,
-                partnerId: 'admin-user',
-                category: selectedCategory.name,
-                imageUrl: imageSrc,
-                alt: formData.title.en || 'Decoration work',
-                price: formData.price ? parseInt(String(formData.price), 10) : undefined,
-                dimensions: formData.dimensions || undefined,
-                availability: formData.availability,
-            };
+        const dataToSave = {
+            title: formData.title,
+            partnerId: 'admin-user',
+            category: selectedCategory.name,
+            imageUrl: imageSrc,
+            alt: formData.title.en || 'Decoration work',
+            price: formData.price ? parseInt(String(formData.price), 10) : undefined,
+            dimensions: formData.dimensions || undefined,
+            availability: formData.availability,
+        };
 
-            if (itemId) {
-                updateMutation.mutate({ id: itemId, updates: dataToSave });
-            } else {
-                addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
-            }
-        } catch (error) {
-            console.error("Failed to save portfolio item", error);
-            showToast("Error uploading image", "error");
-        } finally {
-            setIsUploading(false);
+        if (itemId) {
+            updateMutation.mutate({ id: itemId, updates: dataToSave });
+        } else {
+            addMutation.mutate(dataToSave as Omit<PortfolioItem, 'id'>);
         }
     };
     
-    const isLoading = addMutation.isPending || updateMutation.isPending || categoriesLoading || isUploading;
+    const isLoading = addMutation.isPending || updateMutation.isPending || categoriesLoading;
 
     return (
         <div className="max-w-3xl mx-auto animate-fadeIn">

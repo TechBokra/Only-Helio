@@ -1,5 +1,4 @@
-
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 import ScrollToTop from './components/shared/ScrollToTop';
@@ -10,11 +9,6 @@ import BackToTopButton from './components/shared/BackToTopButton';
 import { useLanguage } from './components/shared/LanguageContext';
 import { adminNavLinks, partnerNavLinks } from './data/navigation';
 import LoadingFallback from './components/shared/LoadingFallback';
-
-// --- Auth Integration ---
-import { supabase } from './lib/supabase';
-import { useAuthStore } from './store/useAuthStore';
-import { mapPartnerFromDB } from './utils/supabaseMapper';
 
 // --- Layouts (Static Imports to fix #525) ---
 import DashboardLayout from './components/shared/DashboardLayout';
@@ -47,43 +41,6 @@ const NotFoundPage = React.lazy(() => import('./components/shared/NotFoundPage')
 
 const App: React.FC = () => {
     const { t } = useLanguage();
-    const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
-
-    // --- REAL AUTH LISTENER ---
-    useEffect(() => {
-        if (!supabase) return;
-
-        // 1. Check active session on mount
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user?.email) {
-                fetchUserProfile(session.user.email);
-            }
-        });
-
-        // 2. Listen for auth changes (sign in, sign out, token refresh)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user?.email) {
-                 await fetchUserProfile(session.user.email);
-            } else if (event === 'SIGNED_OUT') {
-                 setCurrentUser(null);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, [setCurrentUser]);
-
-    const fetchUserProfile = async (email: string) => {
-        if (!supabase) return;
-        const { data } = await supabase
-            .from('partners')
-            .select('*')
-            .eq('email', email)
-            .single();
-            
-        if (data) {
-            setCurrentUser(mapPartnerFromDB(data));
-        }
-    };
 
     return (
         <div>
