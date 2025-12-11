@@ -34,43 +34,69 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     if (!supabase) throw new Error("Supabase client not initialized");
 
-                    // 1. Attempt to Authenticate
+                    // 1. Attempt Standard Login
                     let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                         email: cleanEmail,
                         password: pass,
                     });
 
                     // ---------------------------------------------------------
-                    // AUTO-FIX: Self-healing for Admin Seed Account
-                    // If login fails for the specific seed admin email, try to register it on the fly.
-                    // This handles cases where the DB row exists (via SQL seed) but the Auth user does not.
+                    // AUTO-ADMIN HEALING STRATEGY
+                    // Logic: If login fails for admin, try to sign up + login + seed DB profile.
+                    // This handles cases where:
+                    // 1. User doesn't exist in Auth.
+                    // 2. User exists in Auth but not in DB (deleted manually or sync issue).
                     // ---------------------------------------------------------
-                    if (authError && cleanEmail === 'admin@onlyhelio.com' && authError.message.includes('Invalid login credentials')) {
-                         console.warn("Admin login failed. Attempting auto-registration sync for seed account...");
-                         
-                         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                    if (authError && cleanEmail === 'admin@onlyhelio.com') {
+                         console.warn("Admin login failed. Initiating bootstrap sequence...");
+
+                         // Step A: Ensure Auth Account Exists
+                         // We attempt signUp. If it fails because "User already registered", that's expected and fine.
+                         await supabase.auth.signUp({
+                             email: cleanEmail,
+                             password: pass,
+                             options: { data: { full_name: 'Super Admin' } }
+                         });
+
+                         // Step B: Force Sign In to get a valid Session
+                         // We must sign in to get the Access Token required for the DB Insert (RLS).
+                         const retryLogin = await supabase.auth.signInWithPassword({
                              email: cleanEmail,
                              password: pass,
                          });
-                         
-                         if (!signUpError && signUpData.user) {
-                             console.log("Admin Auth account created. Syncing 'partners' table ID...");
+
+                         if (retryLogin.data.session && retryLogin.data.user) {
+                             console.log("Bootstrap: Auth session established. Checking DB profile...");
                              
-                             // CRITICAL: Update the seed row in 'partners' to match the new Auth User ID (UUID)
-                             // This ensures Row Level Security (RLS) policies work correctly.
-                             const { error: updateError } = await supabase
+                             // Step C: Ensure DB Profile Exists
+                             // Now that we are authenticated, we try to UPSERT the profile.
+                             const { error: upsertError } = await supabase
                                 .from('partners')
-                                .update({ id: signUpData.user.id })
-                                .eq('email', cleanEmail);
-                                
-                             if (!updateError) {
-                                 console.log("Database ID synced successfully. Proceeding with new session.");
-                                 // Use the new session data from signup
-                                 authData = { user: signUpData.user, session: signUpData.session };
-                                 authError = null; // Clear the error to proceed
+                                .upsert({ 
+                                    id: retryLogin.data.user.id, // Matches auth.uid()
+                                    email: cleanEmail,
+                                    name: 'Super Admin',
+                                    name_ar: 'المشرف العام',
+                                    role: 'SUPER_ADMIN',
+                                    type: 'admin',
+                                    status: 'active',
+                                    subscription_plan: 'elite',
+                                    image_url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=75&w=200&auto=format&fit=crop'
+                                }, { onConflict: 'id' })
+                                .select()
+                                .single();
+                             
+                             if (upsertError) {
+                                 // Convert object to string for visibility
+                                 console.error("Bootstrap: DB Profile creation failed.", JSON.stringify(upsertError));
                              } else {
-                                 console.error("Failed to sync admin ID:", updateError);
+                                 console.log("Bootstrap: DB Profile verified/created.");
+                                 // Success! Override the initial error state
+                                 authData = retryLogin.data;
+                                 authError = null;
                              }
+                         } else {
+                             console.error("Bootstrap: Could not establish session. Email confirmation might be required in Supabase settings.");
                          }
                     }
                     // ---------------------------------------------------------
@@ -87,7 +113,6 @@ export const useAuthStore = create<AuthState>()(
                     }
 
                     // 2. Fetch User Profile from 'partners' table
-                    // Using 'ilike' to ensure case-insensitive matching
                     const { data: partnerData, error: dbError } = await supabase
                         .from('partners')
                         .select('*')

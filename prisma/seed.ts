@@ -105,14 +105,14 @@ async function main() {
         password: p.password!,
         imageUrl: p.imageUrl,
         type: p.type as any, // Cast to enum
-        role: role,
+        role: role as any,
         status: p.status as any, // Cast to enum
         subscriptionPlan: p.subscriptionPlan,
         subscriptionEndDate: p.subscriptionEndDate ? new Date(p.subscriptionEndDate) : null,
         displayType: p.displayType || 'standard',
         name: enInfo?.name || p.id,
         nameAr: arInfo?.name || p.id,
-        description: enInfo?.description || '',
+        descriptionEn: enInfo?.description || '',
         descriptionAr: arInfo?.description || '',
         contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : '{}',
       };
@@ -247,15 +247,15 @@ async function main() {
           partnerId: lead.partnerId,
           managerId: lead.managerId,
           propertyId: lead.propertyId,
+          serviceType: lead.serviceType,
+          serviceTitle: lead.serviceTitle,
           customerName: lead.customerName,
           customerPhone: lead.customerPhone,
-          contactTime: lead.contactTime,
-          serviceTitle: lead.serviceTitle,
           customerNotes: lead.customerNotes,
-          status: lead.status,
+          contactTime: lead.contactTime,
+          status: lead.status as any,
           createdAt: new Date(lead.createdAt),
           updatedAt: new Date(lead.updatedAt),
-          serviceType: lead.serviceType,
           assignedTo: lead.assignedTo,
       }))
   });

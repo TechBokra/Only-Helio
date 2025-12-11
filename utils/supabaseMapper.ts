@@ -3,26 +3,33 @@ import type { Partner, AdminPartner, Property, Project, Request } from '../types
 import { Role, RequestType } from '../types';
 
 export const mapPartnerFromDB = (row: any): AdminPartner => {
-    // Fix: Normalize DB role (e.g., 'super_admin') to Enum format ('SUPER_ADMIN')
-    // This prevents the redirection loop where admins are treated as guests/agencies.
+    // Normalize DB role to Enum format
+    // Fallback: If role column is missing/null, default to AGENCY_PARTNER
     let role = row.role ? row.role.toUpperCase() : Role.AGENCY_PARTNER;
+
+    // Handle name mapping: Prefer 'name' column, fallback to combining first/last name
+    let displayName = row.name;
+    if (!displayName && (row.first_name || row.last_name)) {
+        displayName = `${row.first_name || ''} ${row.last_name || ''}`.trim();
+    }
+    if (!displayName) displayName = 'User';
 
     return {
         id: row.id,
         email: row.email,
-        password: row.password, // Added password mapping
-        name: row.name, // English name
-        nameAr: row.name_ar,
-        description: row.description_en,
-        descriptionAr: row.description_ar,
-        imageUrl: row.image_url || '',
-        imageUrl_small: row.image_url,
-        imageUrl_medium: row.image_url,
-        imageUrl_large: row.image_url,
-        type: row.type,
+        password: row.password, 
+        name: displayName,
+        nameAr: row.name_ar || displayName, // Fallback to EN name if AR missing
+        description: row.description_en || row.bio, // Map bio to description if needed
+        descriptionAr: row.description_ar || row.bio,
+        imageUrl: row.image_url || row.company_logo_url || '', // Support both image columns
+        imageUrl_small: row.image_url || row.company_logo_url,
+        imageUrl_medium: row.image_url || row.company_logo_url,
+        imageUrl_large: row.image_url || row.company_logo_url,
+        type: row.type || row.account_type || 'agency', // Map account_type if type is missing
         role: role as Role,
-        status: row.status,
-        subscriptionPlan: row.subscription_plan,
+        status: row.status || (row.is_active ? 'active' : 'pending'),
+        subscriptionPlan: row.subscription_plan || 'basic',
         displayType: row.display_type || 'standard',
         contactMethods: row.contact_methods || { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } },
         createdAt: row.created_at,

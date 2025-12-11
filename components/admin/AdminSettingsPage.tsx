@@ -35,8 +35,8 @@ const AdminSettingsPage: React.FC = () => {
                 },
                 externalConfig: {
                     supabase: {
-                        url: siteContent.externalConfig?.supabase?.url || 'https://zpcpyxmnqffcmehpfkjl.supabase.co',
-                        anonKey: siteContent.externalConfig?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwY3B5eG1ucWZmY21laHBma2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NjQyODksImV4cCI6MjA4MDE0MDI4OX0.HMa2X03op-grt2TM8-omgubclObxkm4NIPehL6XZ4KI'
+                        url: siteContent.externalConfig?.supabase?.url || 'https://eytbyxqtkeutonlkadbl.supabase.co',
+                        anonKey: siteContent.externalConfig?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5dGJ5eHF0a2V1dG9ubGthZGJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTY1ODMsImV4cCI6MjA4MDk3MjU4M30.FmWNGJP_yEeIJpWKLoP7_07rFo5S5hv4A4yD7DOnF00'
                     },
                     cloudinary: {
                         cloudName: siteContent.externalConfig?.cloudinary?.cloudName || 'dwg0hr34g',

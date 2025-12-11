@@ -7,8 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // We check environment variables first, but fall back to the provided instance
 // to ensure the application connects to the live database immediately for the demo/production.
-const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://zpcpyxmnqffcmehpfkjl.supabase.co";
-const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwY3B5eG1ucWZmY21laHBma2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NjQyODksImV4cCI6MjA4MDE0MDI4OX0.HMa2X03op-grt2TM8-omgubclObxkm4NIPehL6XZ4KI";
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://eytbyxqtkeutonlkadbl.supabase.co";
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5dGJ5eHF0a2V1dG9ubGthZGJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTY1ODMsImV4cCI6MjA4MDk3MjU4M30.FmWNGJP_yEeIJpWKLoP7_07rFo5S5hv4A4yD7DOnF00";
 
 // Initialize the Supabase client
 export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY) 
