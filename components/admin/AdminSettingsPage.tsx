@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SiteContent } from '../../types';
-import { inputClasses, selectClasses } from '../ui/FormField';
-import { CloseIcon, PhotoIcon, MegaphoneIcon, CreditCardIcon, BanknotesIcon, WrenchScrewdriverIcon, ChartBarIcon, UsersIcon, BuildingIcon, CubeIcon } from '../ui/Icons';
+import { inputClasses } from '../ui/FormField';
+import { CloseIcon, PhotoIcon, MegaphoneIcon, CreditCardIcon, BanknotesIcon, WrenchScrewdriverIcon, ChartBarIcon, UsersIcon, BuildingIcon, CubeIcon, InboxIcon, SparklesIcon, ClipboardDocumentListIcon, PhoneIcon, SearchIcon } from '../ui/Icons';
 import { getContent, updateContent as updateSiteContent } from '../../services/content';
 import { seedDatabase } from '../../services/seeder';
-import { supabase } from '../../supabaseClient'; // Import supabase directly for stats
+import { supabase } from '../../supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../shared/ToastContext';
 import { useLanguage } from '../shared/LanguageContext';
@@ -36,8 +36,22 @@ const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'general' | 'banner' | 'contact' | 'social' | 'finance' | 'database'>('general');
     const [seeding, setSeeding] = useState(false);
     
-    // New State for Database Stats
-    const [dbStats, setDbStats] = useState({ users: 0, projects: 0, properties: 0 });
+    // Comprehensive DB Stats State
+    const [dbStats, setDbStats] = useState({ 
+        // Core
+        users: 0, 
+        projects: 0, 
+        properties: 0, 
+        // Content
+        portfolio: 0, 
+        categories: 0,
+        // CRM / Requests
+        leads: 0,
+        partnerRequests: 0,
+        propertyRequests: 0,
+        contactRequests: 0,
+        inquiries: 0
+    });
     const [loadingStats, setLoadingStats] = useState(false);
 
     useEffect(() => {
@@ -51,14 +65,37 @@ const AdminSettingsPage: React.FC = () => {
         if (!supabase) return;
         setLoadingStats(true);
         try {
-            const { count: usersCount } = await supabase.from('User').select('*', { count: 'exact', head: true });
-            const { count: projectsCount } = await supabase.from('Project').select('*', { count: 'exact', head: true });
-            const { count: propertiesCount } = await supabase.from('Property').select('*', { count: 'exact', head: true });
+            // Helper to get count safely
+            const getCount = async (table: string) => {
+                try {
+                    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+                    if (error) return 0;
+                    return count || 0;
+                } catch (e) { return 0; }
+            };
+
+            const [
+                users, projects, properties, 
+                portfolio, categories, 
+                leads, partnerReqs, propReqs, contacts, inquiries
+            ] = await Promise.all([
+                getCount('User'),
+                getCount('Project'),
+                getCount('Property'),
+                getCount('PortfolioItem'),
+                getCount('DecorationCategory'),
+                getCount('Lead'),
+                getCount('PartnerRequest'),
+                getCount('PropertyListingRequest'),
+                getCount('ContactRequest'),
+                getCount('PropertyInquiry')
+            ]);
             
             setDbStats({
-                users: usersCount || 0,
-                projects: projectsCount || 0,
-                properties: propertiesCount || 0
+                users, projects, properties,
+                portfolio, categories,
+                leads, partnerRequests: partnerReqs, propertyRequests: propReqs, 
+                contactRequests: contacts, inquiries
             });
         } catch (e) {
             console.error("Error fetching stats", e);
@@ -89,7 +126,7 @@ const AdminSettingsPage: React.FC = () => {
     };
     
     const handleSeedDatabase = async () => {
-        if (!window.confirm("This will synchronize local data to the database. Existing records with same IDs will be updated. Continue?")) return;
+        if (!window.confirm("This will synchronize ALL local data (Core, Content, Requests) to the database. Continue?")) return;
         
         setSeeding(true);
         try {
@@ -129,6 +166,16 @@ const AdminSettingsPage: React.FC = () => {
         </button>
     );
 
+    const StatBox: React.FC<{ label: string, value: number, icon: any, color: string }> = ({ label, value, icon: Icon, color }) => (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
+                <Icon className={`w-5 h-5 ${color} opacity-70`} />
+            </div>
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{loadingStats ? '...' : value}</p>
+        </div>
+    );
+
     return (
         <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t.adminDashboard.nav.settings}</h1>
@@ -148,12 +195,21 @@ const AdminSettingsPage: React.FC = () => {
                     </div>
 
                     <div className="p-6 space-y-6">
-                        {/* ... Existing Tabs (General, Banner, Contact, Social, Finance) ... */}
+                        {/* GENERAL TAB */}
                         {activeTab === 'general' && (
                              <div className="space-y-6 animate-fadeIn">
-                                {/* ... (Keeping existing fields) ... */}
                                 <div><label className="block text-sm font-medium mb-1">Site Description (AR)</label><Textarea {...register('footer.ar.description')} className={inputClasses} rows={3}/></div>
                                 <div><label className="block text-sm font-medium mb-1">Site Description (EN)</label><Textarea {...register('footer.en.description')} className={inputClasses} rows={3}/></div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div><label className="block text-sm font-medium mb-1">Address (AR)</label><Input {...register('footer.ar.address')} className={inputClasses}/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Address (EN)</label><Input {...register('footer.en.address')} className={inputClasses}/></div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div><label className="block text-sm font-medium mb-1">Hours (AR)</label><Input {...register('footer.ar.hours')} className={inputClasses}/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Hours (EN)</label><Input {...register('footer.en.hours')} className={inputClasses}/></div>
+                                </div>
+                                
                                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                                     <label htmlFor="logoUrl" className="block text-sm font-medium mb-2">Site Logo</label>
                                     <div className="flex items-center gap-4">
@@ -163,42 +219,132 @@ const AdminSettingsPage: React.FC = () => {
                                 </div>
                              </div>
                         )}
+
+                        {/* BANNER TAB */}
+                         {activeTab === 'banner' && (
+                            <div className="space-y-6 animate-fadeIn">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Checkbox id="topBanner" {...register('topBanner.enabled')} />
+                                    <label htmlFor="topBanner" className="font-medium cursor-pointer">Enable Top Banner</label>
+                                </div>
+                                <div><label className="block text-sm font-medium mb-1">Banner Text (AR)</label><Input {...register('topBanner.content.ar')} className={inputClasses}/></div>
+                                <div><label className="block text-sm font-medium mb-1">Banner Text (EN)</label><Input {...register('topBanner.content.en')} className={inputClasses}/></div>
+                            </div>
+                        )}
+
+                        {/* CONTACT TAB */}
+                        {activeTab === 'contact' && (
+                            <div className="space-y-6 animate-fadeIn">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Form Routing Strategy</label>
+                                    <Select {...register('contactConfiguration.routing')} className={inputClasses}>
+                                        <option value="internal">Store in CRM Only</option>
+                                        <option value="email">Send Email Only</option>
+                                        <option value="both">Both CRM & Email</option>
+                                    </Select>
+                                </div>
+                                {watchRouting !== 'internal' && (
+                                    <div><label className="block text-sm font-medium mb-1">Target Email for Notifications</label><Input type="email" {...register('contactConfiguration.targetEmail')} className={inputClasses}/></div>
+                                )}
+                                <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                     <div><label className="block text-sm font-medium mb-1">Contact Phone</label><Input {...register('footer.phone')} className={inputClasses}/></div>
+                                     <div><label className="block text-sm font-medium mb-1">Contact Email (Public)</label><Input {...register('footer.email')} className={inputClasses}/></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* FINANCE TAB */}
+                         {activeTab === 'finance' && (
+                            <div className="space-y-8 animate-fadeIn">
+                                <Card>
+                                    <CardHeader><CardTitle className="flex items-center gap-2"><BanknotesIcon className="w-5 h-5 text-amber-500"/> InstaPay Settings</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                         <div className="flex items-center gap-2 mb-2">
+                                            <Checkbox id="instapay-enabled" {...register('paymentConfiguration.instapay.enabled')} />
+                                            <label htmlFor="instapay-enabled" className="font-medium cursor-pointer">Enable InstaPay</label>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div><label className="block text-xs mb-1">Wallet Number</label><Input {...register('paymentConfiguration.instapay.number')} className={inputClasses}/></div>
+                                            <div><label className="block text-xs mb-1">Wallet Name (Optional)</label><Input {...register('paymentConfiguration.instapay.walletName')} className={inputClasses}/></div>
+                                        </div>
+                                         <div><label className="block text-xs mb-1">Payment Link (Optional)</label><Input {...register('paymentConfiguration.instapay.paymentLink')} className={inputClasses} placeholder="https://instapay.app/..."/></div>
+                                         
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div><label className="block text-xs mb-1">Instructions (AR)</label><Textarea {...register('paymentConfiguration.instapay.instructions.ar')} className={inputClasses}/></div>
+                                            <div><label className="block text-xs mb-1">Instructions (EN)</label><Textarea {...register('paymentConfiguration.instapay.instructions.en')} className={inputClasses}/></div>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-xs mb-2">QR Code Image</label>
+                                            <div className="flex items-center gap-4">
+                                                {watchQrCode ? <img src={watchQrCode} alt="QR Preview" className="h-20 bg-white p-1 rounded border" /> : null}
+                                                <Input type="file" accept="image/*" onChange={handleQrCodeChange} />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader><CardTitle className="flex items-center gap-2"><CreditCardIcon className="w-5 h-5 text-blue-500"/> Paymob Settings</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Checkbox id="paymob-enabled" {...register('paymentConfiguration.paymob.enabled')} />
+                                            <label htmlFor="paymob-enabled" className="font-medium cursor-pointer">Enable Paymob (Cards)</label>
+                                        </div>
+                                         <div className="grid grid-cols-1 gap-4">
+                                            <div><label className="block text-xs mb-1">API Key</label><Input type="password" {...register('paymentConfiguration.paymob.apiKey')} className={inputClasses}/></div>
+                                            <div><label className="block text-xs mb-1">Secret Key</label><Input type="password" {...register('paymentConfiguration.paymob.secretKey')} className={inputClasses}/></div>
+                                            <div><label className="block text-xs mb-1">Public Key</label><Input type="text" {...register('paymentConfiguration.paymob.publicKey')} className={inputClasses}/></div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* SOCIAL TAB */}
+                         {activeTab === 'social' && (
+                            <div className="space-y-4 animate-fadeIn">
+                                <div><label className="block text-sm font-medium mb-1">Facebook URL</label><Input {...register('footer.social.facebook')} className={inputClasses}/></div>
+                                <div><label className="block text-sm font-medium mb-1">Twitter URL</label><Input {...register('footer.social.twitter')} className={inputClasses}/></div>
+                                <div><label className="block text-sm font-medium mb-1">Instagram URL</label><Input {...register('footer.social.instagram')} className={inputClasses}/></div>
+                                <div><label className="block text-sm font-medium mb-1">LinkedIn URL</label><Input {...register('footer.social.linkedin')} className={inputClasses}/></div>
+                            </div>
+                        )}
                         
-                        {/* Database Tab */}
+                        {/* DATABASE TAB (Detailed) */}
                         {activeTab === 'database' && (
                             <div className="space-y-6 animate-fadeIn">
-                                {/* Status Panel */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-gray-500">Users/Partners</p>
-                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.users}</p>
-                                        </div>
-                                        <UsersIcon className="w-8 h-8 text-blue-500 opacity-20" />
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-gray-500">Projects</p>
-                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.projects}</p>
-                                        </div>
-                                        <CubeIcon className="w-8 h-8 text-amber-500 opacity-20" />
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-gray-500">Properties</p>
-                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.properties}</p>
-                                        </div>
-                                        <BuildingIcon className="w-8 h-8 text-green-500 opacity-20" />
-                                    </div>
+                                {/* Core Data */}
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Core Data</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                    <StatBox label="Users" value={dbStats.users} icon={UsersIcon} color="text-blue-500" />
+                                    <StatBox label="Projects" value={dbStats.projects} icon={CubeIcon} color="text-amber-500" />
+                                    <StatBox label="Properties" value={dbStats.properties} icon={BuildingIcon} color="text-green-500" />
+                                </div>
+
+                                {/* Content & Services */}
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Services & Content</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                    <StatBox label="Portfolio Items" value={dbStats.portfolio} icon={SparklesIcon} color="text-purple-500" />
+                                    <StatBox label="Decor Categories" value={dbStats.categories} icon={SparklesIcon} color="text-pink-500" />
+                                </div>
+
+                                {/* CRM & Requests */}
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">CRM & Requests</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                                    <StatBox label="General Leads" value={dbStats.leads} icon={InboxIcon} color="text-red-500" />
+                                    <StatBox label="Partner Apps" value={dbStats.partnerRequests} icon={UsersIcon} color="text-indigo-500" />
+                                    <StatBox label="Listing Reqs" value={dbStats.propertyRequests} icon={ClipboardDocumentListIcon} color="text-orange-500" />
+                                    <StatBox label="Search Inquiries" value={dbStats.inquiries} icon={SearchIcon} color="text-teal-500" />
+                                    <StatBox label="Contacts" value={dbStats.contactRequests} icon={PhoneIcon} color="text-cyan-500" />
                                 </div>
 
                                 <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg">
                                     <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                                        <WrenchScrewdriverIcon className="w-5 h-5"/> Database Synchronization
+                                        <WrenchScrewdriverIcon className="w-5 h-5"/> Full Database Synchronization
                                     </h3>
                                     <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
-                                        Push your local mock data (Partners, Projects, Properties) to Supabase. 
-                                        This operation uses "Upsert", so it is safe to run multiple times without creating duplicates.
+                                        Push all mock data (Core, Content, Requests) to Supabase. This uses "Upsert", so it is safe to run multiple times.
                                     </p>
                                     <div className="flex gap-3">
                                         <Button 
@@ -207,7 +353,7 @@ const AdminSettingsPage: React.FC = () => {
                                             isLoading={seeding}
                                             className="bg-blue-600 hover:bg-blue-700 text-white"
                                         >
-                                            Sync Mock Data to Database
+                                            Sync All Mock Data
                                         </Button>
                                         <Button
                                             type="button"
