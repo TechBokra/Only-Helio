@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SiteContent } from '../../types';
 import { inputClasses, selectClasses } from '../ui/FormField';
-import { CloseIcon, PhotoIcon, MegaphoneIcon, CreditCardIcon, BanknotesIcon, WrenchScrewdriverIcon } from '../ui/Icons'; // Updated imports
+import { CloseIcon, PhotoIcon, MegaphoneIcon, CreditCardIcon, BanknotesIcon, WrenchScrewdriverIcon, ChartBarIcon, UsersIcon, BuildingIcon, CubeIcon } from '../ui/Icons';
 import { getContent, updateContent as updateSiteContent } from '../../services/content';
-import { seedDatabase } from '../../services/seeder'; // Import Seeder
+import { seedDatabase } from '../../services/seeder';
+import { supabase } from '../../supabaseClient'; // Import supabase directly for stats
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../shared/ToastContext';
 import { useLanguage } from '../shared/LanguageContext';
@@ -34,12 +35,44 @@ const AdminSettingsPage: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<'general' | 'banner' | 'contact' | 'social' | 'finance' | 'database'>('general');
     const [seeding, setSeeding] = useState(false);
+    
+    // New State for Database Stats
+    const [dbStats, setDbStats] = useState({ users: 0, projects: 0, properties: 0 });
+    const [loadingStats, setLoadingStats] = useState(false);
 
     useEffect(() => {
         if (siteContent) {
             reset(siteContent); 
         }
     }, [siteContent, reset]);
+
+    // Fetch DB Stats Function
+    const fetchDbStats = async () => {
+        if (!supabase) return;
+        setLoadingStats(true);
+        try {
+            const { count: usersCount } = await supabase.from('User').select('*', { count: 'exact', head: true });
+            const { count: projectsCount } = await supabase.from('Project').select('*', { count: 'exact', head: true });
+            const { count: propertiesCount } = await supabase.from('Property').select('*', { count: 'exact', head: true });
+            
+            setDbStats({
+                users: usersCount || 0,
+                projects: projectsCount || 0,
+                properties: propertiesCount || 0
+            });
+        } catch (e) {
+            console.error("Error fetching stats", e);
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+
+    // Fetch stats when tab changes to database
+    useEffect(() => {
+        if (activeTab === 'database') {
+            fetchDbStats();
+        }
+    }, [activeTab]);
 
     const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -62,6 +95,7 @@ const AdminSettingsPage: React.FC = () => {
         try {
             const message = await seedDatabase();
             showToast(message, 'success');
+            await fetchDbStats(); // Refresh stats after seeding
         } catch (error: any) {
             console.error(error);
             showToast(`Seeding Failed: ${error.message}`, 'error');
@@ -130,10 +164,34 @@ const AdminSettingsPage: React.FC = () => {
                              </div>
                         )}
                         
-                        {/* Only rendering minimal existing tabs for brevity in this update, assuming previous code is retained for other tabs */}
-                        
+                        {/* Database Tab */}
                         {activeTab === 'database' && (
                             <div className="space-y-6 animate-fadeIn">
+                                {/* Status Panel */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Users/Partners</p>
+                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.users}</p>
+                                        </div>
+                                        <UsersIcon className="w-8 h-8 text-blue-500 opacity-20" />
+                                    </div>
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Projects</p>
+                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.projects}</p>
+                                        </div>
+                                        <CubeIcon className="w-8 h-8 text-amber-500 opacity-20" />
+                                    </div>
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Properties</p>
+                                            <p className="text-2xl font-bold text-gray-800">{loadingStats ? '...' : dbStats.properties}</p>
+                                        </div>
+                                        <BuildingIcon className="w-8 h-8 text-green-500 opacity-20" />
+                                    </div>
+                                </div>
+
                                 <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg">
                                     <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
                                         <WrenchScrewdriverIcon className="w-5 h-5"/> Database Synchronization
@@ -142,14 +200,24 @@ const AdminSettingsPage: React.FC = () => {
                                         Push your local mock data (Partners, Projects, Properties) to Supabase. 
                                         This operation uses "Upsert", so it is safe to run multiple times without creating duplicates.
                                     </p>
-                                    <Button 
-                                        type="button" 
-                                        onClick={handleSeedDatabase} 
-                                        isLoading={seeding}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                    >
-                                        Sync Mock Data to Database
-                                    </Button>
+                                    <div className="flex gap-3">
+                                        <Button 
+                                            type="button" 
+                                            onClick={handleSeedDatabase} 
+                                            isLoading={seeding}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        >
+                                            Sync Mock Data to Database
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={fetchDbStats}
+                                            disabled={loadingStats}
+                                        >
+                                            Refresh Stats
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         )}
