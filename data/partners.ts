@@ -51,6 +51,15 @@ export let partnersData: Omit<Partner, 'name' | 'description' | 'role'>[] = [
         subscriptionEndDate: '2026-12-31T00:00:00Z', displayType: 'mega_project',
         contactMethods: { whatsapp: { enabled: false, number: '' }, phone: { enabled: false, number: '' }, form: { enabled: true } },
     },
+    {
+        id: 'alrowad-engineering',
+        imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=75&w=2070&auto=format&fit=crop',
+        email: 'alrowad@onlyhelio.com',
+        password: 'password',
+        type: 'developer', status: 'active', subscriptionPlan: 'professional',
+        subscriptionEndDate: '2025-12-31T00:00:00Z', displayType: 'featured',
+        contactMethods: { whatsapp: { enabled: true, number: '+201055555555' }, phone: { enabled: true, number: '+201055555555' }, form: { enabled: true } },
+    },
     // Finishing Companies
     {
         id: 'el-mottaheda-group',
