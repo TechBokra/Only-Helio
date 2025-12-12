@@ -17,10 +17,13 @@ const mapDbToProperty = (row: any): Property => {
         title: { en: row.title_en, ar: row.title_ar },
         description: { en: row.description_en, ar: row.description_ar },
         address: { en: row.address_en, ar: row.address_ar },
-        imageUrl: row.imageUrl,
-        imageUrl_small: row.imageUrl, 
-        imageUrl_medium: row.imageUrl,
-        imageUrl_large: row.imageUrl,
+        
+        // Map snake_case DB columns to camelCase frontend properties
+        imageUrl: row.image_url || row.imageUrl,
+        imageUrl_small: row.image_url || row.imageUrl, 
+        imageUrl_medium: row.image_url || row.imageUrl,
+        imageUrl_large: row.image_url || row.imageUrl,
+        
         gallery: row.gallery || [],
         status: { 
             en: (row.listing_status || row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
@@ -34,21 +37,28 @@ const mapDbToProperty = (row: any): Property => {
         floor: row.floor,
         type: { en: row.type_en, ar: row.type_ar },
         finishingStatus: row.finishingStatus_en ? { en: row.finishingStatus_en, ar: row.finishingStatus_ar } : undefined,
+        
+        // Key Mappings
         listingStatus: row.listing_status || row.listingStatus,
         listingStartDate: row.listing_start_date || row.listingStartDate,
+        
         amenities: {
             en: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_en) || [],
             ar: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_ar) || []
         },
         location: row.location || { lat: 30.0, lng: 31.0 },
+        
+        // Boolean mappings
         isInCompound: row.is_in_compound !== undefined ? row.is_in_compound : row.isInCompound,
         installmentsAvailable: row.installments_available !== undefined ? row.installments_available : row.installmentsAvailable,
         realEstateFinanceAvailable: row.real_estate_finance_available !== undefined ? row.real_estate_finance_available : row.realEstateFinanceAvailable,
+        
         delivery: {
             isImmediate: row.delivery_immediate !== undefined ? row.delivery_immediate : row.deliveryImmediate,
             date: row.delivery_date || row.deliveryDate
         },
         installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
+        
         contactMethod: row.contact_method || row.contactMethod,
         ownerPhone: row.owner_phone || row.ownerPhone,
     };
@@ -191,16 +201,28 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_en: property.type.en,
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
-        listing_status: property.listingStatus, // snake_case
-        imageUrl: property.imageUrl,
+        
+        // Use snake_case for DB columns
+        listing_status: property.listingStatus, 
+        image_url: property.imageUrl,
+        
         gallery: property.gallery,
         location: property.location,
-        is_in_compound: property.isInCompound, // snake_case
-        installments_available: property.installmentsAvailable, // snake_case
-        real_estate_finance_available: property.realEstateFinanceAvailable, // snake_case
-        delivery_immediate: property.delivery.isImmediate, // snake_case
-        delivery_date: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, // snake_case
+        
+        is_in_compound: property.isInCompound, 
+        installments_available: property.installmentsAvailable, 
+        real_estate_finance_available: property.realEstateFinanceAvailable, 
+        
+        delivery_immediate: property.delivery.isImmediate, 
+        delivery_date: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, 
+        
         installments: property.installments,
+        
+        contact_method: property.contactMethod,
+        owner_phone: property.ownerPhone,
+        
+        listing_start_date: property.listingStartDate ? new Date(property.listingStartDate).toISOString() : null,
+        
         createdAt: new Date().toISOString()
     };
 
@@ -220,9 +242,13 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     }
 
     const dbUpdates: any = {};
-    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus; // snake_case
-    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate; // snake_case
-    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate; // snake_case
+    // Map camelCase updates to snake_case DB columns
+    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
+    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
+    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
+    if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
+    if (updates.ownerPhone) dbUpdates.owner_phone = updates.ownerPhone;
+    if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
     
     // Add other fields as needed for updates...
     

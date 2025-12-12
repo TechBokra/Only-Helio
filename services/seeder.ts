@@ -78,16 +78,9 @@ export const seedDatabase = async () => {
         type_ar: p.type.ar,
         status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         
-        // Use snake_case for DB columns
+        // Correct snake_case column names for Supabase
         listing_status: p.listingStatus,
-        image_url: p.imageUrl, // Map imageUrl to image_url if consistent with snake_case schema
-        // Fallback: If DB uses imageUrl (mixed case), we might need to revert this specific one, 
-        // but let's assume consistent snake_case for new/migrated tables. 
-        // NOTE: Keeping 'imageUrl' key if it matches previous usage in projects/users, 
-        // but Properties often use snake_case in this context. 
-        // Reverting to `imageUrl` based on error log only mentioning deliveryDate, but let's be safe with others.
-        // Actually, let's stick to the specific fix for the reported error first to minimize regression risk.
-        imageUrl: p.imageUrl, 
+        image_url: p.imageUrl, 
         
         gallery: p.gallery,
         location: p.location,
@@ -106,8 +99,14 @@ export const seedDatabase = async () => {
         contact_method: p.contactMethod,
         owner_phone: p.ownerPhone
     }));
+    
     const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
-    if (propError) throw new Error(`Properties Sync Error: ${propError.message}`);
+    
+    // Detailed error logging for debugging
+    if (propError) {
+        console.error("Supabase Property Error Details:", propError);
+        throw new Error(`Properties Sync Error: ${propError.message} - Hint: ${propError.hint || 'No hint'}`);
+    }
 
     // 4. Sync Decoration Categories
     const decCatPayload = decorationCategoriesData.map(c => ({
