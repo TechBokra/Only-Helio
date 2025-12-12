@@ -167,8 +167,12 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         return newMock;
     }
 
+    // Generate a UUID for the new property to ensure 'id' is not null
+    const newId = crypto.randomUUID();
+
     // Ensure strict null checks for optional foreign keys and proper JSON formats
     const dbPayload = {
+        id: newId,
         partnerId: property.partnerId,
         // CRITICAL FIX: If projectId is falsy (empty string, undefined), make it explicitly NULL
         projectId: property.projectId ? property.projectId : null, 
@@ -218,7 +222,6 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         contactMethod: property.contactMethod || 'platform',
         ownerPhone: property.ownerPhone || null,
         
-        // Re-enabled as we will fix DB schema
         listingStartDate: new Date().toISOString(),
         
         createdAt: new Date().toISOString()
