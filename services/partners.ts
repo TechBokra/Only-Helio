@@ -59,7 +59,7 @@ export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
     const { data, error } = await supabase.from('User').select('*');
     if (error) return mapMockData() as unknown as AdminPartner[];
     
-    return data.map(row => {
+    return data.map((row: any) => {
         const p = mapDbToPartner(row);
         return {
             ...p,
