@@ -1,7 +1,10 @@
 
 // Cloudinary Configuration
-const CLOUDINARY_CLOUD_NAME = 'Onlyhelio';
-const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads';
+// To enable Cloudinary, add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your .env file
+// @ts-ignore
+const CLOUDINARY_CLOUD_NAME = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || '';
+// @ts-ignore
+const CLOUDINARY_UPLOAD_PRESET = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 /**
  * Uploads a file to Cloudinary.

@@ -1,153 +1,178 @@
-
+import { supabase } from '../supabaseClient';
 import { leadsData as initialLeadsData } from '../data/leads';
 import type { Lead, LeadStatus, LeadMessage } from '../types';
 import { getPartnerById } from './partners';
 import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let leadsData: Lead[] = [...initialLeadsData];
+// Helper to map DB row to Lead
+const mapDbToLead = (row: any): Lead => ({
+    id: row.id,
+    partnerId: row.partnerId,
+    managerId: row.managerId,
+    propertyId: row.propertyId,
+    serviceType: row.serviceType,
+    customerName: row.customerName,
+    customerPhone: row.customerPhone,
+    contactTime: row.contactTime,
+    serviceTitle: row.serviceTitle,
+    customerNotes: row.notes,
+    status: row.status,
+    assignedTo: row.assignedTo,
+    referenceImage: row.referenceImage, // Assuming JSONB or column exists
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    partnerName: row.partner?.name || 'Unknown',
+    // Map messages relation if joined
+    messages: (row.messages || []).map((msg: any) => ({
+        id: msg.id || `msg-${Math.random()}`,
+        sender: msg.sender,
+        senderId: msg.senderId,
+        type: msg.type,
+        content: msg.content,
+        timestamp: msg.timestamp || msg.createdAt
+    }))
+});
 
-const SIMULATED_DELAY = 300;
-
-const populateLeadWithPartnerInfo = async (lead: Lead): Promise<Lead & { partnerName?: string }> => {
-    const partner = await getPartnerById(lead.partnerId);
-    return { ...lead, partnerName: partner?.name };
+export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> => {
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase
+        .from('Lead')
+        .select(`*, partner:User!partnerId(name), messages:LeadMessage(*)`)
+        .eq('partnerId', partnerId)
+        .order('createdAt', { ascending: false });
+        
+    if (error) {
+        console.error('Fetch partner leads failed:', error);
+        return [];
+    }
+    return data.map(mapDbToLead);
 };
 
-export const getLeadsByPartnerId = (partnerId: string): Promise<Lead[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const partnerLeads = leadsData.filter(l => l.partnerId === partnerId)
-                                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            resolve(partnerLeads);
-        }, SIMULATED_DELAY);
-    });
+export const getLeadById = async (leadId: string): Promise<Lead | undefined> => {
+    if (!supabase) return undefined;
+
+    const { data, error } = await supabase
+        .from('Lead')
+        .select(`*, partner:User!partnerId(name), messages:LeadMessage(*)`)
+        .eq('id', leadId)
+        .single();
+
+    if (error) return undefined;
+    return mapDbToLead(data);
 };
 
-export const getLeadById = (leadId: string): Promise<Lead | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-            const lead = leadsData.find(l => l.id === leadId);
-            if (lead) {
-                resolve(await populateLeadWithPartnerInfo(lead));
-            } else {
-                resolve(undefined);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]> => {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('Lead')
+        .select(`*, partner:User!partnerId(name), messages:LeadMessage(*)`)
+        .order('createdAt', { ascending: false });
+
+    if (error) {
+        console.error('Fetch all leads failed:', error);
+        return [];
+    }
+    return data.map(mapDbToLead);
 };
 
-export const getAllLeads = (): Promise<(Lead & { partnerName?: string })[]> => {
-    return new Promise(async (resolve) => {
-        setTimeout(async () => {
-            const populatedLeadsPromises = leadsData.map(populateLeadWithPartnerInfo);
-            const populatedLeads = await Promise.all(populatedLeadsPromises);
-            const allLeads = populatedLeads
-                                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            resolve(allLeads);
-        }, SIMULATED_DELAY);
+export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
+    if (!supabase) throw new Error("Supabase not connected");
+
+    const now = new Date().toISOString();
+    const newLead = {
+        partnerId: leadData.partnerId,
+        managerId: leadData.managerId,
+        propertyId: leadData.propertyId,
+        serviceType: leadData.serviceType,
+        customerName: leadData.customerName,
+        customerPhone: leadData.customerPhone,
+        serviceTitle: leadData.serviceTitle,
+        contactTime: leadData.contactTime,
+        notes: leadData.customerNotes,
+        status: 'new',
+        createdAt: now,
+        updatedAt: now
+    };
+
+    const { data, error } = await supabase.from('Lead').insert(newLead).select().single();
+    if (error) throw error;
+
+    // Send notification
+    const targetUserId = leadData.managerId || leadData.partnerId;
+    const link = leadData.managerId 
+        ? (leadData.serviceType === 'finishing' ? '/admin/finishing-requests' : '/admin/decoration-requests')
+        : '/dashboard/leads';
+
+    addNotification({
+        userId: targetUserId,
+        message: {
+            ar: `لديك طلب عميل جديد من "${leadData.customerName}".`,
+            en: `New lead from "${leadData.customerName}".`,
+        },
+        link: link,
     });
+
+    return mapDbToLead(data);
 };
 
-export const addLead = (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const now = new Date().toISOString();
-            
-            const newLead: Lead = {
-                ...leadData,
-                id: `lead-${Date.now()}`,
-                status: 'new',
-                createdAt: now,
-                updatedAt: now,
-                messages: [],
-            };
-            leadsData.unshift(newLead);
+export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead | undefined> => {
+    if (!supabase) return undefined;
 
-            const targetUserId = newLead.managerId || newLead.partnerId;
-            const link = newLead.managerId 
-                ? (newLead.serviceType === 'finishing' ? '/admin/finishing-requests' : '/admin/decoration-requests')
-                : '/dashboard/leads';
+    const dbUpdates: any = { updatedAt: new Date().toISOString() };
+    if (updates.status) dbUpdates.status = updates.status;
+    if (updates.assignedTo) dbUpdates.assignedTo = updates.assignedTo;
+    if (updates.customerNotes) dbUpdates.notes = updates.customerNotes;
 
-            addNotification({
-                userId: targetUserId,
-                message: {
-                  ar: `لديك طلب عميل جديد من "${newLead.customerName}".`,
-                  en: `New lead from "${newLead.customerName}".`,
-                },
-                link: link,
-            });
+    const { data, error } = await supabase.from('Lead').update(dbUpdates).eq('id', leadId).select().single();
+    
+    if (error) throw error;
 
-            resolve(newLead);
-        }, SIMULATED_DELAY);
-    });
+    // Handle System Note for status change
+    if (updates.status) {
+         await addMessageToLead(leadId, {
+            sender: 'system',
+            type: 'note',
+            content: `Status changed to "${updates.status}".`
+         });
+    }
+
+    return mapDbToLead(data);
 };
 
-export const updateLead = (leadId: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const leadIndex = leadsData.findIndex(l => l.id === leadId);
-            if (leadIndex > -1) {
-                const lead = { ...leadsData[leadIndex] };
-                const now = new Date().toISOString();
+export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Lead | undefined> => {
+    if (!supabase) return undefined;
 
-                // Check for status change and create a system message
-                if (updates.status && updates.status !== lead.status) {
-                    const systemMessage: LeadMessage = {
-                        id: `msg-sys-${Date.now()}`,
-                        sender: 'system',
-                        type: 'note',
-                        content: `Status changed from "${lead.status}" to "${updates.status}".`,
-                        timestamp: now,
-                    };
-                    lead.messages.push(systemMessage);
-                }
+    const newMessage = {
+        leadId,
+        sender: messageData.sender,
+        senderId: messageData.senderId,
+        type: messageData.type,
+        content: messageData.content,
+        timestamp: new Date().toISOString()
+    };
 
-                leadsData[leadIndex] = { ...lead, ...updates, updatedAt: now };
-                resolve(leadsData[leadIndex]);
-            } else {
-                resolve(undefined);
-            }
-        }, SIMULATED_DELAY);
-    });
+    const { error } = await supabase.from('LeadMessage').insert(newMessage);
+    if (error) throw error;
+
+    // Update Lead 'updatedAt'
+    await supabase.from('Lead').update({ updatedAt: new Date().toISOString() }).eq('id', leadId);
+
+    // If first response, update status to contacted
+    if (messageData.sender === 'partner' || messageData.sender === 'admin') {
+         const lead = await getLeadById(leadId);
+         if (lead && lead.status === 'new') {
+             await updateLead(leadId, { status: 'contacted' });
+         }
+    }
+
+    return getLeadById(leadId);
 };
 
-export const addMessageToLead = (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Lead | undefined> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            const leadIndex = leadsData.findIndex(l => l.id === leadId);
-            if (leadIndex > -1) {
-                const lead = leadsData[leadIndex];
-                const newMessage: LeadMessage = {
-                    ...messageData,
-                    id: `msg-${leadId}-${Date.now()}`,
-                    timestamp: new Date().toISOString(),
-                };
-                lead.messages.push(newMessage);
-                lead.updatedAt = new Date().toISOString();
-                
-                if (lead.status === 'new' && (messageData.sender === 'partner' || messageData.sender === 'admin')) {
-                    lead.status = 'contacted';
-                }
-
-                resolve(lead);
-            } else {
-                reject(new Error('Lead not found'));
-            }
-        }, SIMULATED_DELAY);
-    });
-};
-
-export const deleteLead = (leadId: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = leadsData.length;
-            leadsData = leadsData.filter(l => l.id !== leadId);
-            if (leadsData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const deleteLead = async (leadId: string): Promise<boolean> => {
+    if (!supabase) return false;
+    const { error } = await supabase.from('Lead').delete().eq('id', leadId);
+    if (error) throw error;
+    return true;
 };
