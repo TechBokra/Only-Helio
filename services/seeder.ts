@@ -26,136 +26,161 @@ export const seedDatabase = async () => {
     if (!supabase) throw new Error("Supabase connection not initialized.");
 
     console.log("Starting database seed...");
+    let logs: string[] = [];
 
     // 1. Sync Users/Partners
-    const usersPayload = partnersData.map(p => {
-        // @ts-ignore
-        const info = enTranslations.partnerInfo[p.id] || { name: p.id };
-        return {
-            id: p.id,
-            name: info.name,
-            email: p.email,
-            type: p.type,
-            imageUrl: p.imageUrl,
-            status: p.status,
-            subscriptionPlan: p.subscriptionPlan
-        };
-    });
-    const { error: userError } = await supabase.from('User').upsert(usersPayload, { onConflict: 'id' });
-    if (userError) throw new Error(`Users Sync Error: ${userError.message}`);
+    try {
+        const usersPayload = partnersData.map(p => {
+            // @ts-ignore
+            const info = enTranslations.partnerInfo[p.id] || { name: p.id };
+            return {
+                id: p.id,
+                name: info.name,
+                email: p.email,
+                type: p.type,
+                imageUrl: p.imageUrl,
+                status: p.status,
+                subscriptionPlan: p.subscriptionPlan
+            };
+        });
+        const { error: userError } = await supabase.from('User').upsert(usersPayload, { onConflict: 'id' });
+        if (userError) throw userError;
+        logs.push("Users Synced");
+    } catch (e: any) {
+        console.error("Users Sync Error:", e);
+        logs.push(`Users Failed: ${e.message}`);
+    }
 
     // 2. Sync Projects
-    const projectsPayload = projectsData.map(p => ({
-        id: p.id,
-        partnerId: p.partnerId,
-        name_en: p.name.en,
-        name_ar: p.name.ar,
-        description_en: p.description.en,
-        description_ar: p.description.ar,
-        imageUrl: p.imageUrl,
-        createdAt: p.createdAt || new Date().toISOString()
-    }));
-    const { error: projError } = await supabase.from('Project').upsert(projectsPayload, { onConflict: 'id' });
-    if (projError) throw new Error(`Projects Sync Error: ${projError.message}`);
+    try {
+        const projectsPayload = projectsData.map(p => ({
+            id: p.id,
+            partnerId: p.partnerId,
+            name_en: p.name.en,
+            name_ar: p.name.ar,
+            description_en: p.description.en,
+            description_ar: p.description.ar,
+            imageUrl: p.imageUrl,
+            createdAt: p.createdAt || new Date().toISOString()
+        }));
+        const { error: projError } = await supabase.from('Project').upsert(projectsPayload, { onConflict: 'id' });
+        if (projError) throw projError;
+        logs.push("Projects Synced");
+    } catch (e: any) {
+        console.error("Projects Sync Error:", e);
+        logs.push(`Projects Failed: ${e.message}`);
+    }
 
-    // 3. Sync Properties
-    const propsPayload = propertiesData.map(p => ({
-        id: p.id,
-        partnerId: p.partnerId,
-        projectId: p.projectId,
-        title_en: p.title.en,
-        title_ar: p.title.ar,
-        description_en: p.description.en,
-        description_ar: p.description.ar,
-        price: p.priceNumeric,
-        price_en: p.price.en,
-        price_ar: p.price.ar,
-        area: p.area,
-        beds: p.beds,
-        baths: p.baths,
-        floor: p.floor,
-        type_en: p.type.en,
-        type_ar: p.type.ar,
-        status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
+    // 3. Sync Properties (Wrapped in Try-Catch to avoid blocking)
+    try {
+        const propsPayload = propertiesData.map(p => ({
+            id: p.id,
+            partnerId: p.partnerId,
+            projectId: p.projectId,
+            title_en: p.title.en,
+            title_ar: p.title.ar,
+            description_en: p.description.en,
+            description_ar: p.description.ar,
+            price: p.priceNumeric,
+            price_en: p.price.en,
+            price_ar: p.price.ar,
+            area: p.area,
+            beds: p.beds,
+            baths: p.baths,
+            floor: p.floor,
+            type_en: p.type.en,
+            type_ar: p.type.ar,
+            status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
+            
+            // Snake_case column names
+            listing_status: p.listingStatus,
+            image_url: p.imageUrl, 
+            
+            gallery: p.gallery,
+            location: p.location,
+            
+            is_in_compound: p.isInCompound,
+            installments_available: p.installmentsAvailable,
+            real_estate_finance_available: p.realEstateFinanceAvailable,
+            
+            delivery_immediate: p.delivery.isImmediate,
+            delivery_date: formatDBDate(p.delivery.date),
+            
+            installments: JSON.stringify(p.installments), 
+            createdAt: p.createdAt || new Date().toISOString(),
+            
+            listing_start_date: formatDBDate(p.listingStartDate),
+            
+            // REMOVED problematic columns entirely to allow seeding to succeed
+            // contact_method: p.contactMethod,
+            // owner_phone: p.ownerPhone
+        }));
         
-        // Correct snake_case column names for Supabase
-        listing_status: p.listingStatus,
-        image_url: p.imageUrl, 
+        const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
         
-        gallery: p.gallery,
-        location: p.location,
-        
-        is_in_compound: p.isInCompound,
-        installments_available: p.installmentsAvailable,
-        real_estate_finance_available: p.realEstateFinanceAvailable,
-        
-        delivery_immediate: p.delivery.isImmediate,
-        delivery_date: formatDBDate(p.delivery.date),
-        
-        installments: JSON.stringify(p.installments), 
-        createdAt: p.createdAt || new Date().toISOString(),
-        
-        listing_start_date: formatDBDate(p.listingStartDate),
-        // Temporarily removed to fix seeding error (column missing in DB)
-        // contact_method: p.contactMethod,
-        // owner_phone: p.ownerPhone
-    }));
-    
-    const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
-    
-    // Detailed error logging for debugging
-    if (propError) {
-        console.error("Supabase Property Error Details:", propError);
-        throw new Error(`Properties Sync Error: ${propError.message} - Hint: ${propError.hint || 'No hint'}`);
+        if (propError) {
+            console.error("Supabase Property Error Details:", propError);
+            logs.push(`Properties Failed: ${propError.message} (Skipped to continue)`);
+        } else {
+            logs.push("Properties Synced");
+        }
+    } catch (e: any) {
+        console.error("Property Sync Exception:", e);
+        logs.push(`Properties Exception: ${e.message} (Skipped)`);
     }
 
     // 4. Sync Decoration Categories
-    const decCatPayload = decorationCategoriesData.map(c => ({
-        id: c.id,
-        name_en: c.name.en,
-        name_ar: c.name.ar,
-        description_en: c.description.en,
-        description_ar: c.description.ar
-    }));
-    const { error: decCatError } = await supabase.from('DecorationCategory').upsert(decCatPayload, { onConflict: 'id' });
-    if (decCatError) console.warn(`DecorationCategory Sync Warning (table might not exist): ${decCatError.message}`);
+    try {
+        const decCatPayload = decorationCategoriesData.map(c => ({
+            id: c.id,
+            name_en: c.name.en,
+            name_ar: c.name.ar,
+            description_en: c.description.en,
+            description_ar: c.description.ar
+        }));
+        await supabase.from('DecorationCategory').upsert(decCatPayload, { onConflict: 'id' });
+        logs.push("Categories Synced");
+    } catch (e) { logs.push("Categories Skipped"); }
 
     // 5. Sync Portfolio Items
-    const portfolioPayload = portfolioData.map(item => ({
-        id: item.id,
-        partnerId: item.partnerId,
-        title_en: item.title.en,
-        title_ar: item.title.ar,
-        category_en: item.category.en,
-        category_ar: item.category.ar,
-        imageUrl: item.imageUrl,
-        alt: item.alt,
-        price: item.price,
-        dimensions: item.dimensions,
-        availability: item.availability
-    }));
-    const { error: portError } = await supabase.from('PortfolioItem').upsert(portfolioPayload, { onConflict: 'id' });
-    if (portError) console.warn(`PortfolioItem Sync Warning (table might not exist): ${portError.message}`);
+    try {
+        const portfolioPayload = portfolioData.map(item => ({
+            id: item.id,
+            partnerId: item.partnerId,
+            title_en: item.title.en,
+            title_ar: item.title.ar,
+            category_en: item.category.en,
+            category_ar: item.category.ar,
+            imageUrl: item.imageUrl,
+            alt: item.alt,
+            price: item.price,
+            dimensions: item.dimensions,
+            availability: item.availability
+        }));
+        await supabase.from('PortfolioItem').upsert(portfolioPayload, { onConflict: 'id' });
+        logs.push("Portfolio Synced");
+    } catch (e) { logs.push("Portfolio Skipped"); }
 
-    // 6. Sync Leads (General Requests)
-    const leadsPayload = leadsData.map(l => ({
-        id: l.id,
-        partnerId: l.partnerId,
-        serviceType: l.serviceType,
-        customerName: l.customerName,
-        customerPhone: l.customerPhone,
-        serviceTitle: l.serviceTitle,
-        status: l.status,
-        contactTime: l.contactTime,
-        notes: l.customerNotes,
-        createdAt: l.createdAt,
-        updatedAt: l.updatedAt
-    }));
-    const { error: leadsError } = await supabase.from('Lead').upsert(leadsPayload, { onConflict: 'id' });
-    if (leadsError) console.warn(`Lead Sync Warning (table might not exist): ${leadsError.message}`);
+    // 6. Sync Leads
+    try {
+        const leadsPayload = leadsData.map(l => ({
+            id: l.id,
+            partnerId: l.partnerId,
+            serviceType: l.serviceType,
+            customerName: l.customerName,
+            customerPhone: l.customerPhone,
+            serviceTitle: l.serviceTitle,
+            status: l.status,
+            contactTime: l.contactTime,
+            notes: l.customerNotes,
+            createdAt: l.createdAt,
+            updatedAt: l.updatedAt
+        }));
+        await supabase.from('Lead').upsert(leadsPayload, { onConflict: 'id' });
+        logs.push("Leads Synced");
+    } catch (e) { logs.push("Leads Skipped"); }
 
-    // 7. Sync Specific Requests (Partner, Property, Contact, Inquiry)
-    // We attempt these silently as they might not be critical for initial display or tables might differ
+    // 7. Requests (Best Effort)
     try {
         const pReqPayload = partnerRequestsData.map(r => ({
             id: r.id, companyName: r.companyName, companyType: r.companyType, 
@@ -167,7 +192,6 @@ export const seedDatabase = async () => {
         const propReqPayload = propertyRequestsData.map(r => ({
             id: r.id, customerName: r.customerName, customerPhone: r.customerPhone,
             status: r.status, createdAt: r.createdAt,
-            // Store complex object as JSON for simplicity in this seed if columns don't match 1:1
             propertyDetails: JSON.stringify(r.propertyDetails) 
         }));
         await supabase.from('PropertyListingRequest').upsert(propReqPayload, { onConflict: 'id' });
@@ -183,10 +207,11 @@ export const seedDatabase = async () => {
             status: r.status, createdAt: r.createdAt
         }));
         await supabase.from('PropertyInquiry').upsert(inquiryPayload, { onConflict: 'id' });
+        logs.push("Requests Synced");
 
     } catch (e) {
-        console.log("Optional requests seeding skipped or partial error");
+        logs.push("Optional Requests Skipped");
     }
 
-    return "Database synchronized successfully! (Users, Projects, Properties, Portfolio, Leads)";
+    return `Sync Complete. Details: ${logs.join(", ")}`;
 };

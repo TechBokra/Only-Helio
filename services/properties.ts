@@ -218,9 +218,7 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         
         installments: property.installments,
         
-        // Temporarily hidden to fix errors
-        // contact_method: property.contactMethod,
-        // owner_phone: property.ownerPhone,
+        // Removed bad columns
         
         listing_start_date: property.listingStartDate ? new Date(property.listingStartDate).toISOString() : null,
         
@@ -247,9 +245,7 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
     if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
     if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
-    // Temporarily hidden to fix errors
-    // if (updates.contactMethod) dbUpdates.contact_method = updates.contactMethod;
-    // if (updates.ownerPhone) dbUpdates.owner_phone = updates.ownerPhone;
+    // Removed bad columns
     if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
     
     // Add other fields as needed for updates...
