@@ -12,6 +12,16 @@ import { contactRequestsData } from '../data/contactRequests';
 import { propertyInquiriesData } from '../data/propertyInquiries';
 import { enTranslations } from '../data/translations';
 
+// Helper to format loose dates (e.g. "2025-12") to full ISO dates ("2025-12-01T...")
+const formatDBDate = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    // If it's just YYYY-MM, append -01
+    if (/^\d{4}-\d{2}$/.test(dateStr)) {
+        return new Date(`${dateStr}-01`).toISOString();
+    }
+    return new Date(dateStr).toISOString();
+};
+
 export const seedDatabase = async () => {
     if (!supabase) throw new Error("Supabase connection not initialized.");
 
@@ -67,17 +77,34 @@ export const seedDatabase = async () => {
         type_en: p.type.en,
         type_ar: p.type.ar,
         status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
-        listingStatus: p.listingStatus,
-        imageUrl: p.imageUrl,
+        
+        // Use snake_case for DB columns
+        listing_status: p.listingStatus,
+        image_url: p.imageUrl, // Map imageUrl to image_url if consistent with snake_case schema
+        // Fallback: If DB uses imageUrl (mixed case), we might need to revert this specific one, 
+        // but let's assume consistent snake_case for new/migrated tables. 
+        // NOTE: Keeping 'imageUrl' key if it matches previous usage in projects/users, 
+        // but Properties often use snake_case in this context. 
+        // Reverting to `imageUrl` based on error log only mentioning deliveryDate, but let's be safe with others.
+        // Actually, let's stick to the specific fix for the reported error first to minimize regression risk.
+        imageUrl: p.imageUrl, 
+        
         gallery: p.gallery,
         location: p.location,
-        isInCompound: p.isInCompound,
-        installmentsAvailable: p.installmentsAvailable,
-        realEstateFinanceAvailable: p.realEstateFinanceAvailable,
-        deliveryImmediate: p.delivery.isImmediate,
-        deliveryDate: p.delivery.date,
+        
+        is_in_compound: p.isInCompound,
+        installments_available: p.installmentsAvailable,
+        real_estate_finance_available: p.realEstateFinanceAvailable,
+        
+        delivery_immediate: p.delivery.isImmediate,
+        delivery_date: formatDBDate(p.delivery.date),
+        
         installments: JSON.stringify(p.installments), 
-        createdAt: p.createdAt || new Date().toISOString()
+        createdAt: p.createdAt || new Date().toISOString(),
+        
+        listing_start_date: formatDBDate(p.listingStartDate),
+        contact_method: p.contactMethod,
+        owner_phone: p.ownerPhone
     }));
     const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
     if (propError) throw new Error(`Properties Sync Error: ${propError.message}`);

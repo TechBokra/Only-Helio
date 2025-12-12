@@ -23,8 +23,8 @@ const mapDbToProperty = (row: any): Property => {
         imageUrl_large: row.imageUrl,
         gallery: row.gallery || [],
         status: { 
-            en: row.listingStatus === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
-            ar: row.listingStatus === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
+            en: (row.listing_status || row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
+            ar: (row.listing_status || row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
         },
         price: { en: row.price_en, ar: row.price_ar },
         priceNumeric: row.price,
@@ -34,23 +34,23 @@ const mapDbToProperty = (row: any): Property => {
         floor: row.floor,
         type: { en: row.type_en, ar: row.type_ar },
         finishingStatus: row.finishingStatus_en ? { en: row.finishingStatus_en, ar: row.finishingStatus_ar } : undefined,
-        listingStatus: row.listingStatus,
-        listingStartDate: row.listingStartDate,
+        listingStatus: row.listing_status || row.listingStatus,
+        listingStartDate: row.listing_start_date || row.listingStartDate,
         amenities: {
             en: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_en) || [],
             ar: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_ar) || []
         },
         location: row.location || { lat: 30.0, lng: 31.0 },
-        isInCompound: row.isInCompound,
-        installmentsAvailable: row.installmentsAvailable,
-        realEstateFinanceAvailable: row.realEstateFinanceAvailable,
+        isInCompound: row.is_in_compound !== undefined ? row.is_in_compound : row.isInCompound,
+        installmentsAvailable: row.installments_available !== undefined ? row.installments_available : row.installmentsAvailable,
+        realEstateFinanceAvailable: row.real_estate_finance_available !== undefined ? row.real_estate_finance_available : row.realEstateFinanceAvailable,
         delivery: {
-            isImmediate: row.deliveryImmediate,
-            date: row.deliveryDate
+            isImmediate: row.delivery_immediate !== undefined ? row.delivery_immediate : row.deliveryImmediate,
+            date: row.delivery_date || row.deliveryDate
         },
         installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
-        contactMethod: row.contactMethod,
-        ownerPhone: row.ownerPhone,
+        contactMethod: row.contact_method || row.contactMethod,
+        ownerPhone: row.owner_phone || row.ownerPhone,
     };
 };
 
@@ -78,7 +78,7 @@ export const getProperties = async (): Promise<Property[]> => {
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listingStatus', 'active')
+        .eq('listing_status', 'active') // Use snake_case for query
         .order('createdAt', { ascending: false });
 
     if (error) { 
@@ -157,7 +157,7 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listingStatus', 'active')
+        .eq('listing_status', 'active')
         .order('createdAt', { ascending: false })
         .limit(4);
 
@@ -191,15 +191,15 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_en: property.type.en,
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
-        listingStatus: property.listingStatus,
+        listing_status: property.listingStatus, // snake_case
         imageUrl: property.imageUrl,
         gallery: property.gallery,
         location: property.location,
-        isInCompound: property.isInCompound,
-        installmentsAvailable: property.installmentsAvailable,
-        realEstateFinanceAvailable: property.realEstateFinanceAvailable,
-        deliveryImmediate: property.delivery.isImmediate,
-        deliveryDate: property.delivery.date,
+        is_in_compound: property.isInCompound, // snake_case
+        installments_available: property.installmentsAvailable, // snake_case
+        real_estate_finance_available: property.realEstateFinanceAvailable, // snake_case
+        delivery_immediate: property.delivery.isImmediate, // snake_case
+        delivery_date: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, // snake_case
         installments: property.installments,
         createdAt: new Date().toISOString()
     };
@@ -220,10 +220,12 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     }
 
     const dbUpdates: any = {};
-    if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
-    if (updates.listingStartDate) dbUpdates.listingStartDate = updates.listingStartDate;
-    if (updates.listingEndDate) dbUpdates.listingEndDate = updates.listingEndDate;
-
+    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus; // snake_case
+    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate; // snake_case
+    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate; // snake_case
+    
+    // Add other fields as needed for updates...
+    
     const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
     if (error) { console.error('Error updating property:', error); return undefined; }
     return mapDbToProperty(data);
