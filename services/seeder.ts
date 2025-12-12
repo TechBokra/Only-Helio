@@ -71,7 +71,7 @@ export const seedDatabase = async () => {
         logs.push(`Projects Failed: ${e.message}`);
     }
 
-    // 3. Sync Properties (Wrapped in Try-Catch to avoid blocking)
+    // 3. Sync Properties (Using camelCase columns)
     try {
         const propsPayload = propertiesData.map(p => ({
             id: p.id,
@@ -92,41 +92,39 @@ export const seedDatabase = async () => {
             type_ar: p.type.ar,
             status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
             
-            // Snake_case column names
-            listing_status: p.listingStatus,
-            image_url: p.imageUrl, 
+            // Switch to camelCase to match DB Schema
+            listingStatus: p.listingStatus,
+            imageUrl: p.imageUrl, 
             
             gallery: p.gallery,
             location: p.location,
             
-            is_in_compound: p.isInCompound,
-            installments_available: p.installmentsAvailable,
-            real_estate_finance_available: p.realEstateFinanceAvailable,
+            isInCompound: p.isInCompound,
+            installmentsAvailable: p.installmentsAvailable,
+            realEstateFinanceAvailable: p.realEstateFinanceAvailable,
             
-            delivery_immediate: p.delivery.isImmediate,
-            delivery_date: formatDBDate(p.delivery.date),
+            deliveryImmediate: p.delivery.isImmediate,
+            deliveryDate: formatDBDate(p.delivery.date),
             
             installments: JSON.stringify(p.installments), 
             createdAt: p.createdAt || new Date().toISOString(),
             
-            listing_start_date: formatDBDate(p.listingStartDate),
-            
-            // REMOVED problematic columns entirely to allow seeding to succeed
-            // contact_method: p.contactMethod,
-            // owner_phone: p.ownerPhone
+            listingStartDate: formatDBDate(p.listingStartDate),
+            contactMethod: p.contactMethod,
+            ownerPhone: p.ownerPhone
         }));
         
         const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
         
         if (propError) {
             console.error("Supabase Property Error Details:", propError);
-            logs.push(`Properties Failed: ${propError.message} (Skipped to continue)`);
+            logs.push(`Properties Failed: ${propError.message}`);
         } else {
             logs.push("Properties Synced");
         }
     } catch (e: any) {
         console.error("Property Sync Exception:", e);
-        logs.push(`Properties Exception: ${e.message} (Skipped)`);
+        logs.push(`Properties Exception: ${e.message}`);
     }
 
     // 4. Sync Decoration Categories

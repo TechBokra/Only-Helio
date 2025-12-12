@@ -18,16 +18,16 @@ const mapDbToProperty = (row: any): Property => {
         description: { en: row.description_en, ar: row.description_ar },
         address: { en: row.address_en, ar: row.address_ar },
         
-        // Map snake_case DB columns to camelCase frontend properties
-        imageUrl: row.image_url || row.imageUrl,
-        imageUrl_small: row.image_url || row.imageUrl, 
-        imageUrl_medium: row.image_url || row.imageUrl,
-        imageUrl_large: row.image_url || row.imageUrl,
+        // Use camelCase DB columns based on recent errors
+        imageUrl: row.imageUrl,
+        imageUrl_small: row.imageUrl, 
+        imageUrl_medium: row.imageUrl,
+        imageUrl_large: row.imageUrl,
         
         gallery: row.gallery || [],
         status: { 
-            en: (row.listing_status || row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
-            ar: (row.listing_status || row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
+            en: (row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
+            ar: (row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
         },
         price: { en: row.price_en, ar: row.price_ar },
         priceNumeric: row.price,
@@ -38,9 +38,9 @@ const mapDbToProperty = (row: any): Property => {
         type: { en: row.type_en, ar: row.type_ar },
         finishingStatus: row.finishingStatus_en ? { en: row.finishingStatus_en, ar: row.finishingStatus_ar } : undefined,
         
-        // Key Mappings
-        listingStatus: row.listing_status || row.listingStatus,
-        listingStartDate: row.listing_start_date || row.listingStartDate,
+        // CamelCase Keys
+        listingStatus: row.listingStatus,
+        listingStartDate: row.listingStartDate,
         
         amenities: {
             en: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_en) || [],
@@ -48,19 +48,19 @@ const mapDbToProperty = (row: any): Property => {
         },
         location: row.location || { lat: 30.0, lng: 31.0 },
         
-        // Boolean mappings
-        isInCompound: row.is_in_compound !== undefined ? row.is_in_compound : row.isInCompound,
-        installmentsAvailable: row.installments_available !== undefined ? row.installments_available : row.installmentsAvailable,
-        realEstateFinanceAvailable: row.real_estate_finance_available !== undefined ? row.real_estate_finance_available : row.realEstateFinanceAvailable,
+        // Boolean mappings (camelCase)
+        isInCompound: row.isInCompound,
+        installmentsAvailable: row.installmentsAvailable,
+        realEstateFinanceAvailable: row.realEstateFinanceAvailable,
         
         delivery: {
-            isImmediate: row.delivery_immediate !== undefined ? row.delivery_immediate : row.deliveryImmediate,
-            date: row.delivery_date || row.deliveryDate
+            isImmediate: row.deliveryImmediate,
+            date: row.deliveryDate
         },
         installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
         
-        contactMethod: row.contact_method || row.contactMethod,
-        ownerPhone: row.owner_phone || row.ownerPhone,
+        contactMethod: row.contactMethod,
+        ownerPhone: row.ownerPhone,
     };
 };
 
@@ -68,7 +68,6 @@ export const getAllProperties = async (): Promise<Property[]> => {
     // Fallback to mock data if Supabase is not configured
     if (!supabase) return mockProperties;
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
@@ -84,11 +83,10 @@ export const getAllProperties = async (): Promise<Property[]> => {
 export const getProperties = async (): Promise<Property[]> => {
     if (!supabase) return mockProperties.filter(p => p.listingStatus === 'active');
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listing_status', 'active') // Use snake_case for query
+        .eq('listingStatus', 'active') // Use camelCase
         .order('createdAt', { ascending: false });
 
     if (error) { 
@@ -123,7 +121,6 @@ export const getPaginatedProperties = async (options: {
 export const getPropertiesByPartnerId = async (partnerId: string): Promise<Property[]> => {
     if (!supabase) return mockProperties.filter(p => p.partnerId === partnerId);
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
@@ -136,7 +133,6 @@ export const getPropertiesByPartnerId = async (partnerId: string): Promise<Prope
 export const getPropertiesByProjectId = async (projectId: string): Promise<Property[]> => {
     if (!supabase) return mockProperties.filter(p => p.projectId === projectId);
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
@@ -149,7 +145,6 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
     if (!supabase) return mockProperties.find(p => p.id === id);
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
@@ -163,11 +158,10 @@ export const getPropertyById = async (id: string): Promise<Property | undefined>
 export const getFeaturedProperties = async (): Promise<Property[]> => {
     if (!supabase) return mockProperties.filter(p => p.listingStatus === 'active').slice(0, 4);
 
-    // Removed name_en from partner:User selection
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listing_status', 'active')
+        .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false })
         .limit(4);
 
@@ -202,25 +196,26 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         
-        // Use snake_case for DB columns
-        listing_status: property.listingStatus, 
-        image_url: property.imageUrl,
+        // CamelCase for DB
+        listingStatus: property.listingStatus, 
+        imageUrl: property.imageUrl,
         
         gallery: property.gallery,
         location: property.location,
         
-        is_in_compound: property.isInCompound, 
-        installments_available: property.installmentsAvailable, 
-        real_estate_finance_available: property.realEstateFinanceAvailable, 
+        isInCompound: property.isInCompound, 
+        installmentsAvailable: property.installmentsAvailable, 
+        realEstateFinanceAvailable: property.realEstateFinanceAvailable, 
         
-        delivery_immediate: property.delivery.isImmediate, 
-        delivery_date: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, 
+        deliveryImmediate: property.delivery.isImmediate, 
+        deliveryDate: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, 
         
         installments: property.installments,
         
-        // Removed bad columns
+        contactMethod: property.contactMethod,
+        ownerPhone: property.ownerPhone,
         
-        listing_start_date: property.listingStartDate ? new Date(property.listingStartDate).toISOString() : null,
+        listingStartDate: property.listingStartDate ? new Date(property.listingStartDate).toISOString() : null,
         
         createdAt: new Date().toISOString()
     };
@@ -241,12 +236,13 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     }
 
     const dbUpdates: any = {};
-    // Map camelCase updates to snake_case DB columns
-    if (updates.listingStatus) dbUpdates.listing_status = updates.listingStatus;
-    if (updates.listingStartDate) dbUpdates.listing_start_date = updates.listingStartDate;
-    if (updates.listingEndDate) dbUpdates.listing_end_date = updates.listingEndDate;
-    // Removed bad columns
-    if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+    // Map updates to camelCase DB columns
+    if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
+    if (updates.listingStartDate) dbUpdates.listingStartDate = updates.listingStartDate;
+    if (updates.listingEndDate) dbUpdates.listingEndDate = updates.listingEndDate;
+    if (updates.contactMethod) dbUpdates.contactMethod = updates.contactMethod;
+    if (updates.ownerPhone) dbUpdates.ownerPhone = updates.ownerPhone;
+    if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
     
     // Add other fields as needed for updates...
     
