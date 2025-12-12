@@ -16,13 +16,11 @@ const mapDbToProperty = (row: any): Property => {
         description: { en: row.description_en, ar: row.description_ar },
         address: { en: row.address_en, ar: row.address_ar },
         
-        // Ensure image URL is valid or fallback
         imageUrl: row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image',
         imageUrl_small: row.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image', 
         imageUrl_medium: row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image',
         imageUrl_large: row.imageUrl || 'https://via.placeholder.com/1200x900?text=No+Image',
         
-        // Handle Arrays (Supabase returns text[] correctly)
         gallery: row.gallery || [],
         
         status: { 
@@ -41,15 +39,14 @@ const mapDbToProperty = (row: any): Property => {
         listingStatus: row.listingStatus || 'active',
         listingStartDate: row.listingStartDate || row.createdAt,
         
-        // Handle Amenities (Stored as text[] in DB now based on SQL update)
+        // Handle amenities if stored as text array or json
         amenities: {
             en: row.amenities || [],
-            ar: row.amenities || [] // In a real app, you'd map these to localized strings
+            ar: row.amenities || [] 
         },
         
-        // Handle JSONB fields
         location: row.location || { lat: 30.0, lng: 31.0 },
-        installments: row.installments, // Supabase returns JSON automatically
+        installments: row.installments,
         
         isInCompound: !!row.isInCompound,
         installmentsAvailable: !!row.installmentsAvailable,
@@ -170,38 +167,39 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         return newMock;
     }
 
-    // Ensure we are sending valid JSON for location and installments
-    const locationJson = property.location ? property.location : { lat: 30.0, lng: 31.0 };
-    const installmentsJson = property.installments ? property.installments : null;
-    const amenitiesArray = property.amenities?.en || [];
-
+    // Ensure strict null checks for optional foreign keys and proper JSON formats
     const dbPayload = {
         partnerId: property.partnerId,
-        projectId: property.projectId || null, // Ensure null if undefined
+        // CRITICAL FIX: If projectId is falsy (empty string, undefined), make it explicitly NULL
+        projectId: property.projectId ? property.projectId : null, 
+        
         title_en: property.title.en,
         title_ar: property.title.ar,
         description_en: property.description.en,
         description_ar: property.description.ar,
-        address_en: property.address.en, // Ensure address is passed
+        address_en: property.address.en,
         address_ar: property.address.ar,
-        price: property.priceNumeric,
+        
+        price: Number(property.priceNumeric), // Ensure Number
         price_en: property.price.en,
         price_ar: property.price.ar,
-        area: property.area,
-        beds: property.beds,
-        baths: property.baths,
-        floor: property.floor,
+        
+        area: Number(property.area),
+        beds: Number(property.beds),
+        baths: Number(property.baths),
+        floor: Number(property.floor),
+        
         type_en: property.type.en,
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         
         imageUrl: property.imageUrl,
-        gallery: property.gallery || [], // Ensure array
+        gallery: property.gallery || [],
         
-        // Complex objects
-        location: locationJson, 
-        amenities: amenitiesArray, 
-        installments: installmentsJson,
+        // Complex objects - Assuming DB has JSONB or Text[] columns for these
+        location: property.location ? property.location : { lat: 30.0, lng: 31.0 }, 
+        amenities: property.amenities?.en || [], 
+        installments: property.installments ? property.installments : null,
         
         // Booleans
         isInCompound: !!property.isInCompound, 
@@ -220,15 +218,18 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         contactMethod: property.contactMethod || 'platform',
         ownerPhone: property.ownerPhone || null,
         
+        // Re-enabled as we will fix DB schema
         listingStartDate: new Date().toISOString(),
+        
         createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('Property').insert(dbPayload).select().single();
     
     if (error) {
-        console.error("Supabase Add Property Error Details:", error);
-        throw new Error(error.message);
+        // IMPROVED LOGGING: Stringify to see the full object in console
+        console.error("Supabase Add Property Error Details:", JSON.stringify(error, null, 2));
+        throw new Error(error.message); 
     }
     return mapDbToProperty(data);
 };
@@ -238,15 +239,12 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
 
     const dbUpdates: any = {};
     
-    // Map Localized fields
     if (updates.title) { dbUpdates.title_en = updates.title.en; dbUpdates.title_ar = updates.title.ar; }
     if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
     if (updates.address) { dbUpdates.address_en = updates.address.en; dbUpdates.address_ar = updates.address.ar; }
     
-    // Map Numeric/Simple fields
     if (updates.priceNumeric !== undefined) {
          dbUpdates.price = updates.priceNumeric;
-         // Regenerate formatted price strings if not explicitly provided
          if(!updates.price) {
              dbUpdates.price_en = `EGP ${updates.priceNumeric.toLocaleString('en-US')}`;
              dbUpdates.price_ar = `${updates.priceNumeric.toLocaleString('ar-EG')} ج.م`;
@@ -255,32 +253,31 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     
     if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
     
-    // Image Handling - Explicitly set imageUrl
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.gallery) dbUpdates.gallery = updates.gallery;
     
-    // JSON/Complex Fields
     if (updates.location) dbUpdates.location = updates.location;
     if (updates.amenities) dbUpdates.amenities = updates.amenities.en;
     if (updates.installments) dbUpdates.installments = updates.installments;
     
-    // Booleans & Delivery
     if (updates.isInCompound !== undefined) dbUpdates.isInCompound = updates.isInCompound;
     if (updates.installmentsAvailable !== undefined) dbUpdates.installmentsAvailable = updates.installmentsAvailable;
     if (updates.realEstateFinanceAvailable !== undefined) dbUpdates.realEstateFinanceAvailable = updates.realEstateFinanceAvailable;
     
-    // CRITICAL FIX: Flatten Delivery Object
     if (updates.delivery) {
         dbUpdates.deliveryImmediate = updates.delivery.isImmediate;
-        // Ensure date is a valid string or null
         dbUpdates.deliveryDate = updates.delivery.date ? new Date(updates.delivery.date).toISOString() : null;
     }
     
-    // Simple fields
     if (updates.beds !== undefined) dbUpdates.beds = updates.beds;
     if (updates.baths !== undefined) dbUpdates.baths = updates.baths;
     if (updates.area !== undefined) dbUpdates.area = updates.area;
     if (updates.floor !== undefined) dbUpdates.floor = updates.floor;
+    
+    // Fix update bug for Project ID
+    if (updates.projectId !== undefined) {
+         dbUpdates.projectId = updates.projectId ? updates.projectId : null;
+    }
     
     const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
     
