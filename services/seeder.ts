@@ -96,8 +96,9 @@ export const seedDatabase = async () => {
         createdAt: p.createdAt || new Date().toISOString(),
         
         listing_start_date: formatDBDate(p.listingStartDate),
-        contact_method: p.contactMethod,
-        owner_phone: p.ownerPhone
+        // Temporarily removed to fix seeding error (column missing in DB)
+        // contact_method: p.contactMethod,
+        // owner_phone: p.ownerPhone
     }));
     
     const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
