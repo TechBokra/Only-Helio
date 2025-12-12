@@ -2,15 +2,14 @@
 import { supabase } from '../supabaseClient';
 import type { Property, PropertyFiltersType } from '../types';
 import { filterProperties } from '../utils/propertyFilters';
-import { propertiesData as mockProperties } from '../data/properties'; // Import mock data
+import { propertiesData as mockProperties } from '../data/properties';
 
-// Helper function to map Database Row -> Frontend Property Object
+// Helper: Map DB Row to Frontend Type
 const mapDbToProperty = (row: any): Property => {
     return {
         id: row.id,
         partnerId: row.partnerId,
-        // Fallback to 'name' since name_en might not exist in DB
-        partnerName: row.partner?.name || 'Unknown Partner', 
+        partnerName: row.partner?.name || 'Unknown Partner',
         partnerImageUrl: row.partner?.imageUrl,
         projectId: row.projectId,
         projectName: row.project ? { en: row.project.name_en, ar: row.project.name_ar } : undefined,
@@ -18,13 +17,14 @@ const mapDbToProperty = (row: any): Property => {
         description: { en: row.description_en, ar: row.description_ar },
         address: { en: row.address_en, ar: row.address_ar },
         
-        // Use camelCase DB columns based on recent errors
         imageUrl: row.imageUrl,
         imageUrl_small: row.imageUrl, 
         imageUrl_medium: row.imageUrl,
         imageUrl_large: row.imageUrl,
         
+        // Handle Arrays (Supabase returns text[] correctly)
         gallery: row.gallery || [],
+        
         status: { 
             en: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
             ar: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
@@ -38,17 +38,19 @@ const mapDbToProperty = (row: any): Property => {
         type: { en: row.type_en, ar: row.type_ar },
         finishingStatus: row.finishingStatus_en ? { en: row.finishingStatus_en, ar: row.finishingStatus_ar } : undefined,
         
-        // Safe access for potentially missing columns
         listingStatus: row.listingStatus || 'active',
         listingStartDate: row.listingStartDate || row.createdAt,
         
+        // Handle Amenities (Stored as text[] in DB now based on SQL update)
         amenities: {
-            en: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_en) || [],
-            ar: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_ar) || []
+            en: row.amenities || [],
+            ar: row.amenities || [] // In a real app, you'd map these to localized strings
         },
-        location: row.location || { lat: 30.0, lng: 31.0 },
         
-        // Boolean mappings (camelCase)
+        // Handle JSONB fields
+        location: row.location || { lat: 30.0, lng: 31.0 },
+        installments: row.installments, // Supabase returns JSON automatically
+        
         isInCompound: !!row.isInCompound,
         installmentsAvailable: !!row.installmentsAvailable,
         realEstateFinanceAvailable: !!row.realEstateFinanceAvailable,
@@ -57,7 +59,6 @@ const mapDbToProperty = (row: any): Property => {
             isImmediate: !!row.deliveryImmediate,
             date: row.deliveryDate
         },
-        installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
         
         contactMethod: row.contactMethod || 'platform',
         ownerPhone: row.ownerPhone,
@@ -65,16 +66,15 @@ const mapDbToProperty = (row: any): Property => {
 };
 
 export const getAllProperties = async (): Promise<Property[]> => {
-    // Fallback to mock data if Supabase is not configured
     if (!supabase) return mockProperties;
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
     if (error) { 
-        console.warn('Supabase fetch failed, falling back to mock data:', error.message); 
+        console.warn('Supabase fetch failed:', error.message); 
         return mockProperties; 
     }
     return data.map(mapDbToProperty);
@@ -85,15 +85,12 @@ export const getProperties = async (): Promise<Property[]> => {
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        // .eq('listingStatus', 'active') // Removed filter to avoid error if column missing
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false });
 
-    if (error) { 
-        console.warn('Supabase fetch failed, falling back to mock data'); 
-        return mockProperties.filter(p => p.listingStatus === 'active'); 
-    }
-    return data.map(mapDbToProperty).filter(p => p.listingStatus === 'active');
+    if (error) return mockProperties.filter(p => p.listingStatus === 'active'); 
+    return data.map(mapDbToProperty);
 };
 
 export const getPaginatedProperties = async (options: {
@@ -103,11 +100,7 @@ export const getPaginatedProperties = async (options: {
   disablePagination?: boolean;
 }): Promise<{ properties: Property[]; total: number }> => {
     const { page, limit, filters, disablePagination } = options;
-    
-    // Fetch all (either from DB or Mock)
     const allProperties = await getProperties();
-    
-    // Filter locally (client-side filtering for MVP)
     const filtered = filterProperties(allProperties, filters);
     const total = filtered.length;
     
@@ -123,7 +116,7 @@ export const getPropertiesByPartnerId = async (partnerId: string): Promise<Prope
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('partnerId', partnerId);
 
     if (error) return mockProperties.filter(p => p.partnerId === partnerId);
@@ -135,7 +128,7 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('projectId', projectId);
 
     if (error) return mockProperties.filter(p => p.projectId === projectId);
@@ -147,7 +140,7 @@ export const getPropertyById = async (id: string): Promise<Property | undefined>
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('id', id)
         .single();
 
@@ -160,8 +153,8 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
 
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        //.eq('listingStatus', 'active') // Removed to prevent crash
+        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false })
         .limit(4);
 
@@ -171,14 +164,13 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
 
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
     if (!supabase) {
-        console.log("Mock adding property:", property);
-        const newMockProp = { ...property, id: `prop-mock-${Date.now()}` } as Property;
-        mockProperties.unshift(newMockProp);
-        return newMockProp;
+        console.log("Mock add:", property);
+        const newMock = { ...property, id: `prop-${Date.now()}` } as Property;
+        mockProperties.unshift(newMock);
+        return newMock;
     }
 
     const dbPayload = {
-        id: `prop-${Date.now()}`,
         partnerId: property.partnerId,
         projectId: property.projectId,
         title_en: property.title.en,
@@ -197,58 +189,72 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         
         imageUrl: property.imageUrl,
+        // Map complex types to columns created in SQL
         gallery: property.gallery,
-        location: property.location,
+        location: property.location, // Sent as JSON
+        amenities: property.amenities.en, // Sent as Array
+        installments: property.installments, // Sent as JSON
         
         isInCompound: property.isInCompound, 
         installmentsAvailable: property.installmentsAvailable, 
         realEstateFinanceAvailable: property.realEstateFinanceAvailable, 
         
         deliveryImmediate: property.delivery.isImmediate, 
-        installments: property.installments,
+        deliveryDate: property.delivery.date ? new Date(property.delivery.date).toISOString() : null,
         
-        // Removed optional fields that might be missing in DB
-        // contactMethod, ownerPhone, listingStatus, deliveryDate
-        
+        listingStatus: property.listingStatus,
+        contactMethod: property.contactMethod,
+        ownerPhone: property.ownerPhone,
+        listingStartDate: new Date().toISOString(),
         createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('Property').insert(dbPayload).select().single();
-    if (error) throw error;
+    
+    if (error) {
+        console.error("Supabase Add Property Error:", error);
+        throw error;
+    }
     return mapDbToProperty(data);
 };
 
 export const updateProperty = async (propertyId: string, updates: Partial<Property>): Promise<Property | undefined> => {
-    if (!supabase) {
-        const idx = mockProperties.findIndex(p => p.id === propertyId);
-        if (idx > -1) {
-            mockProperties[idx] = { ...mockProperties[idx], ...updates };
-            return mockProperties[idx];
-        }
-        return undefined;
-    }
+    if (!supabase) return undefined;
 
-    // Only allow updating safe fields for now
     const dbUpdates: any = {};
+    
+    // Map specific fields
+    if (updates.title) { dbUpdates.title_en = updates.title.en; dbUpdates.title_ar = updates.title.ar; }
+    if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
+    if (updates.priceNumeric) dbUpdates.price = updates.priceNumeric;
+    if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
+    if (updates.gallery) dbUpdates.gallery = updates.gallery;
+    if (updates.location) dbUpdates.location = updates.location;
+    if (updates.amenities) dbUpdates.amenities = updates.amenities.en;
+    if (updates.installments) dbUpdates.installments = updates.installments;
+    
+    // Simple fields
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
-    // We avoid updating missing columns like listingStatus to prevent errors
+    if (updates.beds) dbUpdates.beds = updates.beds;
+    if (updates.baths) dbUpdates.baths = updates.baths;
+    if (updates.area) dbUpdates.area = updates.area;
     
     const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
-    if (error) { console.error('Error updating property:', error); return undefined; }
+    
+    if (error) {
+        console.error('Error updating property:', error);
+        return undefined;
+    }
     return mapDbToProperty(data);
 };
 
 export const deleteProperty = async (propertyId: string): Promise<boolean> => {
-    if (!supabase) {
-        const idx = mockProperties.findIndex(p => p.id === propertyId);
-        if (idx > -1) {
-            mockProperties.splice(idx, 1);
-            return true;
-        }
-        return false;
-    }
+    if (!supabase) return true;
 
     const { error } = await supabase.from('Property').delete().eq('id', propertyId);
-    if (error) { console.error('Error deleting property:', error); return false; }
+    if (error) {
+        console.error('Error deleting property:', error);
+        return false;
+    }
     return true;
 };

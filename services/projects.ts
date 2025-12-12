@@ -10,13 +10,12 @@ const mapDbToProject = (row: any): Project => ({
     name: { ar: row.name_ar, en: row.name_en },
     description: { ar: row.description_ar, en: row.description_en },
     imageUrl: row.imageUrl,
-    // Provide defaults for responsive images if not in DB
     imageUrl_small: row.imageUrl,
     imageUrl_medium: row.imageUrl,
     imageUrl_large: row.imageUrl,
     createdAt: row.createdAt,
-    features: row.features ? (typeof row.features === 'string' ? JSON.parse(row.features) : row.features) : [],
-    // Add partnerName if joined
+    // Safely parse JSONB or use existing object
+    features: row.features || [],
     partnerName: row.partner?.name
 });
 
@@ -68,14 +67,13 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
     }
 
     const dbPayload = {
-        id: `proj-${Date.now()}`,
         partnerId: project.partnerId,
         name_en: project.name.en,
         name_ar: project.name.ar,
         description_en: project.description.en,
         description_ar: project.description.ar,
         imageUrl: project.imageUrl,
-        features: project.features,
+        features: project.features, // Sends as JSONB
         createdAt: new Date().toISOString()
     };
 
@@ -85,31 +83,21 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
-    if (!supabase) {
-        const idx = mockProjects.findIndex(p => p.id === projectId);
-        if (idx > -1) {
-            mockProjects[idx] = { ...mockProjects[idx], ...updates };
-            return mockProjects[idx];
-        }
-        return undefined;
-    }
+    if (!supabase) return undefined;
 
-    // Mapping partial updates to DB columns would go here
-    // For MVP/Demo purposes, complex update mapping is simplified
-    console.warn("Update project via Supabase not fully implemented in this demo step.");
-    return undefined;
+    const dbUpdates: any = {};
+    if (updates.name) { dbUpdates.name_en = updates.name.en; dbUpdates.name_ar = updates.name.ar; }
+    if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
+    if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
+    if (updates.features) dbUpdates.features = updates.features;
+
+    const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
+    if (error) { console.error('Error updating project:', error); return undefined; }
+    return mapDbToProject(data);
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
-    if (!supabase) {
-        const idx = mockProjects.findIndex(p => p.id === projectId);
-        if (idx > -1) {
-            mockProjects.splice(idx, 1);
-            return true;
-        }
-        return false;
-    }
-
+    if (!supabase) return true;
     const { error } = await supabase.from('Project').delete().eq('id', projectId);
     return !error;
 };
