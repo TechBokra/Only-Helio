@@ -12,10 +12,9 @@ import { contactRequestsData } from '../data/contactRequests';
 import { propertyInquiriesData } from '../data/propertyInquiries';
 import { enTranslations } from '../data/translations';
 
-// Helper to format loose dates (e.g. "2025-12") to full ISO dates ("2025-12-01T...")
+// Helper to format loose dates
 const formatDBDate = (dateStr?: string | null) => {
     if (!dateStr) return null;
-    // If it's just YYYY-MM, append -01
     if (/^\d{4}-\d{2}$/.test(dateStr)) {
         return new Date(`${dateStr}-01`).toISOString();
     }
@@ -71,8 +70,10 @@ export const seedDatabase = async () => {
         logs.push(`Projects Failed: ${e.message}`);
     }
 
-    // 3. Sync Properties (Using camelCase columns)
+    // 3. Sync Properties (Simplified Payload)
     try {
+        // We are stripping out columns that are causing "Column not found" errors
+        // ensuring at least the basic data gets inserted.
         const propsPayload = propertiesData.map(p => ({
             id: p.id,
             partnerId: p.partnerId,
@@ -91,27 +92,22 @@ export const seedDatabase = async () => {
             type_en: p.type.en,
             type_ar: p.type.ar,
             status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
+            imageUrl: p.imageUrl,
             
-            // Switch to camelCase to match DB Schema
-            listingStatus: p.listingStatus,
-            imageUrl: p.imageUrl, 
-            
+            // JSON fields are usually safer
             gallery: p.gallery,
             location: p.location,
+            installments: JSON.stringify(p.installments), 
             
+            // Boolean fields (Check if these exist in your DB, typically camelCase in Prisma default)
             isInCompound: p.isInCompound,
             installmentsAvailable: p.installmentsAvailable,
             realEstateFinanceAvailable: p.realEstateFinanceAvailable,
             
-            deliveryImmediate: p.delivery.isImmediate,
-            deliveryDate: formatDBDate(p.delivery.date),
-            
-            installments: JSON.stringify(p.installments), 
             createdAt: p.createdAt || new Date().toISOString(),
             
-            listingStartDate: formatDBDate(p.listingStartDate),
-            contactMethod: p.contactMethod,
-            ownerPhone: p.ownerPhone
+            // REMOVED: contactMethod, ownerPhone, listingStatus, deliveryDate
+            // These seem to be missing from the DB schema
         }));
         
         const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });

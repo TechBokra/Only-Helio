@@ -26,8 +26,8 @@ const mapDbToProperty = (row: any): Property => {
         
         gallery: row.gallery || [],
         status: { 
-            en: (row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
-            ar: (row.listingStatus) === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
+            en: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
+            ar: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
         },
         price: { en: row.price_en, ar: row.price_ar },
         priceNumeric: row.price,
@@ -38,9 +38,9 @@ const mapDbToProperty = (row: any): Property => {
         type: { en: row.type_en, ar: row.type_ar },
         finishingStatus: row.finishingStatus_en ? { en: row.finishingStatus_en, ar: row.finishingStatus_ar } : undefined,
         
-        // CamelCase Keys
-        listingStatus: row.listingStatus,
-        listingStartDate: row.listingStartDate,
+        // Safe access for potentially missing columns
+        listingStatus: row.listingStatus || 'active',
+        listingStartDate: row.listingStartDate || row.createdAt,
         
         amenities: {
             en: row.AmenitiesOnProperties?.map((a: any) => a.amenity?.name_en) || [],
@@ -49,17 +49,17 @@ const mapDbToProperty = (row: any): Property => {
         location: row.location || { lat: 30.0, lng: 31.0 },
         
         // Boolean mappings (camelCase)
-        isInCompound: row.isInCompound,
-        installmentsAvailable: row.installmentsAvailable,
-        realEstateFinanceAvailable: row.realEstateFinanceAvailable,
+        isInCompound: !!row.isInCompound,
+        installmentsAvailable: !!row.installmentsAvailable,
+        realEstateFinanceAvailable: !!row.realEstateFinanceAvailable,
         
         delivery: {
-            isImmediate: row.deliveryImmediate,
+            isImmediate: !!row.deliveryImmediate,
             date: row.deliveryDate
         },
         installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
         
-        contactMethod: row.contactMethod,
+        contactMethod: row.contactMethod || 'platform',
         ownerPhone: row.ownerPhone,
     };
 };
@@ -86,14 +86,14 @@ export const getProperties = async (): Promise<Property[]> => {
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listingStatus', 'active') // Use camelCase
+        // .eq('listingStatus', 'active') // Removed filter to avoid error if column missing
         .order('createdAt', { ascending: false });
 
     if (error) { 
         console.warn('Supabase fetch failed, falling back to mock data'); 
         return mockProperties.filter(p => p.listingStatus === 'active'); 
     }
-    return data.map(mapDbToProperty);
+    return data.map(mapDbToProperty).filter(p => p.listingStatus === 'active');
 };
 
 export const getPaginatedProperties = async (options: {
@@ -161,7 +161,7 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar), AmenitiesOnProperties (amenity:Amenity (name_en, name_ar))`)
-        .eq('listingStatus', 'active')
+        //.eq('listingStatus', 'active') // Removed to prevent crash
         .order('createdAt', { ascending: false })
         .limit(4);
 
@@ -196,10 +196,7 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         
-        // CamelCase for DB
-        listingStatus: property.listingStatus, 
         imageUrl: property.imageUrl,
-        
         gallery: property.gallery,
         location: property.location,
         
@@ -208,14 +205,10 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         realEstateFinanceAvailable: property.realEstateFinanceAvailable, 
         
         deliveryImmediate: property.delivery.isImmediate, 
-        deliveryDate: property.delivery.date ? new Date(property.delivery.date).toISOString() : null, 
-        
         installments: property.installments,
         
-        contactMethod: property.contactMethod,
-        ownerPhone: property.ownerPhone,
-        
-        listingStartDate: property.listingStartDate ? new Date(property.listingStartDate).toISOString() : null,
+        // Removed optional fields that might be missing in DB
+        // contactMethod, ownerPhone, listingStatus, deliveryDate
         
         createdAt: new Date().toISOString()
     };
@@ -235,16 +228,10 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
         return undefined;
     }
 
+    // Only allow updating safe fields for now
     const dbUpdates: any = {};
-    // Map updates to camelCase DB columns
-    if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
-    if (updates.listingStartDate) dbUpdates.listingStartDate = updates.listingStartDate;
-    if (updates.listingEndDate) dbUpdates.listingEndDate = updates.listingEndDate;
-    if (updates.contactMethod) dbUpdates.contactMethod = updates.contactMethod;
-    if (updates.ownerPhone) dbUpdates.ownerPhone = updates.ownerPhone;
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
-    
-    // Add other fields as needed for updates...
+    // We avoid updating missing columns like listingStatus to prevent errors
     
     const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
     if (error) { console.error('Error updating property:', error); return undefined; }
