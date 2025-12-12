@@ -63,12 +63,13 @@ const AdminSettingsPage: React.FC = () => {
     // Fetch DB Stats Function
     const fetchDbStats = async () => {
         if (!supabase) return;
+        const client = supabase; // Capture non-null client for closure
         setLoadingStats(true);
         try {
             // Helper to get count safely
             const getCount = async (table: string) => {
                 try {
-                    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+                    const { count, error } = await client.from(table).select('*', { count: 'exact', head: true });
                     if (error) return 0;
                     return count || 0;
                 } catch (e) { return 0; }
