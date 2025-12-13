@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -159,8 +160,8 @@ const PropertyFormPage: React.FC = () => {
                 projectId: searchParams.get('projectId') || undefined,
                 status: { en: 'For Sale', ar: 'للبيع' },
                 type: { en: 'Apartment', ar: 'شقة' },
-                beds: 3, baths: 2, area: 150, floor: 1,
-                location: { lat: 30.129, lng: 31.621 },
+                beds: 0, baths: 0, area: 0, floor: 0,
+                location: { lat: 30.129, lng: 31.621 }, // New Heliopolis approx center
                 amenities: { ar: [], en: [] },
                 installmentsAvailable: 'false',
                 isInCompound: 'false',
@@ -172,6 +173,8 @@ const PropertyFormPage: React.FC = () => {
                 priceNumeric: 0,
                 title: { ar: '', en: '' }, description: { ar: '', en: '' }, address: { ar: '', en: '' }
             });
+            setMainImage('');
+            setGalleryImages([]);
         }
     }, [propertyId, currentUser, navigate, properties, reset, searchParams, hasPermission, isLoadingContext]);
     

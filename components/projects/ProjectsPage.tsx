@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Language, Project, Partner } from '../../types';
@@ -26,26 +25,49 @@ const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, developer
     const { language, t } = useLanguage();
     const unitsText = unitsCount === 1 ? t.projectsPage.unitsAvailable : t.projectsPage.unitsAvailablePlural;
     
+    // Robust helper to handle Base64 vs URL images
+    const getImageSrc = (src: string | undefined, params: string = '') => {
+        if (!src) return 'https://via.placeholder.com/800x600?text=No+Image';
+        if (src.startsWith('data:')) return src; // Return Base64 as is
+        return `${src}${params}`; // Append params for remote URLs
+    };
+
+    const mainImage = getImageSrc(project.imageUrl, '');
+    const imageSmall = getImageSrc(project.imageUrl_small || project.imageUrl, '&fm=webp&w=480');
+    const imageMedium = getImageSrc(project.imageUrl_medium || project.imageUrl, '&fm=webp&w=800');
+    const imageLarge = getImageSrc(project.imageUrl_large || project.imageUrl, '&fm=webp&w=1200');
+    
+    const isBase64 = project.imageUrl && project.imageUrl.startsWith('data:');
+
     return (
         <Link to={`/projects/${project.id}`} className="block group h-full">
             <Card className="transform hover:-translate-y-2 transition-transform duration-300 h-full flex flex-col overflow-hidden p-0 card-glow">
                 <div className="relative">
-                    <picture>
-                        <source
-                            type="image/webp"
-                            srcSet={`${project.imageUrl_small}&fm=webp 480w, ${project.imageUrl_medium}&fm=webp 800w, ${project.imageUrl_large || project.imageUrl}&fm=webp 1200w`}
-                            sizes="(max-width: 640px) 90vw, 100vw"
-                        />
+                    {!isBase64 ? (
+                         <picture>
+                            <source
+                                type="image/webp"
+                                srcSet={`${imageSmall} 480w, ${imageMedium} 800w, ${imageLarge} 1200w`}
+                                sizes="(max-width: 640px) 90vw, 100vw"
+                            />
+                            <img 
+                                src={mainImage}
+                                alt={project.name[language]}
+                                className="w-full h-64 object-cover disable-image-interaction"
+                                onContextMenu={(e) => e.preventDefault()}
+                                loading="lazy"
+                            />
+                        </picture>
+                    ) : (
                         <img 
-                            src={project.imageUrl}
-                            srcSet={`${project.imageUrl_small} 480w, ${project.imageUrl_medium} 800w, ${project.imageUrl_large || project.imageUrl} 1200w`}
-                            sizes="(max-width: 640px) 90vw, 100vw"
+                            src={mainImage}
                             alt={project.name[language]}
                             className="w-full h-64 object-cover disable-image-interaction"
                             onContextMenu={(e) => e.preventDefault()}
                             loading="lazy"
                         />
-                    </picture>
+                    )}
+                   
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                     <div className="absolute bottom-0 left-0 p-6">
                         <h3 className="text-white text-2xl font-bold">{project.name[language]}</h3>

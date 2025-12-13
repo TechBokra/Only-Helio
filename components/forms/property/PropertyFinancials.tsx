@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -27,7 +28,7 @@ const PropertyFinancials: React.FC = () => {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField label="Price" id="priceNumeric">
+                 <FormField label="Price" id="priceNumeric" required>
                     <input type="number" {...register("priceNumeric", { required: true, valueAsNumber: true })} className={inputClasses} />
                 </FormField>
                 {watchStatus?.en === 'For Sale' && (

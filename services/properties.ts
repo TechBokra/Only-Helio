@@ -1,3 +1,5 @@
+
+
 import { supabase } from '../supabaseClient';
 import type { Property, PropertyFiltersType } from '../types';
 import { filterProperties } from '../utils/propertyFilters';
@@ -5,10 +7,25 @@ import { propertiesData as mockProperties } from '../data/properties';
 
 // Helper: Map DB Row to Frontend Type
 const mapDbToProperty = (row: any): Property => {
+    // Determine Partner Name
+    let partnerName = 'Only Helio'; // Default
+    if (row.partner && row.partner.name) {
+        partnerName = row.partner.name;
+    } else if (row.partnerId && row.partnerId !== 'admin-user' && row.partnerId !== 'individual-listings') {
+         // Keep generic if it was a real ID but join failed, otherwise default applies
+         partnerName = 'Only Helio'; 
+    }
+
+    // Handle Image Fallbacks (Crucial for Base64 uploads that don't have resized versions yet)
+    const mainImage = row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image';
+    const imgSmall = row.imageUrl_small || mainImage;
+    const imgMedium = row.imageUrl_medium || mainImage;
+    const imgLarge = row.imageUrl_large || mainImage;
+
     return {
         id: row.id,
         partnerId: row.partnerId,
-        partnerName: row.partner?.name || 'Unknown Partner',
+        partnerName: partnerName,
         partnerImageUrl: row.partner?.imageUrl,
         projectId: row.projectId,
         projectName: row.project ? { en: row.project.name_en, ar: row.project.name_ar } : undefined,
@@ -16,16 +33,16 @@ const mapDbToProperty = (row: any): Property => {
         description: { en: row.description_en, ar: row.description_ar },
         address: { en: row.address_en, ar: row.address_ar },
         
-        imageUrl: row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image',
-        imageUrl_small: row.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image', 
-        imageUrl_medium: row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image',
-        imageUrl_large: row.imageUrl || 'https://via.placeholder.com/1200x900?text=No+Image',
+        imageUrl: mainImage,
+        imageUrl_small: imgSmall, 
+        imageUrl_medium: imgMedium,
+        imageUrl_large: imgLarge,
         
         gallery: row.gallery || [],
         
         status: { 
-            en: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'For Rent' : 'For Sale') : 'Inactive',
-            ar: (row.listingStatus || 'active') === 'active' ? (row.status === 'For Rent' ? 'إيجار' : 'للبيع') : 'غير نشط'
+            en: row.status === 'For Rent' ? 'For Rent' : 'For Sale',
+            ar: row.status === 'For Rent' ? 'إيجار' : 'للبيع'
         },
         price: { en: row.price_en, ar: row.price_ar },
         priceNumeric: row.price,
@@ -72,9 +89,10 @@ export const getAllProperties = async (): Promise<Property[]> => {
 
     if (error) { 
         console.warn('Supabase fetch failed:', error.message); 
+        // Only return mock data on error, not on empty data
         return mockProperties; 
     }
-    return data.map(mapDbToProperty);
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getProperties = async (): Promise<Property[]> => {
@@ -87,7 +105,7 @@ export const getProperties = async (): Promise<Property[]> => {
         .order('createdAt', { ascending: false });
 
     if (error) return mockProperties.filter(p => p.listingStatus === 'active'); 
-    return data.map(mapDbToProperty);
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getPaginatedProperties = async (options: {
@@ -117,7 +135,7 @@ export const getPropertiesByPartnerId = async (partnerId: string): Promise<Prope
         .eq('partnerId', partnerId);
 
     if (error) return mockProperties.filter(p => p.partnerId === partnerId);
-    return data.map(mapDbToProperty);
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getPropertiesByProjectId = async (projectId: string): Promise<Property[]> => {
@@ -129,7 +147,7 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
         .eq('projectId', projectId);
 
     if (error) return mockProperties.filter(p => p.projectId === projectId);
-    return data.map(mapDbToProperty);
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
@@ -156,7 +174,7 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
         .limit(4);
 
     if (error) return mockProperties.filter(p => p.listingStatus === 'active').slice(0, 4);
-    return data.map(mapDbToProperty);
+    return (data || []).map(mapDbToProperty);
 };
 
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {

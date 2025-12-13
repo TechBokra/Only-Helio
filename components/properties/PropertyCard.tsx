@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BedIcon, BathIcon, AreaIcon, HeartIcon, HeartIconSolid, FloorIcon, CompoundIcon, WalletIcon, BanknotesIcon } from '../ui/Icons';
@@ -15,9 +16,6 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
   const {
     id,
     imageUrl,
-    imageUrl_small,
-    imageUrl_medium,
-    imageUrl_large,
     status,
     price,
     priceNumeric,
@@ -68,6 +66,17 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
       return null;
   }, [pricePerMeter, status, priceNumeric, area, language]);
 
+  // Robust helper to handle Base64 vs URL images
+  const getImageSrc = (src: string, params: string = '') => {
+      if (!src) return 'https://via.placeholder.com/800x600?text=No+Image';
+      if (src.startsWith('data:')) return src; // Return Base64 as is
+      return `${src}${params}`; // Append params for remote URLs
+  };
+
+  const displayImage = getImageSrc(imageUrl, '');
+  const displayImageSmall = getImageSrc(imageUrl, '&fm=webp&w=480');
+  const displayImageMedium = getImageSrc(imageUrl, '&fm=webp&w=800');
+  const displayImageLarge = getImageSrc(imageUrl, '&fm=webp&w=1200');
 
   return (
     <Card className="relative transform hover:-translate-y-2 transition-transform duration-300 group h-full flex flex-col overflow-hidden p-0">
@@ -81,21 +90,31 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
         </Link>
 
         <div className="relative watermarked z-0">
-            <picture>
-                <source
-                    type="image/webp"
-                    srcSet={`${imageUrl_small}&fm=webp 480w, ${imageUrl_medium}&fm=webp 800w, ${imageUrl_large || imageUrl}&fm=webp 1200w`}
-                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                />
-                <img 
-                    src={imageUrl_large || imageUrl}
-                    srcSet={`${imageUrl_small} 480w, ${imageUrl_medium} 800w, ${imageUrl_large || imageUrl} 1200w`}
+            {imageUrl && !imageUrl.startsWith('data:') ? (
+                 <picture>
+                    <source
+                        type="image/webp"
+                        srcSet={`${displayImageSmall} 480w, ${displayImageMedium} 800w, ${displayImageLarge} 1200w`}
+                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
+                    />
+                    <img 
+                        src={displayImage}
+                        alt={title[language]} 
+                        className="w-full h-56 object-cover disable-image-interaction"
+                        onContextMenu={(e) => e.preventDefault()}
+                        loading="lazy"
+                    />
+                </picture>
+            ) : (
+                 <img 
+                    src={displayImage}
                     alt={title[language]} 
                     className="w-full h-56 object-cover disable-image-interaction"
                     onContextMenu={(e) => e.preventDefault()}
                     loading="lazy"
                 />
-            </picture>
+            )}
+           
           <span className="absolute top-4 left-4 z-10 text-white font-semibold px-3 py-1 rounded-md text-sm shadow-sm bg-sky-600/90 backdrop-blur-sm" style={{ backgroundColor: isForSale ? '#16a34a' : '#0284c7' }}>
             {status[language]}
           </span>

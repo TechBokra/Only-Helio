@@ -1,10 +1,10 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React from 'react';
 import { Button } from '../ui/Button';
 import { ExclamationCircleIcon, HomeIcon, ArrowRightIcon } from '../ui/Icons';
 
 interface ErrorBoundaryProps {
-  children?: ReactNode;
-  fallback?: ReactNode;
+  children?: React.ReactNode;
+  fallback?: React.ReactNode;
   onReset?: () => void;
 }
 
@@ -13,7 +13,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -22,26 +22,26 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     };
   }
 
-  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  private handleRetry = () => {
+  handleRetry = () => {
       if (this.props.onReset) {
           this.props.onReset();
       }
       this.setState({ hasError: false, error: null });
   };
 
-  private handleGoHome = () => {
+  handleGoHome = () => {
       window.location.href = '/';
   };
 
-  public render() {
+  render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;

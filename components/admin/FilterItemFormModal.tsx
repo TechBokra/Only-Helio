@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { FilterOption } from '../../types';
 import FormField from '../ui/FormField';

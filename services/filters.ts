@@ -1,3 +1,4 @@
+
 import { propertyTypesData as initialPropertyTypes, finishingStatusesData as initialFinishingStatuses, amenitiesData as initialAmenities } from '../data/filterOptions';
 import type { FilterOption } from '../types';
 
@@ -48,7 +49,7 @@ const mutateOptions = (
                     const initialLength = dataArray.length;
                     const updatedArray = dataArray.filter(i => i.id !== itemId);
                     if (updatedArray.length < initialLength) {
-                        // Re-assign the local array variable
+                        // Re-assign the local array variable to the filtered one
                         if (dataType === 'propertyType') propertyTypesData = updatedArray;
                         if (dataType === 'finishingStatus') finishingStatusesData = updatedArray;
                         if (dataType === 'amenity') amenitiesData = updatedArray;

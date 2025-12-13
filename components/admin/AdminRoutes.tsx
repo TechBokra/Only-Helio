@@ -22,6 +22,7 @@ const ProjectFormPage = React.lazy(() => import('../forms/ProjectFormPage'));
 const AdminPlatformPropertiesPage = React.lazy(() => import('./platform-ops/AdminPlatformPropertiesPage'));
 const AdminPlatformFinishingPage = React.lazy(() => import('./platform-ops/AdminPlatformFinishingPage'));
 const AdminPlatformDecorationsPage = React.lazy(() => import('./platform-ops/AdminPlatformDecorationsPage'));
+const AdminAIEstimatorPage = React.lazy(() => import('./AdminAIEstimatorPage'));
 
 // --- Specific Request Pages (Separated) ---
 const AdminPartnerRequestsPage = React.lazy(() => import('./requests/AdminPartnerRequestsPage'));
@@ -95,6 +96,7 @@ const AdminRoutes: React.FC = () => {
 
                 <Route path="decorations-management/*" element={<Navigate to="platform-decorations" replace />} />
                 <Route path="finishing-management/*" element={<Navigate to="platform-finishing" replace />} />
+                <Route path="ai-estimator" element={<AdminAIEstimatorPage />} />
 
                 {/* Dedicated Request Routes */}
                 <Route path="partner-requests" element={<AdminPartnerRequestsPage />} />
@@ -121,6 +123,7 @@ const AdminRoutes: React.FC = () => {
                 </Route>
                 
                 <Route path="projects" element={<AdminProjectsPage />} />
+                <Route path="projects/new" element={<ProjectFormPage />} />
                 <Route path="projects/edit/:projectId" element={<ProjectFormPage />} />
 
                 <Route path="users" element={<AdminUsersPage />} />

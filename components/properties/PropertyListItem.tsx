@@ -25,26 +25,42 @@ const PropertyListItem: React.FC<Property> = (props) => {
     const isForSale = status.en === 'For Sale';
     const isCommercialProp = isCommercial(props);
 
+    // Robust helper to handle Base64 vs URL images
+    const getImageSrc = (src: string | undefined, params: string = '') => {
+        if (!src) return 'https://via.placeholder.com/800x600?text=No+Image';
+        if (src.startsWith('data:')) return src; // Return Base64 as is
+        return `${src}${params}`; // Append params for remote URLs
+    };
+
+    const mainImageSrc = getImageSrc(imageUrl_medium || imageUrl, '');
+    const srcSet = imageUrl && !imageUrl.startsWith('data:') ? 
+        `${getImageSrc(imageUrl_small || imageUrl, '&fm=webp&w=480')} 480w, ${getImageSrc(imageUrl_medium || imageUrl, '&fm=webp&w=800')} 800w` 
+        : undefined;
+
     return (
         <Link to={`/properties/${id}`} className="block group">
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 flex flex-col sm:flex-row overflow-hidden h-full">
                 
                 {/* Image Section */}
                 <div className="relative w-full sm:w-48 md:w-64 h-48 sm:h-auto flex-shrink-0">
-                    <picture>
-                         <source
-                            type="image/webp"
-                            srcSet={`${imageUrl_small}&fm=webp 480w, ${imageUrl_medium || imageUrl}&fm=webp 800w`}
+                    {srcSet ? (
+                         <img 
+                            src={mainImageSrc}
+                            srcSet={srcSet}
                             sizes="(max-width: 640px) 100vw, 300px"
-                        />
-                        <img 
-                            src={imageUrl_medium || imageUrl}
-                            srcSet={`${imageUrl_small} 480w, ${imageUrl_medium || imageUrl} 800w`}
                             alt={title[language]} 
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                             loading="lazy"
                         />
-                    </picture>
+                    ) : (
+                         <img 
+                            src={mainImageSrc}
+                            alt={title[language]} 
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                            loading="lazy"
+                        />
+                    )}
+                   
                     <span 
                         className={`absolute top-3 ${language === 'ar' ? 'left-3' : 'right-3'} text-white font-bold px-2 py-1 rounded text-xs shadow-sm ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`}
                     >

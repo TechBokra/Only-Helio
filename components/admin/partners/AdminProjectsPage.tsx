@@ -1,27 +1,22 @@
 
-
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-// FIX: Corrected import paths for services.
 import { getAllProjects, deleteProject as apiDeleteProject } from '../../../services/projects';
 import { getAllPartnersForAdmin } from '../../../services/partners';
 import { getAllProperties } from '../../../services/properties';
-// FIX: Corrected import path for useAdminTable hook. It should be two levels up.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
-import { Project, AdminPartner } from '../../../types';
-// FIX: Corrected import path for ConfirmationModal from 'ui' to 'shared'.
+import { Project } from '../../../types';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
 import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent } from '../../ui/Card';
-import { BuildingIcon } from '../../ui/Icons';
+import { BuildingIcon, CubeIcon } from '../../ui/Icons';
+import ErrorState from '../../shared/ErrorState';
 
 const AdminProjectsPage: React.FC = () => {
     const { language, t } = useLanguage();
@@ -29,25 +24,30 @@ const AdminProjectsPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
-    const { data: projects, isLoading: loadingProjects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
-    const { data: partners, isLoading: loadingPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
-    const { data: properties, isLoading: loadingProperties } = useQuery({ queryKey: ['allProperties'], queryFn: getAllProperties });
+    const { data: projects, isLoading: loadingProjects, isError: isErrorProjects, refetch: refetchProjects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
+    const { data: partners, isLoading: loadingPartners, isError: isErrorPartners, refetch: refetchPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
+    const { data: properties, isLoading: loadingProperties, isError: isErrorProperties, refetch: refetchProperties } = useQuery({ queryKey: ['allProperties'], queryFn: getAllProperties });
 
     const isLoading = loadingProjects || loadingPartners || loadingProperties;
+    const isError = isErrorProjects || isErrorPartners || isErrorProperties;
+
+    const refetchAll = () => {
+        refetchProjects();
+        refetchPartners();
+        refetchProperties();
+    }
 
     const projectsWithDetails = React.useMemo(() => {
         if (isLoading) return [];
         return (projects || []).map(project => {
             const partner = (partners || []).find(p => p.id === project.partnerId);
             const unitsCount = (properties || []).filter(p => p.projectId === project.id).length;
-            return { ...project, partnerName: partner?.name || 'N/A', unitsCount };
+            return { ...project, partnerName: partner ? (language === 'ar' ? partner.nameAr : partner.name) : 'N/A', unitsCount };
         });
-    }, [projects, partners, properties, isLoading]);
+    }, [projects, partners, properties, isLoading, language]);
 
     const deleteMutation = useMutation({
         mutationFn: async (projectId: string) => {
-            const unitsToDelete = (properties || []).filter(p => p.projectId === projectId);
-            // In a real app, this would be a single transactional API call
             await apiDeleteProject(projectId);
         },
         onSuccess: () => {
@@ -61,9 +61,18 @@ const AdminProjectsPage: React.FC = () => {
         data: projectsWithDetails,
         itemsPerPage: 10,
         initialSort: { key: 'name.en', direction: 'ascending' },
-        searchFn: (item: typeof projectsWithDetails[0], term) => item.name.en.toLowerCase().includes(term) || item.name.ar.includes(term) || item.partnerName.toLowerCase().includes(term),
+        searchFn: (item: typeof projectsWithDetails[0], term) => 
+            (item.name?.en?.toLowerCase().includes(term) || false) || 
+            (item.name?.ar?.includes(term) || false) || 
+            (item.partnerName?.toLowerCase().includes(term) || false),
         filterFns: {},
     });
+
+    // Helper to safely render images whether they are URLs or Base64
+    const getImageSrc = (src: string) => {
+        if (!src) return 'https://via.placeholder.com/150';
+        return src;
+    };
 
     const renderTable = (items: typeof projectsWithDetails) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -83,15 +92,17 @@ const AdminProjectsPage: React.FC = () => {
                         <TableRow key={p.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <img src={p.imageUrl} alt={p.name[language]} className="w-16 h-12 object-cover rounded-md"/>
+                                    <img src={getImageSrc(p.imageUrl)} alt={p.name[language]} className="w-16 h-12 object-cover rounded-md"/>
                                     <div className="font-medium text-gray-900 dark:text-white">{p.name[language]}</div>
                                 </div>
                             </TableCell>
                             <TableCell>{p.partnerName}</TableCell>
                             <TableCell>{p.unitsCount}</TableCell>
                             <TableCell>
-                                <Link to={`/admin/projects/edit/${p.id}`}><Button variant="link">{t.adminShared.edit}</Button></Link>
-                                <Button variant="link" className="text-red-500" onClick={() => setProjectToDelete(p)}>{t.adminShared.delete}</Button>
+                                <div className="flex gap-2">
+                                    <Link to={`/admin/projects/edit/${p.id}`}><Button variant="link" size="sm">{t.adminShared.edit}</Button></Link>
+                                    <Button variant="link" size="sm" className="text-red-500" onClick={() => setProjectToDelete(p)}>{t.adminShared.delete}</Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}
@@ -103,7 +114,7 @@ const AdminProjectsPage: React.FC = () => {
     const renderCard = (p: typeof projectsWithDetails[0]) => (
         <Card key={p.id} className="overflow-hidden">
             <div className="relative h-32 bg-gray-200">
-                 <img src={p.imageUrl} alt={p.name[language]} className="w-full h-full object-cover" />
+                 <img src={getImageSrc(p.imageUrl)} alt={p.name[language]} className="w-full h-full object-cover" />
             </div>
             <CardContent className="p-4">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-1">{p.name[language]}</h3>
@@ -122,6 +133,10 @@ const AdminProjectsPage: React.FC = () => {
         </Card>
     );
 
+    if (isError) {
+        return <ErrorState onRetry={refetchAll} />;
+    }
+
     return (
         <div>
             {projectToDelete && (
@@ -133,8 +148,18 @@ const AdminProjectsPage: React.FC = () => {
                     message={t_admin.projects.confirmDelete}
                 />
             )}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.projects.title}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.projects.subtitle}</p>
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.projects.title}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{t_admin.projects.subtitle}</p>
+                </div>
+                <Link to="/admin/projects/new">
+                    <Button className="flex items-center gap-2">
+                        <CubeIcon className="w-5 h-5" />
+                        {t.adminShared.add} Project
+                    </Button>
+                </Link>
+            </div>
 
             <div className="mb-4">
                  <Input placeholder={t_admin.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm"/>

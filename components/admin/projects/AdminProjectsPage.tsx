@@ -2,24 +2,20 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-// FIX: Corrected import paths for services.
 import { getAllProjects, deleteProject as apiDeleteProject } from '../../../services/projects';
 import { getAllPartnersForAdmin } from '../../../services/partners';
 import { getAllProperties } from '../../../services/properties';
-// FIX: Corrected import path for useAdminTable hook. It should be two levels up.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Project, AdminPartner } from '../../../types';
-// FIX: Corrected import path for ConfirmationModal from 'ui' to 'shared'.
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
 import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent } from '../../ui/Card';
-import { BuildingIcon } from '../../ui/Icons';
+import { BuildingIcon, CubeIcon } from '../../ui/Icons';
 import ErrorState from '../../shared/ErrorState';
 
 const AdminProjectsPage: React.FC = () => {
@@ -52,8 +48,7 @@ const AdminProjectsPage: React.FC = () => {
 
     const deleteMutation = useMutation({
         mutationFn: async (projectId: string) => {
-            const unitsToDelete = (properties || []).filter(p => p.projectId === projectId);
-            // In a real app, this would be a single transactional API call
+            // In a real app, check for dependent units before deleting or cascade delete
             await apiDeleteProject(projectId);
         },
         onSuccess: () => {
@@ -146,8 +141,18 @@ const AdminProjectsPage: React.FC = () => {
                     message={t_admin.projects.confirmDelete}
                 />
             )}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.projects.title}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.projects.subtitle}</p>
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.projects.title}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{t_admin.projects.subtitle}</p>
+                </div>
+                <Link to="/admin/projects/new">
+                    <Button className="flex items-center gap-2">
+                        <CubeIcon className="w-5 h-5" />
+                        {t.adminShared.add} Project
+                    </Button>
+                </Link>
+            </div>
 
             <div className="mb-4">
                  <Input placeholder={t_admin.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm"/>

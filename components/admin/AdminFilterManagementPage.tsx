@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import type { FilterOption } from '../../types';
 import FilterItemFormModal from './FilterItemFormModal';
@@ -31,6 +30,11 @@ const FilterManagerSection: React.FC<{
                         <div>
                             <p className="font-medium text-gray-900 dark:text-white">{item[language]}</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{item.en} / {item.ar}</p>
+                            {item.applicableTo && item.applicableTo.length > 0 && (
+                                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                                    Applies to: {item.applicableTo.join(', ')}
+                                </p>
+                            )}
                         </div>
                         <div className="space-x-4">
                             <button onClick={() => onEdit(item)} className="text-sm font-medium text-amber-600 hover:text-amber-500">{t.adminShared.edit}</button>
@@ -83,7 +87,7 @@ const AdminFilterManagementPage: React.FC = () => {
     if (ptLoading || fsLoading || amLoading) return <div>Loading filters...</div>;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fadeIn">
             {modalState.isOpen && modalState.dataType && (
                 <FilterItemFormModal
                     dataType={modalState.dataType}
@@ -93,7 +97,7 @@ const AdminFilterManagementPage: React.FC = () => {
                 />
             )}
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Filter Management</h1>
-            <p className="text-gray-500 dark:text-gray-400">Manage dropdown options for property filtering.</p>
+            <p className="text-gray-500 dark:text-gray-400">Manage dropdown options and their dependencies.</p>
 
             <FilterManagerSection
                 title="Property Types"

@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { addRequest } from '../../services/requests';
@@ -152,7 +153,7 @@ const ServiceRequestPage: React.FC = () => {
                     propertyId: propertyId,
                     serviceType: serviceType,
                     referenceImage: formData.referenceImage
-                }
+                } as any
             }).then(() => {
                  showToast(t_modal.successMessage, 'success');
                  setTimeout(() => navigate(-1), 2000);

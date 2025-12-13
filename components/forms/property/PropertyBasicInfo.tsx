@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -40,28 +41,28 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ projects, partner
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField label={td.propertyTitleAr} id="title.ar">
+                <FormField label={td.propertyTitleAr} id="title.ar" required>
                     <input type="text" {...register("title.ar", { required: true })} className={inputClasses} placeholder="مثال: شقة فاخرة في التجمع" />
                 </FormField>
-                <FormField label={td.propertyTitleEn} id="title.en">
+                <FormField label={td.propertyTitleEn} id="title.en" required>
                     <input type="text" {...register("title.en", { required: true })} className={inputClasses} placeholder="e.g. Luxury Apartment in New Cairo" />
                 </FormField>
                 
-                <FormField label={td.addressAr} id="address.ar">
+                <FormField label={td.addressAr} id="address.ar" required>
                     <input type="text" {...register("address.ar", { required: true })} className={inputClasses} />
                 </FormField>
-                <FormField label={td.addressEn} id="address.en">
+                <FormField label={td.addressEn} id="address.en" required>
                     <input type="text" {...register("address.en", { required: true })} className={inputClasses} />
                 </FormField>
 
                 <div className="md:col-span-2">
-                    <FormField label={td.descriptionAr} id="description.ar">
-                        <textarea {...register("description.ar")} className={inputClasses} rows={4} />
+                    <FormField label={td.descriptionAr} id="description.ar" required>
+                        <textarea {...register("description.ar", { required: true })} className={inputClasses} rows={4} />
                     </FormField>
                 </div>
                 <div className="md:col-span-2">
-                    <FormField label={td.descriptionEn} id="description.en">
-                        <textarea {...register("description.en")} className={inputClasses} rows={4} />
+                    <FormField label={td.descriptionEn} id="description.en" required>
+                        <textarea {...register("description.en", { required: true })} className={inputClasses} rows={4} />
                     </FormField>
                 </div>
             </div>

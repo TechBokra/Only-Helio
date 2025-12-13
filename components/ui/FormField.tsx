@@ -8,11 +8,15 @@ interface FormFieldProps {
   id: string;
   children: React.ReactNode;
   error?: string;
+  required?: boolean;
 }
 
-const FormField: React.FC<FormFieldProps> = ({ label, id, children, error }) => (
+const FormField: React.FC<FormFieldProps> = ({ label, id, children, error, required }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
     {children}
     {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
   </div>

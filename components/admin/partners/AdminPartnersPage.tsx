@@ -25,8 +25,15 @@ const AdminPartnersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const { data: partners, isLoading, isError, refetch } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
+    // Fetch ALL users first
+    const { data: allUsers, isLoading, isError, refetch } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
     useQuery({ queryKey: ['plans'], queryFn: getPlans }); 
+
+    // STRICT FILTER: Only show Business Partners (Developer, Agency, Finishing)
+    // Exclude 'admin', 'content_manager', etc.
+    const partners = useMemo(() => {
+        return (allUsers || []).filter(u => ['developer', 'agency', 'finishing'].includes(u.type));
+    }, [allUsers]);
 
     const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
     const [actionToConfirm, setActionToConfirm] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
@@ -64,7 +71,7 @@ const AdminPartnersPage: React.FC = () => {
         filters,
         setFilter,
     } = useAdminTable({
-        data: partners,
+        data: partners, // Pass the filtered list here
         itemsPerPage: 15,
         initialSort: { key: 'name', direction: 'ascending' },
         initialFilters,

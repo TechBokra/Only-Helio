@@ -28,6 +28,7 @@ const ProjectFormPage: React.FC = () => {
     const { isLimitReached } = useSubscriptionUsage('projects');
     const { register, handleSubmit, reset, formState: { isSubmitting: isFormSubmitting } } = useForm<Project>();
     
+    // Explicitly manage image state to ensure it persists
     const [image, setImage] = useState<string>('');
 
     useEffect(() => {
@@ -37,6 +38,7 @@ const ProjectFormPage: React.FC = () => {
                 reset(project);
                 setImage(project.imageUrl);
             } else if (!projectsLoading) {
+                // Determine redirect path safely
                 const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/projects' : '/dashboard/projects';
                 navigate(redirectPath);
             }
@@ -44,7 +46,10 @@ const ProjectFormPage: React.FC = () => {
     }, [projectId, currentUser, navigate, projects, projectsLoading, hasPermission, reset]);
 
     const handleSuccess = () => {
+        // Invalidate ALL relevant queries to force re-fetch
         queryClient.invalidateQueries({ queryKey: ['allProjects'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        
         const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/projects' : '/dashboard/projects';
         navigate(redirectPath);
     };
@@ -55,7 +60,10 @@ const ProjectFormPage: React.FC = () => {
             showToast('Project created successfully!', 'success');
             handleSuccess();
         },
-        onError: () => showToast('Failed to create project.', 'error'),
+        onError: (err) => {
+             console.error(err);
+             showToast('Failed to create project.', 'error');
+        },
     });
 
     const updateMutation = useMutation({
@@ -76,6 +84,11 @@ const ProjectFormPage: React.FC = () => {
 
     const onSubmit = async (formData: any) => {
         if (!currentUser || !('type' in currentUser)) return;
+        
+        if (!image) {
+            showToast('Please upload a project image.', 'error');
+            return;
+        }
 
         const existingProject = projectId ? projects?.find(p => p.id === projectId) : undefined;
         const projectData = {

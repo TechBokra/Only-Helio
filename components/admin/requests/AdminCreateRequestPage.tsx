@@ -63,7 +63,7 @@ const AdminCreateRequestPage: React.FC = () => {
             
             return addRequest(type, {
                 requesterInfo: { name, phone, email },
-                payload
+                payload: payload as any
             });
         },
         onSuccess: () => {

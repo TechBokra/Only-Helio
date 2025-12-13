@@ -1,3 +1,4 @@
+
 import type { FilterOption } from '../types';
 
 export let propertyTypesData: FilterOption[] = [

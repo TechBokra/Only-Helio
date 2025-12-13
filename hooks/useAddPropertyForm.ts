@@ -42,7 +42,6 @@ export const useAddPropertyForm = () => {
     const { register, handleSubmit, watch, setValue, formState: { errors }, reset, getValues } = useForm({
         defaultValues: {
             customerName: '', customerPhone: '', contactTime: '',
-            // title: { ar: '', en: '' }, // Removed titles as they are now handled by admin
             description: { ar: '', en: '' },
             propertyType: '', finishingStatus: '', area: '', price: '',
             bedrooms: '', bathrooms: '', floor: '', address: '',
@@ -198,7 +197,7 @@ export const useAddPropertyForm = () => {
             floor: formData.floor ? parseInt(formData.floor) : undefined,
             address: formData.address,
             amenities: formData.amenities || getValues('amenities'), // Amenities might be handled by custom UI
-            location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+            location: { lat: parseFloat(lat || '30.0'), lng: parseFloat(lng || '31.0') }, // Default to Cairo if missing but ideally should be validated
             isInCompound: formData.isInCompound === 'yes',
             deliveryType: formData.deliveryType,
             deliveryMonth: formData.deliveryMonth,
