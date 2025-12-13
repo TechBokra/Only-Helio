@@ -1,6 +1,5 @@
 
 import { supabase } from '../supabaseClient';
-import { partnersData as initialPartnersData } from '../data/partners';
 import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType, SubscriptionPlan } from '../types';
 import { mapPartnerTypeToRole } from '../data/permissions';
 import { arTranslations, enTranslations } from '../data/translations';
@@ -41,7 +40,6 @@ const mapDbToPartner = (row: any): Partner => {
         mappedRole = mapPartnerTypeToRole(mappedType as PartnerType);
     }
 
-    // Mapping snake_case (DB) to camelCase (Frontend)
     return {
         id: row.id,
         email: row.email || 'no-email@recorded.com',
@@ -57,7 +55,6 @@ const mapDbToPartner = (row: any): Partner => {
         subscriptionPlan: row.subscriptionPlan || 'basic',
         displayType: row.displayType || 'standard',
         
-        // Critical Mappings
         name: row.name_en || row.name || enTrans.name || 'Unnamed User',
         nameAr: row.name_ar || row.name || 'مستخدم بدون اسم',
         
@@ -70,85 +67,49 @@ const mapDbToPartner = (row: any): Partner => {
     } as Partner;
 };
 
-// Helper to map Mock Data (Fallback)
-const mapMockToPartner = (mock: any): Partner => {
-    // @ts-ignore
-    const enInfo = enTranslations.partnerInfo[mock.id] || { name: "Super Admin", description: "System Administrator" };
-    // @ts-ignore
-    const arInfo = arTranslations.partnerInfo[mock.id] || { name: "المدير العام", description: "مسؤول النظام" };
-
-    return {
-        ...mock,
-        name: enInfo.name,
-        nameAr: arInfo.name,
-        description: enInfo.description,
-        descriptionAr: arInfo.description,
-        role: mapPartnerTypeToRole(mock.type),
-        createdAt: new Date().toISOString()
-    } as Partner;
-};
-
 // --- READ OPERATIONS ---
 
 export const getAllPartners = async (): Promise<Partner[]> => {
-    if (!supabase) return initialPartnersData.map(mapMockToPartner);
-    
+    if (!supabase) throw new Error("Database not connected");
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
-    
-    if (error) {
-        console.error('Supabase fetch error (getAllPartners):', error);
-        return [];
-    }
+    if (error) throw new Error(error.message);
     return (data || []).map(mapDbToPartner);
 };
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    if (!supabase) return initialPartnersData.map(mapMockToPartner) as AdminPartner[];
-    
+    if (!supabase) throw new Error("Database not connected");
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
-    
-    if (error) {
-        console.error('Supabase fetch error (getAllPartnersForAdmin):', error);
-        return [];
-    }
+    if (error) throw new Error(error.message);
     return (data || []).map(row => mapDbToPartner(row) as AdminPartner);
 };
 
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
-    if (supabase) {
-        const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
-        if (data && !error) return mapDbToPartner(data);
-    }
-    return undefined;
+    if (!supabase) throw new Error("Database not connected");
+    const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
+    if (error) return undefined;
+    return mapDbToPartner(data);
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    if (supabase) {
-        const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
-        if (data && !error) return mapDbToPartner(data);
-    }
-    // Mock Fallback
-    const mock = initialPartnersData.find(p => p.email === email);
-    if (mock) return mapMockToPartner(mock);
-    return undefined;
+    if (!supabase) throw new Error("Database not connected");
+    const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
+    if (error) return undefined;
+    return mapDbToPartner(data);
 };
 
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!supabase) throw new Error("Database not connected");
     
-    // Prepare DB Payload: Map camelCase -> snake_case
     const dbUpdates: any = {};
     
-    // Explicit mappings
     if (updates.nameEn !== undefined) dbUpdates.name_en = updates.nameEn;
     if (updates.nameAr !== undefined) dbUpdates.name_ar = updates.nameAr;
     if (updates.descriptionEn !== undefined) dbUpdates.description_en = updates.descriptionEn;
     if (updates.descriptionAr !== undefined) dbUpdates.description_ar = updates.descriptionAr;
     
-    // Direct mappings
-    if (updates.name !== undefined) dbUpdates.name_en = updates.name; // Fallback if nameEn not passed
+    if (updates.name !== undefined) dbUpdates.name_en = updates.name; 
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.imageUrl !== undefined) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -175,11 +136,11 @@ export const updatePartnerStatus = async (id: string, status: PartnerStatus): Pr
 export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
     if (!supabase) throw new Error("Supabase not connected");
 
-    const newPartnerId = `partner-${Date.now()}`;
+    const newPartnerId = crypto.randomUUID(); 
     const newPartner = {
         id: newPartnerId,
         name_en: request.companyName,
-        name_ar: request.companyName, // Default AR name to company name initially
+        name_ar: request.companyName, 
         email: request.contactEmail,
         type: request.companyType,
         status: 'active',
@@ -195,7 +156,7 @@ export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
 };
 
 export const deletePartner = async (userId: string): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!supabase) throw new Error("Database not connected");
     const { error } = await supabase.from('User').delete().eq('id', userId);
     if (error) throw error;
     return true;
@@ -208,10 +169,11 @@ export const upgradePartnerPlan = async (id: string, newPlan: SubscriptionPlan) 
 export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
     if (!supabase) throw new Error("Supabase not connected");
 
+    const newId = crypto.randomUUID(); 
     const newUser = {
-        id: `user-${Date.now()}`,
-        name_en: userData.name,   // Map .name -> name_en
-        name_ar: userData.nameAr, // Map .nameAr -> name_ar
+        id: newId,
+        name_en: userData.name,   
+        name_ar: userData.nameAr, 
         email: userData.email,
         type: userData.type,
         role: mapPartnerTypeToRole(userData.type), 

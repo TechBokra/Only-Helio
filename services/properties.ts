@@ -1,26 +1,16 @@
 
-
 import { supabase } from '../supabaseClient';
 import type { Property, PropertyFiltersType } from '../types';
 import { filterProperties } from '../utils/propertyFilters';
-import { propertiesData as mockProperties } from '../data/properties';
 
 // Helper: Map DB Row to Frontend Type
 const mapDbToProperty = (row: any): Property => {
-    // Determine Partner Name
-    let partnerName = 'Only Helio'; // Default
+    let partnerName = 'Only Helio';
     if (row.partner && row.partner.name) {
         partnerName = row.partner.name;
-    } else if (row.partnerId && row.partnerId !== 'admin-user' && row.partnerId !== 'individual-listings') {
-         // Keep generic if it was a real ID but join failed, otherwise default applies
-         partnerName = 'Only Helio'; 
     }
 
-    // Handle Image Fallbacks (Crucial for Base64 uploads that don't have resized versions yet)
     const mainImage = row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image';
-    const imgSmall = row.imageUrl_small || mainImage;
-    const imgMedium = row.imageUrl_medium || mainImage;
-    const imgLarge = row.imageUrl_large || mainImage;
 
     return {
         id: row.id,
@@ -34,9 +24,9 @@ const mapDbToProperty = (row: any): Property => {
         address: { en: row.address_en, ar: row.address_ar },
         
         imageUrl: mainImage,
-        imageUrl_small: imgSmall, 
-        imageUrl_medium: imgMedium,
-        imageUrl_large: imgLarge,
+        imageUrl_small: mainImage, 
+        imageUrl_medium: mainImage,
+        imageUrl_large: mainImage,
         
         gallery: row.gallery || [],
         
@@ -56,7 +46,6 @@ const mapDbToProperty = (row: any): Property => {
         listingStatus: row.listingStatus || 'active',
         listingStartDate: row.listingStartDate || row.createdAt,
         
-        // Handle amenities if stored as text array or json
         amenities: {
             en: row.amenities || [],
             ar: row.amenities || [] 
@@ -80,23 +69,20 @@ const mapDbToProperty = (row: any): Property => {
 };
 
 export const getAllProperties = async (): Promise<Property[]> => {
-    if (!supabase) return mockProperties;
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
-    if (error) { 
-        console.warn('Supabase fetch failed:', error.message); 
-        // Only return mock data on error, not on empty data
-        return mockProperties; 
-    }
+    if (error) throw new Error(`DB Error fetching properties: ${error.message}`);
+    
     return (data || []).map(mapDbToProperty);
 };
 
 export const getProperties = async (): Promise<Property[]> => {
-    if (!supabase) return mockProperties.filter(p => p.listingStatus === 'active');
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
@@ -104,7 +90,8 @@ export const getProperties = async (): Promise<Property[]> => {
         .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false });
 
-    if (error) return mockProperties.filter(p => p.listingStatus === 'active'); 
+    if (error) throw new Error(error.message);
+    
     return (data || []).map(mapDbToProperty);
 };
 
@@ -115,7 +102,7 @@ export const getPaginatedProperties = async (options: {
   disablePagination?: boolean;
 }): Promise<{ properties: Property[]; total: number }> => {
     const { page, limit, filters, disablePagination } = options;
-    const allProperties = await getProperties();
+    const allProperties = await getProperties(); // Uses real DB
     const filtered = filterProperties(allProperties, filters);
     const total = filtered.length;
     
@@ -127,31 +114,31 @@ export const getPaginatedProperties = async (options: {
 };
 
 export const getPropertiesByPartnerId = async (partnerId: string): Promise<Property[]> => {
-    if (!supabase) return mockProperties.filter(p => p.partnerId === partnerId);
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('partnerId', partnerId);
 
-    if (error) return mockProperties.filter(p => p.partnerId === partnerId);
-    return (data || []).map(mapDbToProperty);
+    if (error) throw new Error(error.message);
+    return data.map(mapDbToProperty);
 };
 
 export const getPropertiesByProjectId = async (projectId: string): Promise<Property[]> => {
-    if (!supabase) return mockProperties.filter(p => p.projectId === projectId);
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('projectId', projectId);
 
-    if (error) return mockProperties.filter(p => p.projectId === projectId);
-    return (data || []).map(mapDbToProperty);
+    if (error) throw new Error(error.message);
+    return data.map(mapDbToProperty);
 };
 
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
-    if (!supabase) return mockProperties.find(p => p.id === id);
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
@@ -159,12 +146,15 @@ export const getPropertyById = async (id: string): Promise<Property | undefined>
         .eq('id', id)
         .single();
 
-    if (error || !data) return mockProperties.find(p => p.id === id);
+    if (error) {
+        console.error(error);
+        return undefined;
+    }
     return mapDbToProperty(data);
 };
 
 export const getFeaturedProperties = async (): Promise<Property[]> => {
-    if (!supabase) return mockProperties.filter(p => p.listingStatus === 'active').slice(0, 4);
+    if (!supabase) throw new Error("Database not connected");
 
     const { data, error } = await supabase
         .from('Property')
@@ -173,26 +163,19 @@ export const getFeaturedProperties = async (): Promise<Property[]> => {
         .order('createdAt', { ascending: false })
         .limit(4);
 
-    if (error) return mockProperties.filter(p => p.listingStatus === 'active').slice(0, 4);
-    return (data || []).map(mapDbToProperty);
+    if (error) throw new Error(error.message);
+    return data.map(mapDbToProperty);
 };
 
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
-    if (!supabase) {
-        console.log("Mock add:", property);
-        const newMock = { ...property, id: `prop-${Date.now()}` } as Property;
-        mockProperties.unshift(newMock);
-        return newMock;
-    }
+    if (!supabase) throw new Error("Database not connected");
 
-    // Generate a UUID for the new property to ensure 'id' is not null
     const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
 
-    // Ensure strict null checks for optional foreign keys and proper JSON formats
     const dbPayload = {
         id: newId,
         partnerId: property.partnerId,
-        // CRITICAL FIX: If projectId is falsy (empty string, undefined), make it explicitly NULL
         projectId: property.projectId ? property.projectId : null, 
         
         title_en: property.title.en,
@@ -202,7 +185,7 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         address_en: property.address.en,
         address_ar: property.address.ar,
         
-        price: Number(property.priceNumeric), // Ensure Number
+        price: Number(property.priceNumeric),
         price_en: property.price.en,
         price_ar: property.price.ar,
         
@@ -218,21 +201,17 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         imageUrl: property.imageUrl,
         gallery: property.gallery || [],
         
-        // Complex objects - Assuming DB has JSONB or Text[] columns for these
         location: property.location ? property.location : { lat: 30.0, lng: 31.0 }, 
         amenities: property.amenities?.en || [], 
         installments: property.installments ? property.installments : null,
         
-        // Booleans
         isInCompound: !!property.isInCompound, 
         installmentsAvailable: !!property.installmentsAvailable, 
         realEstateFinanceAvailable: !!property.realEstateFinanceAvailable, 
         
-        // Delivery
         deliveryImmediate: !!property.delivery.isImmediate, 
         deliveryDate: property.delivery.date ? new Date(property.delivery.date).toISOString() : null,
         
-        // Finishing
         finishingStatus_en: property.finishingStatus?.en || null,
         finishingStatus_ar: property.finishingStatus?.ar || null,
 
@@ -240,23 +219,21 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         contactMethod: property.contactMethod || 'platform',
         ownerPhone: property.ownerPhone || null,
         
-        listingStartDate: new Date().toISOString(),
-        
-        createdAt: new Date().toISOString()
+        listingStartDate: now,
+        createdAt: now
     };
 
     const { data, error } = await supabase.from('Property').insert(dbPayload).select().single();
     
     if (error) {
-        // IMPROVED LOGGING: Stringify to see the full object in console
-        console.error("Supabase Add Property Error Details:", JSON.stringify(error, null, 2));
-        throw new Error(error.message); 
+        console.error("Supabase Add Property Error:", error);
+        throw new Error(`Failed to add property: ${error.message}`);
     }
     return mapDbToProperty(data);
 };
 
 export const updateProperty = async (propertyId: string, updates: Partial<Property>): Promise<Property | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) throw new Error("Database not connected");
 
     const dbUpdates: any = {};
     
@@ -273,29 +250,12 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     }
     
     if (updates.listingStatus) dbUpdates.listingStatus = updates.listingStatus;
-    
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.gallery) dbUpdates.gallery = updates.gallery;
-    
     if (updates.location) dbUpdates.location = updates.location;
-    if (updates.amenities) dbUpdates.amenities = updates.amenities.en;
-    if (updates.installments) dbUpdates.installments = updates.installments;
     
     if (updates.isInCompound !== undefined) dbUpdates.isInCompound = updates.isInCompound;
-    if (updates.installmentsAvailable !== undefined) dbUpdates.installmentsAvailable = updates.installmentsAvailable;
-    if (updates.realEstateFinanceAvailable !== undefined) dbUpdates.realEstateFinanceAvailable = updates.realEstateFinanceAvailable;
     
-    if (updates.delivery) {
-        dbUpdates.deliveryImmediate = updates.delivery.isImmediate;
-        dbUpdates.deliveryDate = updates.delivery.date ? new Date(updates.delivery.date).toISOString() : null;
-    }
-    
-    if (updates.beds !== undefined) dbUpdates.beds = updates.beds;
-    if (updates.baths !== undefined) dbUpdates.baths = updates.baths;
-    if (updates.area !== undefined) dbUpdates.area = updates.area;
-    if (updates.floor !== undefined) dbUpdates.floor = updates.floor;
-    
-    // Fix update bug for Project ID
     if (updates.projectId !== undefined) {
          dbUpdates.projectId = updates.projectId ? updates.projectId : null;
     }
@@ -304,18 +264,18 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     
     if (error) {
         console.error('Error updating property:', error);
-        throw new Error(error.message);
+        throw new Error(`Failed to update property: ${error.message}`);
     }
     return mapDbToProperty(data);
 };
 
 export const deleteProperty = async (propertyId: string): Promise<boolean> => {
-    if (!supabase) return true;
+    if (!supabase) throw new Error("Database not connected");
 
     const { error } = await supabase.from('Property').delete().eq('id', propertyId);
     if (error) {
         console.error('Error deleting property:', error);
-        return false;
+        throw new Error(`Failed to delete property: ${error.message}`);
     }
     return true;
 };
