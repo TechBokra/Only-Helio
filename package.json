@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node -e \"try { const fs=require('fs'); if(fs.existsSync('api')) fs.rmSync('api', {recursive:true, force:true}); } catch(e) { console.warn('Failed to clean api dir:', e.message); }\" && tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
