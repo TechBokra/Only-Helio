@@ -13,6 +13,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './'),
+            'api': path.resolve(__dirname, './services'),
         },
     },
     build: {
