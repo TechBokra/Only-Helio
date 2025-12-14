@@ -51,15 +51,23 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
     const properties = propProperties || fetchedProperties;
     const isLoading = propIsLoading || fetchedIsLoading;
 
-    const { paginatedItems, totalPages, currentPage, setCurrentPage, searchTerm, setSearchTerm } = useAdminTable({
+    // Initialize filters from URL
+    const initialFilters = useMemo(() => ({
+        status: searchParams.get('status') || 'all',
+    }), [searchParams]);
+
+    const { paginatedItems, totalPages, currentPage, setCurrentPage, searchTerm, setSearchTerm, filters, setFilter } = useAdminTable({
         data: properties,
         itemsPerPage: 10,
         initialSort: { key: 'listingStartDate', direction: 'descending' },
+        initialFilters,
         searchFn: (item: Property, term) => 
             (item.title?.en?.toLowerCase().includes(term) || false) || 
             (item.title?.ar?.includes(term) || false) ||
             (item.partnerName?.toLowerCase().includes(term) || false),
-        filterFns: {},
+        filterFns: {
+            status: (item: Property, value: string) => item.listingStatus === value,
+        },
     });
 
     const mutation = useMutation({
@@ -101,6 +109,15 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
         setSelectedProperties([]);
         setActionToConfirm(null);
     };
+
+    const handleStatusFilterChange = (value: string) => {
+        setFilter('status', value);
+        setSearchParams(prev => {
+            if (value === 'all') prev.delete('status');
+            else prev.set('status', value);
+            return prev;
+        }, { replace: true });
+    };
     
     const renderTable = (items: Property[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -134,7 +151,11 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
                             <TableCell className="font-medium text-gray-900 dark:text-white">{prop.title[language]}</TableCell>
                             <TableCell>{prop.partnerName}</TableCell>
                             <TableCell>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${prop.listingStatus === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                    prop.listingStatus === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 
+                                    prop.listingStatus === 'draft' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
                                     {prop.listingStatus}
                                 </span>
                             </TableCell>
@@ -157,7 +178,11 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
                 <input type="checkbox" checked={selectedProperties.includes(prop.id)} onChange={() => handleSelect(prop.id)} className="absolute top-2 right-2 h-5 w-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"/>
             </div>
             <CardContent className="p-4">
-                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full capitalize mb-2 ${prop.listingStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full capitalize mb-2 ${
+                     prop.listingStatus === 'active' ? 'bg-green-100 text-green-800' : 
+                     prop.listingStatus === 'draft' ? 'bg-amber-100 text-amber-800' :
+                     'bg-gray-100 text-gray-800'
+                 }`}>
                     {prop.listingStatus}
                 </span>
                 <h3 className="font-bold text-gray-900 dark:text-white truncate">{prop.title[language]}</h3>
@@ -213,6 +238,14 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
 
             <div className="mb-4 flex flex-wrap gap-4">
                 {!hideFilters.includes('search') && <Input placeholder={t_admin.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm"/>}
+                
+                <Select value={filters.status || 'all'} onChange={(e) => handleStatusFilterChange(e.target.value)} className="max-w-xs">
+                    <option value="all">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="sold">Sold/Rented</option>
+                </Select>
             </div>
 
             {selectedProperties.length > 0 && (

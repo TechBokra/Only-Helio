@@ -1,56 +1,82 @@
 
-
-import { partnerRequestsData as initialPartnerRequestsData } from '../data/partnerRequests';
+import { supabase } from '../supabaseClient';
 import type { PartnerRequest } from '../types';
 import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let partnerRequestsData: PartnerRequest[] = [...initialPartnerRequestsData];
+// Helper to map DB row to PartnerRequest
+const mapDbToRequest = (row: any): PartnerRequest => ({
+    id: row.id,
+    companyName: row.companyName,
+    companyType: row.companyType,
+    contactName: row.contactName,
+    contactEmail: row.contactEmail,
+    contactPhone: row.contactPhone,
+    description: row.description,
+    website: row.website,
+    companyAddress: row.companyAddress,
+    logo: row.logo,
+    documents: typeof row.documents === 'string' ? JSON.parse(row.documents) : (row.documents || []),
+    managementContacts: typeof row.managementContacts === 'string' ? JSON.parse(row.managementContacts) : (row.managementContacts || []),
+    subscriptionPlan: row.subscriptionPlan,
+    status: row.status,
+    createdAt: row.createdAt
+});
 
-const SIMULATED_DELAY = 300;
+export const getAllPartnerRequests = async (): Promise<PartnerRequest[]> => {
+    if (!supabase) return [];
 
-export const getAllPartnerRequests = (): Promise<PartnerRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...partnerRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+    const { data, error } = await supabase
+        .from('PartnerRequest')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching partner requests:", error);
+        return [];
+    }
+    return data.map(mapDbToRequest);
 };
 
-export const addPartnerRequest = (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: PartnerRequest = {
+export const addPartnerRequest = async (data: Omit<PartnerRequest, 'id' | 'status' | 'createdAt'>): Promise<PartnerRequest> => {
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const newRequest = {
         ...data,
         id: `preq-${Date.now()}`,
         status: 'pending',
         createdAt: new Date().toISOString(),
-      };
-      partnerRequestsData.unshift(newRequest);
-      
-      addNotification({
+        // Ensure complex objects are stringified for JSONB columns if needed, or pass as is if Supabase client handles it
+        documents: JSON.stringify(data.documents || []),
+        managementContacts: JSON.stringify(data.managementContacts || [])
+    };
+
+    const { data: inserted, error } = await supabase.from('PartnerRequest').insert(newRequest).select().single();
+    if (error) throw error;
+
+    // Notification
+    addNotification({
         userId: 'partner-relations-manager-1',
         message: {
-          ar: `لديك طلب انضمام شريك جديد من "${newRequest.companyName}".`,
-          en: `New partner request from "${newRequest.companyName}".`,
+            ar: `لديك طلب انضمام شريك جديد من "${data.companyName}".`,
+            en: `New partner request from "${data.companyName}".`,
         },
-        link: `/admin/partner-requests/${newRequest.id}`,
-      });
+        link: `/admin/partner-requests/${inserted.id}`,
+    });
 
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
+    return mapDbToRequest(inserted);
 };
 
-export const updatePartnerRequestStatus = (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = partnerRequestsData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                partnerRequestsData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
-    });
+export const updatePartnerRequestStatus = async (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+        .from('PartnerRequest')
+        .update({ status })
+        .eq('id', id);
+
+    if (error) {
+        console.error("Error updating partner request:", error);
+        return false;
+    }
+    return true;
 };

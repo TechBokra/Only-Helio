@@ -3,7 +3,6 @@ import { supabase } from '../supabaseClient';
 import type { Property, PropertyFiltersType } from '../types';
 import { filterProperties } from '../utils/propertyFilters';
 
-// Helper: Map DB Row to Frontend Type
 const mapDbToProperty = (row: any): Property => {
     let partnerName = 'Only Helio';
     if (row.partner && row.partner.name) {
@@ -69,29 +68,44 @@ const mapDbToProperty = (row: any): Property => {
 };
 
 export const getAllProperties = async (): Promise<Property[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) throw new Error("Supabase client is not initialized.");
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
-    if (error) throw new Error(`DB Error fetching properties: ${error.message}`);
-    
+    if (error) { 
+        console.error('SUPABASE ERROR (getAllProperties):', error); 
+        return []; 
+    }
     return (data || []).map(mapDbToProperty);
 };
 
 export const getProperties = async (): Promise<Property[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) {
+        console.error("Supabase client missing.");
+        return [];
+    }
 
+    // DEBUG: Removed .eq('listingStatus', 'active') to see ALL properties
+    // This helps verify connection even if data is incomplete
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
-        .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false });
 
-    if (error) throw new Error(error.message);
-    
+    if (error) {
+        console.error("SUPABASE ERROR (getProperties):", error);
+        return []; 
+    }
+
+    console.log("SUPABASE DATA RECEIVED:", data); // Check your browser console for this
+
+    if (!data || data.length === 0) {
+        console.warn("Supabase returned empty array. Check RLS policies in Supabase Dashboard.");
+    }
+
     return (data || []).map(mapDbToProperty);
 };
 
@@ -102,7 +116,7 @@ export const getPaginatedProperties = async (options: {
   disablePagination?: boolean;
 }): Promise<{ properties: Property[]; total: number }> => {
     const { page, limit, filters, disablePagination } = options;
-    const allProperties = await getProperties(); // Uses real DB
+    const allProperties = await getProperties();
     const filtered = filterProperties(allProperties, filters);
     const total = filtered.length;
     
@@ -114,31 +128,31 @@ export const getPaginatedProperties = async (options: {
 };
 
 export const getPropertiesByPartnerId = async (partnerId: string): Promise<Property[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return [];
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('partnerId', partnerId);
 
-    if (error) throw new Error(error.message);
-    return data.map(mapDbToProperty);
+    if (error) return [];
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getPropertiesByProjectId = async (projectId: string): Promise<Property[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return [];
 
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
         .eq('projectId', projectId);
 
-    if (error) throw new Error(error.message);
-    return data.map(mapDbToProperty);
+    if (error) return [];
+    return (data || []).map(mapDbToProperty);
 };
 
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return undefined;
 
     const { data, error } = await supabase
         .from('Property')
@@ -146,32 +160,28 @@ export const getPropertyById = async (id: string): Promise<Property | undefined>
         .eq('id', id)
         .single();
 
-    if (error) {
-        console.error(error);
-        return undefined;
-    }
+    if (error || !data) return undefined;
     return mapDbToProperty(data);
 };
 
 export const getFeaturedProperties = async (): Promise<Property[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return [];
 
+    // DEBUG: Removed active filter here too
     const { data, error } = await supabase
         .from('Property')
         .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
-        .eq('listingStatus', 'active')
         .order('createdAt', { ascending: false })
         .limit(4);
 
-    if (error) throw new Error(error.message);
-    return data.map(mapDbToProperty);
+    if (error) return [];
+    return (data || []).map(mapDbToProperty);
 };
 
 export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'>): Promise<Property> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) throw new Error("Database connection required.");
 
     const newId = crypto.randomUUID();
-    const now = new Date().toISOString();
 
     const dbPayload = {
         id: newId,
@@ -219,21 +229,21 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         contactMethod: property.contactMethod || 'platform',
         ownerPhone: property.ownerPhone || null,
         
-        listingStartDate: now,
-        createdAt: now
+        listingStartDate: new Date().toISOString(),
+        createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('Property').insert(dbPayload).select().single();
     
     if (error) {
         console.error("Supabase Add Property Error:", error);
-        throw new Error(`Failed to add property: ${error.message}`);
+        throw new Error(error.message); 
     }
     return mapDbToProperty(data);
 };
 
 export const updateProperty = async (propertyId: string, updates: Partial<Property>): Promise<Property | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) throw new Error("Database connection required.");
 
     const dbUpdates: any = {};
     
@@ -264,18 +274,18 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     
     if (error) {
         console.error('Error updating property:', error);
-        throw new Error(`Failed to update property: ${error.message}`);
+        throw new Error(error.message);
     }
     return mapDbToProperty(data);
 };
 
 export const deleteProperty = async (propertyId: string): Promise<boolean> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return false;
 
     const { error } = await supabase.from('Property').delete().eq('id', propertyId);
     if (error) {
         console.error('Error deleting property:', error);
-        throw new Error(`Failed to delete property: ${error.message}`);
+        return false;
     }
     return true;
 };

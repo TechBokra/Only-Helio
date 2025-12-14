@@ -1,5 +1,4 @@
 
-
 import type { FormDefinition } from '../types';
 
 export let formsData: FormDefinition[] = [
@@ -15,41 +14,10 @@ export let formsData: FormDefinition[] = [
         updatedAt: new Date().toISOString(),
         submitButtonLabel: { ar: 'إرسال', en: 'Send Message' },
         fields: [
-            {
-                id: 'f1',
-                key: 'name',
-                type: 'text',
-                label: { ar: 'الاسم بالكامل', en: 'Full Name' },
-                required: true,
-                width: 'half',
-                placeholder: { ar: 'أدخل اسمك', en: 'Enter your name' }
-            },
-            {
-                id: 'f2',
-                key: 'phone',
-                type: 'tel',
-                label: { ar: 'رقم الهاتف', en: 'Phone Number' },
-                required: true,
-                width: 'half',
-                placeholder: { ar: '01xxxxxxxxx', en: '01xxxxxxxxx' }
-            },
-            {
-                id: 'f3',
-                key: 'email',
-                type: 'email',
-                label: { ar: 'البريد الإلكتروني', en: 'Email Address' },
-                required: false,
-                width: 'full',
-            },
-            {
-                id: 'f4',
-                key: 'message',
-                type: 'textarea',
-                label: { ar: 'الرسالة', en: 'Message' },
-                required: true,
-                width: 'full',
-                placeholder: { ar: 'اكتب رسالتك هنا...', en: 'Type your message here...' }
-            }
+            { id: 'f1', key: 'name', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half', placeholder: { ar: 'أدخل اسمك', en: 'Enter your name' } },
+            { id: 'f2', key: 'phone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half', placeholder: { ar: '01xxxxxxxxx', en: '01xxxxxxxxx' } },
+            { id: 'f3', key: 'email', type: 'email', label: { ar: 'البريد الإلكتروني', en: 'Email Address' }, required: false, width: 'full' },
+            { id: 'f4', key: 'message', type: 'textarea', label: { ar: 'الرسالة', en: 'Message' }, required: true, width: 'full', placeholder: { ar: 'اكتب رسالتك هنا...', en: 'Type your message here...' } }
         ]
     },
     {
@@ -64,40 +32,10 @@ export let formsData: FormDefinition[] = [
         updatedAt: new Date().toISOString(),
         submitButtonLabel: { ar: 'تأكيد الطلب', en: 'Confirm Request' },
         fields: [
-            {
-                id: 'sf0',
-                key: 'customerName',
-                type: 'text',
-                label: { ar: 'الاسم بالكامل', en: 'Full Name' },
-                required: true,
-                width: 'half'
-            },
-            {
-                id: 'sf00',
-                key: 'customerPhone',
-                type: 'tel',
-                label: { ar: 'رقم الهاتف', en: 'Phone Number' },
-                required: true,
-                width: 'half'
-            },
-            {
-                id: 'sf1',
-                key: 'contactTime',
-                type: 'select',
-                label: { ar: 'وقت التواصل المفضل', en: 'Preferred Contact Time' },
-                required: true,
-                width: 'full',
-                options: ['morning', 'afternoon', 'evening']
-            },
-            {
-                id: 'sf4',
-                key: 'customerNotes',
-                type: 'textarea',
-                label: { ar: 'ملاحظات إضافية', en: 'Additional Notes' },
-                required: false,
-                width: 'full',
-                placeholder: { ar: 'اذكر أي تفاصيل إضافية...', en: 'Mention any extra details...' }
-            }
+            { id: 'sf0', key: 'customerName', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half' },
+            { id: 'sf00', key: 'customerPhone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half' },
+            { id: 'sf1', key: 'contactTime', type: 'select', label: { ar: 'وقت التواصل المفضل', en: 'Preferred Contact Time' }, required: true, width: 'full', options: ['morning', 'afternoon', 'evening'] },
+            { id: 'sf4', key: 'customerNotes', type: 'textarea', label: { ar: 'ملاحظات إضافية', en: 'Additional Notes' }, required: false, width: 'full', placeholder: { ar: 'اذكر أي تفاصيل إضافية...', en: 'Mention any extra details...' } }
         ]
     },
     {
@@ -112,40 +50,10 @@ export let formsData: FormDefinition[] = [
         updatedAt: new Date().toISOString(),
         submitButtonLabel: { ar: 'إرسال الطلب', en: 'Submit Request' },
         fields: [
-            {
-                id: 'pi1',
-                key: 'customerName',
-                type: 'text',
-                label: { ar: 'الاسم بالكامل', en: 'Full Name' },
-                required: true,
-                width: 'half'
-            },
-            {
-                id: 'pi2',
-                key: 'customerPhone',
-                type: 'tel',
-                label: { ar: 'رقم الهاتف', en: 'Phone Number' },
-                required: true,
-                width: 'half'
-            },
-            {
-                id: 'pi3',
-                key: 'contactTime',
-                type: 'select',
-                label: { ar: 'وقت التواصل', en: 'Preferred Time' },
-                required: true,
-                width: 'full',
-                options: ['morning', 'afternoon', 'evening']
-            },
-            {
-                id: 'pi4',
-                key: 'details',
-                type: 'textarea',
-                label: { ar: 'مواصفات العقار المطلوب', en: 'Property Details' },
-                required: true,
-                width: 'full',
-                placeholder: { ar: 'مثال: شقة ٣ غرف في الحي الثاني...', en: 'e.g., 3 Bedroom apartment in 2nd district...' }
-            }
+            { id: 'pi1', key: 'customerName', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half' },
+            { id: 'pi2', key: 'customerPhone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half' },
+            { id: 'pi3', key: 'contactTime', type: 'select', label: { ar: 'وقت التواصل', en: 'Preferred Time' }, required: true, width: 'full', options: ['morning', 'afternoon', 'evening'] },
+            { id: 'pi4', key: 'details', type: 'textarea', label: { ar: 'مواصفات العقار المطلوب', en: 'Property Details' }, required: true, width: 'full', placeholder: { ar: 'مثال: شقة ٣ غرف في الحي الثاني...', en: 'e.g., 3 Bedroom apartment in 2nd district...' } }
         ]
     },
     {
@@ -224,16 +132,29 @@ export let formsData: FormDefinition[] = [
         updatedAt: new Date().toISOString(),
         submitButtonLabel: { ar: 'التالي', en: 'Next' },
         fields: [
+             // Contact Info
              { id: 'ap1', key: 'customerName', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half' },
              { id: 'ap2', key: 'customerPhone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half' },
              { id: 'ap3', key: 'contactTime', type: 'select', label: { ar: 'الوقت المناسب للتواصل', en: 'Best time to contact' }, required: true, width: 'full', options: ['morning', 'afternoon', 'evening'] },
-             // Title fields removed as they are handled by admin
+             
+             // Basic Property Info
              { id: 'ap6', key: 'address', type: 'text', label: { ar: 'العنوان التفصيلي', en: 'Detailed Address' }, required: true, width: 'full' },
-             { id: 'ap7', key: 'propertyType', type: 'select', label: { ar: 'نوع العقار', en: 'Property Type' }, required: true, width: 'third', options: ['apartment', 'villa', 'commercial', 'land'] },
+             { id: 'ap7', key: 'propertyType', type: 'select', label: { ar: 'نوع العقار', en: 'Property Type' }, required: true, width: 'third', options: ['Apartment', 'Villa', 'Commercial', 'Land'] }, // Matches DB Enum
              { id: 'ap8', key: 'area', type: 'number', label: { ar: 'المساحة (م٢)', en: 'Area (m2)' }, required: true, width: 'third' },
              { id: 'ap9', key: 'price', type: 'number', label: { ar: 'السعر المطلوب (ج.م)', en: 'Price (EGP)' }, required: true, width: 'third' },
-             { id: 'ap10', key: 'finishingStatus', type: 'select', label: { ar: 'حالة التشطيب', en: 'Finishing Status' }, required: true, width: 'half', options: ['core_shell', 'semi_finished', 'fully_finished', 'luxury'] },
-             { id: 'ap11', key: 'description.ar', type: 'textarea', label: { ar: 'وصف العقار (عربي)', en: 'Description (AR)' }, required: false, width: 'full' },
+             
+             // Detailed Specs (Crucial for DB Mapping)
+             { id: 'ap_beds', key: 'bedrooms', type: 'number', label: { ar: 'غرف النوم', en: 'Bedrooms' }, required: true, width: 'third' },
+             { id: 'ap_baths', key: 'bathrooms', type: 'number', label: { ar: 'الحمامات', en: 'Bathrooms' }, required: true, width: 'third' },
+             { id: 'ap_floor', key: 'floor', type: 'number', label: { ar: 'الدور', en: 'Floor' }, required: false, width: 'third' },
+
+             { id: 'ap_compound', key: 'isInCompound', type: 'select', label: { ar: 'داخل كومبوند؟', en: 'In Compound?' }, required: true, width: 'half', options: ['yes', 'no'] },
+             { id: 'ap_installments', key: 'hasInstallments', type: 'select', label: { ar: 'يوجد تقسيط؟', en: 'Installments?' }, required: true, width: 'half', options: ['yes', 'no'] },
+             { id: 'ap_finance', key: 'realEstateFinanceAvailable', type: 'select', label: { ar: 'تمويل عقاري؟', en: 'Mortgage?' }, required: true, width: 'full', options: ['yes', 'no'] },
+
+             { id: 'ap10', key: 'finishingStatus', type: 'select', label: { ar: 'حالة التشطيب', en: 'Finishing Status' }, required: true, width: 'full', options: ['Core & Shell', 'Semi-finished', 'Fully Finished', 'Luxury Finishing'] },
+             
+             { id: 'ap11', key: 'description.ar', type: 'textarea', label: { ar: 'وصف العقار (عربي)', en: 'Description (AR)' }, required: true, width: 'full' },
              { id: 'ap12', key: 'description.en', type: 'textarea', label: { ar: 'وصف العقار (إنجليزي)', en: 'Description (EN)' }, required: false, width: 'full' },
         ]
     }

@@ -1,70 +1,86 @@
 
-import { propertyRequestsData as initialPropertyRequestsData } from '../data/propertyRequests';
+import { supabase } from '../supabaseClient';
 import type { AddPropertyRequest, RequestStatus } from '../types';
 import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let propertyRequestsData: AddPropertyRequest[] = [...initialPropertyRequestsData];
+// Helper
+const mapDbToPropRequest = (row: any): AddPropertyRequest => ({
+    id: row.id,
+    customerName: row.customerName,
+    customerPhone: row.customerPhone,
+    contactTime: row.contactTime,
+    status: row.status,
+    createdAt: row.createdAt,
+    managerId: row.managerId,
+    // Handle JSONB fields
+    propertyDetails: typeof row.propertyDetails === 'string' ? JSON.parse(row.propertyDetails) : row.propertyDetails,
+    images: typeof row.images === 'string' ? JSON.parse(row.images) : (row.images || []),
+    cooperationType: row.cooperationType
+});
 
-const SIMULATED_DELAY = 300;
+export const getAllPropertyRequests = async (): Promise<AddPropertyRequest[]> => {
+    if (!supabase) return [];
 
-export const getAllPropertyRequests = (): Promise<AddPropertyRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...propertyRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+    const { data, error } = await supabase
+        .from('PropertyListingRequest')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching property requests:", error);
+        return [];
+    }
+    return data.map(mapDbToPropRequest);
 };
 
-export const addPropertyRequest = (data: Omit<AddPropertyRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<AddPropertyRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: AddPropertyRequest = {
-        ...data,
+export const addPropertyRequest = async (data: Omit<AddPropertyRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<AddPropertyRequest> => {
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const newRequest = {
         id: `prop-req-${Date.now()}`,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        contactTime: data.contactTime,
+        cooperationType: data.cooperationType,
         status: 'pending',
         createdAt: new Date().toISOString(),
         managerId: 'customer-relations-manager-1',
-      };
-      propertyRequestsData.unshift(newRequest);
-      
-      addNotification({
-        userId: newRequest.managerId || 'admin-user', // Fallback
+        propertyDetails: JSON.stringify(data.propertyDetails),
+        images: JSON.stringify(data.images || [])
+    };
+
+    const { data: inserted, error } = await supabase.from('PropertyListingRequest').insert(newRequest).select().single();
+    if (error) throw error;
+    
+    addNotification({
+        userId: newRequest.managerId,
         message: {
-          ar: `طلب عرض عقار جديد من "${newRequest.customerName}".`,
-          en: `New property listing request from "${newRequest.customerName}".`,
+            ar: `طلب عرض عقار جديد من "${newRequest.customerName}".`,
+            en: `New property listing request from "${newRequest.customerName}".`,
         },
-        link: `/admin/property-requests/${newRequest.id}`,
-      });
+        link: `/admin/property-requests/${inserted.id}`,
+    });
 
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
+    return mapDbToPropRequest(inserted);
 };
 
-export const updatePropertyRequestStatus = (id: string, status: RequestStatus): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = propertyRequestsData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                propertyRequestsData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
-    });
+export const updatePropertyRequestStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+        .from('PropertyListingRequest')
+        .update({ status })
+        .eq('id', id);
+
+    if (error) {
+        console.error("Error updating property request:", error);
+        return false;
+    }
+    return true;
 };
 
-export const deletePropertyRequest = (id: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = propertyRequestsData.length;
-            propertyRequestsData = propertyRequestsData.filter(r => r.id !== id);
-            if (propertyRequestsData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const deletePropertyRequest = async (id: string): Promise<boolean> => {
+    if (!supabase) return false;
+    const { error } = await supabase.from('PropertyListingRequest').delete().eq('id', id);
+    return !error;
 };

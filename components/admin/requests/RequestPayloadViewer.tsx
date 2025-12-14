@@ -13,6 +13,9 @@ const RequestPayloadViewer: React.FC<RequestPayloadViewerProps> = ({ request }) 
     const t_admin = t.adminDashboard.adminRequests;
 
     const { payload, type } = request;
+    
+    // Safety check for payload
+    if (!payload) return <div className="text-gray-500 italic">No payload data available.</div>;
 
     switch (type) {
         case RequestType.PARTNER_APPLICATION:
@@ -53,23 +56,30 @@ const RequestPayloadViewer: React.FC<RequestPayloadViewerProps> = ({ request }) 
 
         case RequestType.PROPERTY_LISTING_REQUEST:
             const r = payload as any;
-            const pd = r.propertyDetails;
+            const pd = r.propertyDetails || {};
             
-            if (!pd) return <div className="text-red-500">Missing property details</div>;
+            // Helper for safe language access
+            const safeLang = (obj: any) => obj?.[language] || obj?.en || 'N/A';
 
             return (
                 <div className="space-y-6 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <DetailItem label="Property Type" value={pd.propertyType?.[language] || 'N/A'} />
-                        <DetailItem label="Purpose" value={pd.purpose?.[language] || 'N/A'} />
-                        <DetailItem label="Area" value={`${pd.area} m²`} />
-                        <DetailItem label="Price" value={`EGP ${pd.price?.toLocaleString()}`} />
-                        <DetailItem label="Finishing" value={pd.finishingStatus?.[language] || 'N/A'} />
-                        <DetailItem label="Cooperation" value={r.cooperationType} />
-                    </div>
-                    
-                    <DetailItem label="Address" value={pd.address} />
-                    <DetailItem label="Description" value={<p className="whitespace-pre-line text-sm">{pd.description}</p>} />
+                    {Object.keys(pd).length === 0 ? (
+                        <div className="text-red-500">Missing property details data.</div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <DetailItem label="Property Type" value={safeLang(pd.propertyType)} />
+                                <DetailItem label="Purpose" value={safeLang(pd.purpose)} />
+                                <DetailItem label="Area" value={pd.area ? `${pd.area} m²` : 'N/A'} />
+                                <DetailItem label="Price" value={pd.price ? `EGP ${Number(pd.price).toLocaleString()}` : 'N/A'} />
+                                <DetailItem label="Finishing" value={safeLang(pd.finishingStatus)} />
+                                <DetailItem label="Cooperation" value={r.cooperationType} />
+                            </div>
+                            
+                            <DetailItem label="Address" value={pd.address} />
+                            <DetailItem label="Description" value={<p className="whitespace-pre-line text-sm">{pd.description}</p>} />
+                        </>
+                    )}
 
                     {r.images && r.images.length > 0 && (
                         <div>

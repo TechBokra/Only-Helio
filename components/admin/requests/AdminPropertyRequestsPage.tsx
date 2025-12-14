@@ -3,11 +3,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAllPropertyRequests } from '../../../services/propertyRequests';
-// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
 import type { AddPropertyRequest } from '../../../types';
 import { Button } from '../../ui/Button';
@@ -29,9 +27,36 @@ const AdminPropertyRequestsPage: React.FC = () => {
         data: requests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        searchFn: (item: AddPropertyRequest, term: string) => item.customerName.toLowerCase().includes(term),
+        searchFn: (item: AddPropertyRequest, term: string) => 
+            (item.customerName || '').toLowerCase().includes(term),
         filterFns: {},
     });
+
+    // Helper to safely format date
+    const safeDate = (dateStr: string | undefined) => {
+        try {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return 'Invalid Date';
+            return d.toLocaleDateString(language);
+        } catch (e) {
+            return 'Error Date';
+        }
+    };
+
+    // Helper to safely get property info
+    const getPropInfo = (req: AddPropertyRequest) => {
+        const pd = req.propertyDetails || {};
+        const type = pd.propertyType?.[language] || pd.propertyType?.en || 'N/A';
+        const area = pd.area ? `${pd.area} m²` : '';
+        const price = pd.price ? new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', {
+            style: 'currency',
+            currency: 'EGP',
+            minimumFractionDigits: 0,
+        }).format(Number(pd.price)) : '';
+        
+        return { type, area, price };
+    };
 
     const renderTable = (items: AddPropertyRequest[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -46,74 +71,76 @@ const AdminPropertyRequestsPage: React.FC = () => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items.map((req) => (
-                        <TableRow key={req.id}>
-                            <TableCell>
-                                <div className="font-medium text-gray-900 dark:text-white">
-                                    {req.customerName}
-                                </div>
-                                <div className="text-sm text-gray-500">{req.customerPhone}</div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="font-medium">
-                                    {req.propertyDetails?.propertyType?.[language] || 'N/A'} - {req.propertyDetails?.area || 0}m²
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                    {new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', {
-                                        style: 'currency',
-                                        currency: 'EGP',
-                                        minimumFractionDigits: 0,
-                                    }).format(req.propertyDetails?.price || 0)}
-                                </div>
-                            </TableCell>
-                            <TableCell>{new Date(req.createdAt).toLocaleDateString(language)}</TableCell>
-                            <TableCell>
-                                <span className="px-2 py-1 text-xs font-medium rounded-full capitalize">
-                                    {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus]}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Link to={`/admin/properties/listing-requests/${req.id}`}>
-                                    <Button variant="outline" size="sm">
-                                        {t_admin.table.details}
-                                    </Button>
-                                </Link>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {items.map((req) => {
+                        const info = getPropInfo(req);
+                        return (
+                            <TableRow key={req.id}>
+                                <TableCell>
+                                    <div className="font-medium text-gray-900 dark:text-white">
+                                        {req.customerName || 'Unknown'}
+                                    </div>
+                                    <div className="text-sm text-gray-500">{req.customerPhone || 'No Phone'}</div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="font-medium">
+                                        {info.type} {info.area ? `- ${info.area}` : ''}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        {info.price}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{safeDate(req.createdAt)}</TableCell>
+                                <TableCell>
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full capitalize">
+                                        {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Link to={`/admin/property-requests/${req.id}`}>
+                                        <Button variant="outline" size="sm">
+                                            {t_admin.table.details}
+                                        </Button>
+                                    </Link>
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </div>
     );
 
-    const renderCard = (req: AddPropertyRequest) => (
-        <Card key={req.id}>
-            <CardContent className="p-4 space-y-3">
-                 <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">{req.customerName}</h3>
-                        <p className="text-sm text-gray-500">{req.customerPhone}</p>
+    const renderCard = (req: AddPropertyRequest) => {
+        const info = getPropInfo(req);
+        return (
+            <Card key={req.id}>
+                <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white">{req.customerName || 'Unknown'}</h3>
+                            <p className="text-sm text-gray-500">{req.customerPhone}</p>
+                        </div>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full capitalize bg-gray-100 dark:bg-gray-700">
+                            {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
+                        </span>
                     </div>
-                    <span className="px-2 py-1 text-xs font-medium rounded-full capitalize bg-gray-100 dark:bg-gray-700">
-                         {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
-                    </span>
-                </div>
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
-                    <p className="text-sm font-semibold text-amber-600">{req.propertyDetails?.propertyType?.[language] || 'Unknown Type'}</p>
-                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mt-1">
-                         <span>{req.propertyDetails?.area} m²</span>
-                         <span>{new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'EGP', minimumFractionDigits: 0 }).format(req.propertyDetails?.price || 0)}</span>
+                    <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
+                        <p className="text-sm font-semibold text-amber-600">{info.type}</p>
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mt-1">
+                            <span>{info.area}</span>
+                            <span>{info.price}</span>
+                        </div>
                     </div>
-                </div>
-                <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>
-            </CardContent>
-            <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                 <Link to={`/admin/properties/listing-requests/${req.id}`} className="w-full">
-                    <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
-                </Link>
-            </CardFooter>
-        </Card>
-    );
+                    <p className="text-xs text-gray-400 text-right">{safeDate(req.createdAt)}</p>
+                </CardContent>
+                <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+                    <Link to={`/admin/property-requests/${req.id}`} className="w-full">
+                        <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
+                    </Link>
+                </CardFooter>
+            </Card>
+        );
+    };
 
     const loadingSkeletons = (
         <>

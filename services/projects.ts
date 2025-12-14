@@ -9,7 +9,7 @@ const mapDbToProject = (row: any): Project => ({
     name: { ar: row.name_ar, en: row.name_en },
     description: { ar: row.description_ar, en: row.description_en },
     imageUrl: row.imageUrl,
-    imageUrl_small: row.imageUrl, // Assuming these columns exist or are handled by DB triggers/functions
+    imageUrl_small: row.imageUrl,
     imageUrl_medium: row.imageUrl,
     imageUrl_large: row.imageUrl,
     createdAt: row.createdAt,
@@ -18,7 +18,11 @@ const mapDbToProject = (row: any): Project => ({
 });
 
 export const getAllProjects = async (): Promise<Project[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    // STRICT MODE: If no DB connection, throw error or return empty, DO NOT use mock data.
+    if (!supabase) {
+        console.error("Supabase client is not initialized.");
+        return [];
+    }
 
     const { data, error } = await supabase
         .from('Project')
@@ -26,14 +30,14 @@ export const getAllProjects = async (): Promise<Project[]> => {
         .order('createdAt', { ascending: false });
 
     if (error) {
-        throw new Error(`DB Error fetching projects: ${error.message}`);
+        console.error('Supabase projects fetch failed:', error.message);
+        return [];
     }
-    
     return (data || []).map(mapDbToProject);
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return undefined;
 
     const { data, error } = await supabase
         .from('Project')
@@ -41,30 +45,26 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
         .eq('id', id)
         .single();
 
-    if (error) {
-        console.error("DB Error fetching project:", error.message);
-        return undefined;
-    }
+    if (error) return undefined;
     return mapDbToProject(data);
 };
 
 export const getProjectsByPartnerId = async (partnerId: string): Promise<Project[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return [];
 
     const { data, error } = await supabase
         .from('Project')
         .select(`*, partner:User!partnerId (name)`)
         .eq('partnerId', partnerId);
 
-    if (error) throw new Error(error.message);
+    if (error) return [];
     return data.map(mapDbToProject);
 };
 
 export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) throw new Error("Database connection required for adding projects.");
 
     const newId = crypto.randomUUID();
-    const now = new Date().toISOString();
 
     const dbPayload = {
         id: newId,
@@ -75,20 +75,16 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
         description_ar: project.description.ar,
         imageUrl: project.imageUrl,
         features: JSON.stringify(project.features || []), 
-        createdAt: now
+        createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('Project').insert(dbPayload).select().single();
-    
-    if (error) {
-        console.error("Supabase Add Project Error:", error);
-        throw new Error(`Failed to add project: ${error.message}`);
-    }
+    if (error) throw error;
     return mapDbToProject(data);
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) throw new Error("Database connection required.");
 
     const dbUpdates: any = {};
     if (updates.name) { dbUpdates.name_en = updates.name.en; dbUpdates.name_ar = updates.name.ar; }
@@ -97,17 +93,12 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
     if (updates.features) dbUpdates.features = JSON.stringify(updates.features);
 
     const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
-    
-    if (error) throw new Error(`Failed to update project: ${error.message}`);
-    
+    if (error) { console.error('Error updating project:', error); return undefined; }
     return mapDbToProject(data);
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
-    if (!supabase) throw new Error("Database not connected");
-    
+    if (!supabase) return false;
     const { error } = await supabase.from('Project').delete().eq('id', projectId);
-    if (error) throw new Error(`Failed to delete project: ${error.message}`);
-    
-    return true;
+    return !error;
 };

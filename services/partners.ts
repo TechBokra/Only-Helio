@@ -9,7 +9,7 @@ import { Role } from '../types';
 const mapDbToPartner = (row: any): Partner => {
     if (!row) return null as any; 
 
-    // Handle Admin special case
+    // Handle Admin special case (Legacy support)
     if (row.email === 'admin@onlyhelio.com') {
         row.type = 'admin';
         row.role = Role.SUPER_ADMIN;
@@ -40,6 +40,18 @@ const mapDbToPartner = (row: any): Partner => {
         mappedRole = mapPartnerTypeToRole(mappedType as PartnerType);
     }
 
+    // Parse contact methods if stored as JSON string
+    let contactMethods = row.contactMethods;
+    if (typeof contactMethods === 'string') {
+        try {
+            contactMethods = JSON.parse(contactMethods);
+        } catch (e) {
+            contactMethods = { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } };
+        }
+    } else if (!contactMethods) {
+        contactMethods = { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } };
+    }
+
     return {
         id: row.id,
         email: row.email || 'no-email@recorded.com',
@@ -61,7 +73,7 @@ const mapDbToPartner = (row: any): Partner => {
         description: row.description_en || '',
         descriptionAr: row.description_ar || '',
         
-        contactMethods: typeof row.contactMethods === 'string' ? JSON.parse(row.contactMethods) : (row.contactMethods || { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } }),
+        contactMethods: contactMethods,
         subscriptionEndDate: row.subscriptionEndDate,
         createdAt: row.createdAt || new Date().toISOString()
     } as Partner;
@@ -70,37 +82,56 @@ const mapDbToPartner = (row: any): Partner => {
 // --- READ OPERATIONS ---
 
 export const getAllPartners = async (): Promise<Partner[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    // STRICT MODE: No mock fallback
+    if (!supabase) {
+        console.error("Supabase not initialized for getAllPartners");
+        return [];
+    }
+    
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
-    if (error) throw new Error(error.message);
+    
+    if (error) {
+        console.error('Supabase fetch error (getAllPartners):', error);
+        return [];
+    }
     return (data || []).map(mapDbToPartner);
 };
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) {
+        console.error("Supabase not initialized for getAllPartnersForAdmin");
+        return [];
+    }
+    
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
-    if (error) throw new Error(error.message);
+    
+    if (error) {
+        console.error('Supabase fetch error (getAllPartnersForAdmin):', error);
+        return [];
+    }
     return (data || []).map(row => mapDbToPartner(row) as AdminPartner);
 };
 
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return undefined;
+    
     const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
-    if (error) return undefined;
+    if (error || !data) return undefined;
     return mapDbToPartner(data);
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return undefined;
+    
     const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
-    if (error) return undefined;
+    if (error || !data) return undefined;
     return mapDbToPartner(data);
 };
 
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return false;
     
     const dbUpdates: any = {};
     
@@ -109,7 +140,7 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.descriptionEn !== undefined) dbUpdates.description_en = updates.descriptionEn;
     if (updates.descriptionAr !== undefined) dbUpdates.description_ar = updates.descriptionAr;
     
-    if (updates.name !== undefined) dbUpdates.name_en = updates.name; 
+    if (updates.name !== undefined) dbUpdates.name_en = updates.name;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.imageUrl !== undefined) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -136,11 +167,11 @@ export const updatePartnerStatus = async (id: string, status: PartnerStatus): Pr
 export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
     if (!supabase) throw new Error("Supabase not connected");
 
-    const newPartnerId = crypto.randomUUID(); 
+    const newPartnerId = `partner-${Date.now()}`;
     const newPartner = {
         id: newPartnerId,
         name_en: request.companyName,
-        name_ar: request.companyName, 
+        name_ar: request.companyName,
         email: request.contactEmail,
         type: request.companyType,
         status: 'active',
@@ -156,7 +187,7 @@ export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
 };
 
 export const deletePartner = async (userId: string): Promise<boolean> => {
-    if (!supabase) throw new Error("Database not connected");
+    if (!supabase) return false;
     const { error } = await supabase.from('User').delete().eq('id', userId);
     if (error) throw error;
     return true;
@@ -169,16 +200,16 @@ export const upgradePartnerPlan = async (id: string, newPlan: SubscriptionPlan) 
 export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
     if (!supabase) throw new Error("Supabase not connected");
 
-    const newId = crypto.randomUUID(); 
     const newUser = {
-        id: newId,
-        name_en: userData.name,   
-        name_ar: userData.nameAr, 
+        id: `user-${Date.now()}`,
+        name_en: userData.name,
+        name_ar: userData.nameAr,
         email: userData.email,
         type: userData.type,
         role: mapPartnerTypeToRole(userData.type), 
         status: 'active',
         imageUrl: 'https://via.placeholder.com/150', 
+        createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('User').insert(newUser).select().single();
