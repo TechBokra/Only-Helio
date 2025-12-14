@@ -15,6 +15,12 @@ import { formsData } from '../data/forms'; // Ensure this import exists
 
 // Explicitly ensure system users exist first
 const ensureSystemUsers = async (logs: string[]) => {
+    // FIX: Supabase might be null in some environments, guard against it.
+    if (!supabase) {
+        logs.push("Supabase client not initialized, skipping system users creation.");
+        return;
+    }
+
     const systemUsers = [
         {
             id: 'individual-listings',
