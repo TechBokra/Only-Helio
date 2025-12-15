@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useForm, SubmitHandler, FormProvider, FieldValues, RegisterOptions } from 'react-hook-form';
+import { useForm, SubmitHandler, FormProvider, FieldValues, RegisterOptions, UseFormReturn } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getFormBySlug } from '../../services/forms';
 import { addRequest } from '../../services/requests';
@@ -29,6 +29,7 @@ interface DynamicFormProps {
     submitButtonText?: string;
     submitButtonIcon?: React.ReactNode;
     hiddenFields?: string[];
+    externalFormMethods?: UseFormReturn<FieldValues>; // Optional: Use parent's form methods
 }
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ 
@@ -42,7 +43,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     customSubmit,
     submitButtonText,
     submitButtonIcon,
-    hiddenFields = []
+    hiddenFields = [],
+    externalFormMethods
 }) => {
     const { language, t } = useLanguage();
     const { showToast } = useToast();
@@ -52,9 +54,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         queryFn: () => getFormBySlug(slug),
     });
 
-    const methods = useForm<FieldValues>({
+    const localMethods = useForm<FieldValues>({
         defaultValues: defaultValues || {}
     });
+
+    // Use external methods if provided, otherwise use local ones
+    const methods = externalFormMethods || localMethods;
     
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = methods;
 
@@ -65,9 +70,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         for (const field of fileFields) {
             const fileList = formData[field.key];
             if (fileList && fileList.length > 0) {
-                processedData[field.key] = await fileToBase64(fileList[0]);
-            } else {
-                delete processedData[field.key];
+                // If it's a FileList, convert. If it's already a string (base64 from previous state), leave it.
+                if (fileList[0] instanceof File) {
+                    processedData[field.key] = await fileToBase64(fileList[0]);
+                }
+            } else if (!processedData[field.key]) {
+                 delete processedData[field.key];
             }
         }
         return processedData;
@@ -127,7 +135,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         },
         onSuccess: () => {
             showToast(language === 'ar' ? 'تم الإرسال بنجاح!' : 'Submitted successfully!', 'success');
-            reset();
+            if (!externalFormMethods) reset(); // Only reset if using local methods
             if (onSuccess) onSuccess();
         },
         onError: (err) => {
@@ -246,12 +254,17 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                 );
             case 'file':
                 return (
-                    <Input 
-                        type="file" 
-                        {...commonProps} 
-                        className="p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900 dark:file:text-amber-300" 
-                        accept="image/*,application/pdf" 
-                    />
+                    <div>
+                        <Input 
+                            type="file" 
+                            {...commonProps} 
+                            className="p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900 dark:file:text-amber-300" 
+                            accept="image/*,application/pdf" 
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                            {language === 'ar' ? 'الحد الأقصى 5 ميجابايت (صور أو PDF).' : 'Max size 5MB (Images or PDF).'}
+                        </p>
+                    </div>
                 );
             default:
                 return <Input type={field.type} {...commonProps} className={inputClasses} />;
@@ -280,6 +293,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                                         label={field.label[language]} 
                                         id={field.id} 
                                         error={errors[field.key]?.message as string}
+                                        required={field.required}
                                     >
                                         {renderField(field)}
                                     </FormField>

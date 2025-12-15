@@ -28,18 +28,30 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
     const mutation = useMutation({
         mutationFn: async ({ status, req }: { status: 'approved' | 'rejected', req: PartnerRequest }) => {
             if (status === 'approved') {
-                await addPartner(req);
+                // Create partner with 'pending_setup' status (Under Construction / Needs Setup)
+                // This requires DB to accept 'pending_setup' in status CHECK constraint.
+                await addPartner(req, 'pending_setup');
             }
+            // Update request status to archive it
             await updatePartnerRequestStatus(req.id, status);
         },
         onSuccess: (_, variables) => {
-            showToast(`Request has been ${variables.status}.`, 'success');
+            if (variables.status === 'approved') {
+                showToast(language === 'ar' ? 'تمت الموافقة. الشريك الآن في حالة "تحت التجهيز".' : 'Approved. Partner created as "Pending Setup".', 'success');
+                // Redirect to Partners List filtered by pending_setup to finalize setup
+                navigate('/admin/partners/list?status=pending_setup'); 
+            } else {
+                showToast(language === 'ar' ? 'تم رفض الطلب.' : 'Request rejected.', 'success');
+                navigate('/admin/partner-requests');
+            }
             queryClient.invalidateQueries({ queryKey: ['partnerRequests'] });
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
-            navigate('/admin/partner-requests');
         },
-        onError: () => {
-            showToast('Action failed. Please try again.', 'error');
+        onError: (error: any) => {
+            console.error("Partner approval failed:", error);
+            // Show detailed error if available
+            const msg = error.message || 'Action failed. Please try again.';
+            showToast(msg, 'error');
         }
     });
 
@@ -47,7 +59,6 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
     if (!request) return <div>Request not found.</div>;
     
     // FIX: Cast 'companyType' to 'PlanCategory' to ensure type-safe access to the 'plans' object.
-    // Partner applications should only come from 'developer', 'agency', or 'finishing'.
     const companyTypeForPlan = request.companyType as PlanCategory;
     const selectedPlanDetails = plans?.[companyTypeForPlan]?.[request.subscriptionPlan as keyof typeof plans[typeof companyTypeForPlan]]?.[language];
 
@@ -58,7 +69,16 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{request.companyName}</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{request.companyName}</h1>
+                <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize ${
+                    request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                }`}>
+                    {request.status}
+                </span>
+            </div>
             
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -126,7 +146,7 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
                             {t.adminShared.reject}
                         </button>
                          <button onClick={() => mutation.mutate({ status: 'approved', req: request })} disabled={mutation.isPending} className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors">
-                            {t.adminShared.approve}
+                            {language === 'ar' ? 'قبول وتأسيس الشريك' : 'Approve & Create Partner'}
                         </button>
                     </div>
                 )}

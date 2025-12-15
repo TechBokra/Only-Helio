@@ -48,11 +48,18 @@ export const billing = {
     "payment": {
         "title": "Complete Payment",
         "summary": "Order Summary",
+        "description": "Description",
+        "amountDue": "Amount Due",
+        "user": "User",
         "total": "Total",
         "selectMethod": "Select Payment Method",
         "securePayment": "Secure Payment",
         "transferDetails": "Transfer Details",
+        "transferTo": "Transfer amount to:",
+        "walletNumber": "Wallet Number",
+        "walletName": "Name",
         "uploadReceipt": "Upload Receipt",
+        "uploadReceiptHint": "Please upload a clear screenshot of the transaction.",
         "confirmTransfer": "Confirm Transfer",
         "payNow": "Pay Now",
         "successTitle": "Payment Successful!",
@@ -60,6 +67,14 @@ export const billing = {
         "successMessage": "Your payment was processed successfully and your request is confirmed.",
         "reviewMessage": "Receipt received. Our team will review the transaction and activate your request shortly.",
         "transactionId": "Transaction ID",
-        "returnHome": "Return to Home"
+        "returnHome": "Return to Home",
+        "cancelReturn": "Cancel & Return",
+        "payOnline": "Online Payment",
+        "redirectMessage": "You will be redirected to the secure payment gateway to complete your transaction.",
+        "selectMethodPrompt": "Select a payment method to proceed.",
+        "paymentRequestReceived": "Payment request received successfully",
+        "paymentFailed": "Payment failed. Please try again.",
+        "receiptRequired": "Please upload receipt image",
+        "methodRequired": "Please select a payment method"
     }
 };

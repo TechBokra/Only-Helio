@@ -50,6 +50,9 @@ const AdminPartnersPage: React.FC = () => {
     });
 
     const handleStatusToggle = (id: string, currentStatus: PartnerStatus) => {
+        // Simple toggle logic for the switch: 
+        // If active -> disabled
+        // If anything else (pending, pending_setup, disabled) -> active
         const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
         statusMutation.mutate({ id, status: newStatus });
     };
@@ -167,11 +170,18 @@ const AdminPartnersPage: React.FC = () => {
                             <TableCell className="capitalize">{t_admin.partnerTypes[p.type as keyof typeof t_admin.partnerTypes]}</TableCell>
                             <TableCell className="capitalize">{p.subscriptionPlan}</TableCell>
                             <TableCell>
-                                <ToggleSwitch 
-                                    checked={p.status === 'active'}
-                                    onChange={() => handleStatusToggle(p.id, p.status)}
-                                    disabled={p.status === 'pending' || statusMutation.isPending}
-                                />
+                                <div className="flex items-center gap-2">
+                                     <ToggleSwitch 
+                                        checked={p.status === 'active'}
+                                        onChange={() => handleStatusToggle(p.id, p.status)}
+                                        disabled={statusMutation.isPending}
+                                    />
+                                    {p.status !== 'active' && p.status !== 'disabled' && (
+                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded capitalize">
+                                            {t_admin.partnerStatuses[p.status as keyof typeof t_admin.partnerStatuses] || p.status.replace('_', ' ')}
+                                        </span>
+                                    )}
+                                </div>
                             </TableCell>
                             <TableCell>
                                 <Link to={`/admin/partners/edit/${p.id}`}>
@@ -210,11 +220,16 @@ const AdminPartnersPage: React.FC = () => {
                 </div>
 
                 <div className="w-full flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3 mt-auto">
-                    <ToggleSwitch 
-                        checked={p.status === 'active'}
-                        onChange={() => handleStatusToggle(p.id, p.status)}
-                        disabled={p.status === 'pending' || statusMutation.isPending}
-                    />
+                    <div className="flex flex-col items-start">
+                        <ToggleSwitch 
+                            checked={p.status === 'active'}
+                            onChange={() => handleStatusToggle(p.id, p.status)}
+                            disabled={statusMutation.isPending}
+                        />
+                        {p.status !== 'active' && p.status !== 'disabled' && (
+                             <span className="text-[10px] text-yellow-600 mt-1">{t_admin.partnerStatuses[p.status as keyof typeof t_admin.partnerStatuses]}</span>
+                        )}
+                    </div>
                      <Link to={`/admin/partners/edit/${p.id}`}>
                         <Button variant="link" size="sm">{t.adminShared.edit}</Button>
                     </Link>

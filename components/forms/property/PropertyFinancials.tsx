@@ -24,11 +24,11 @@ const PropertyFinancials: React.FC = () => {
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b pb-2 border-gray-100 dark:border-gray-700">
-                {language === 'ar' ? 'البيانات المالية والاستلام' : 'Financials & Delivery'}
+                {t.forms?.financials || "Financials"}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField label="Price" id="priceNumeric" required>
+                 <FormField label={t.forms?.price || "Price"} id="priceNumeric" required>
                     <input type="number" {...register("priceNumeric", { required: true, valueAsNumber: true })} className={inputClasses} />
                 </FormField>
                 {watchStatus?.en === 'For Sale' && (
@@ -42,16 +42,16 @@ const PropertyFinancials: React.FC = () => {
                 <div className="bg-gray-50 dark:bg-gray-900/30 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                     <FormField label={td.isInCompound} id="isInCompound">
                         <RadioGroup className="flex gap-4 pt-2">
-                            <label className="flex items-center gap-2"><RadioGroupItem {...register("isInCompound")} value="true" id="compound-yes" /> Yes</label>
-                            <label className="flex items-center gap-2"><RadioGroupItem {...register("isInCompound")} value="false" id="compound-no" /> No</label>
+                            <label className="flex items-center gap-2"><RadioGroupItem {...register("isInCompound")} value="true" id="compound-yes" /> {t.forms?.yes || "Yes"}</label>
+                            <label className="flex items-center gap-2"><RadioGroupItem {...register("isInCompound")} value="false" id="compound-no" /> {t.forms?.no || "No"}</label>
                         </RadioGroup>
                     </FormField>
                 </div>
                  <div className="bg-gray-50 dark:bg-gray-900/30 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
                      <FormField label={td.realEstateFinanceAvailable} id="realEstateFinanceAvailable">
                         <RadioGroup className="flex gap-4 pt-2">
-                            <label className="flex items-center gap-2"><RadioGroupItem {...register("realEstateFinanceAvailable")} value="true" id="finance-yes" /> Yes</label>
-                            <label className="flex items-center gap-2"><RadioGroupItem {...register("realEstateFinanceAvailable")} value="false" id="finance-no" /> No</label>
+                            <label className="flex items-center gap-2"><RadioGroupItem {...register("realEstateFinanceAvailable")} value="true" id="finance-yes" /> {t.forms?.yes || "Yes"}</label>
+                            <label className="flex items-center gap-2"><RadioGroupItem {...register("realEstateFinanceAvailable")} value="false" id="finance-no" /> {t.forms?.no || "No"}</label>
                         </RadioGroup>
                     </FormField>
                 </div>
@@ -74,7 +74,7 @@ const PropertyFinancials: React.FC = () => {
                 <FormField label={td.installmentsInfo} id="installmentsAvailable">
                      <RadioGroup className="flex gap-4 pt-2">
                         <label className="flex items-center gap-2"><RadioGroupItem {...register("installmentsAvailable")} value="true" id="installments-yes" /> {td.installmentsAvailable}</label>
-                        <label className="flex items-center gap-2"><RadioGroupItem {...register("installmentsAvailable")} value="false" id="installments-no" /> Not Available</label>
+                        <label className="flex items-center gap-2"><RadioGroupItem {...register("installmentsAvailable")} value="false" id="installments-no" /> {t.propertiesPage.installmentsNo}</label>
                     </RadioGroup>
                 </FormField>
                 {watchInstallments === 'true' && (

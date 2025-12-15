@@ -48,11 +48,18 @@ export const billing = {
     "payment": {
         "title": "إتمام الدفع",
         "summary": "ملخص الطلب",
+        "description": "الوصف",
+        "amountDue": "المبلغ المستحق",
+        "user": "المستخدم",
         "total": "الإجمالي",
         "selectMethod": "اختر طريقة الدفع",
         "securePayment": "دفع آمن",
         "transferDetails": "بيانات التحويل",
+        "transferTo": "حول المبلغ إلى:",
+        "walletNumber": "رقم المحفظة",
+        "walletName": "الاسم",
         "uploadReceipt": "صورة الإيصال",
+        "uploadReceiptHint": "يرجى رفع صورة واضحة لإيصال التحويل.",
         "confirmTransfer": "تأكيد التحويل",
         "payNow": "الدفع الآن",
         "successTitle": "تم الدفع بنجاح!",
@@ -60,6 +67,14 @@ export const billing = {
         "successMessage": "تمت عملية الدفع بنجاح وتأكيد طلبك.",
         "reviewMessage": "تم استلام إيصال التحويل. سيقوم فريقنا بمراجعة الطلب وتفعيله في أقرب وقت.",
         "transactionId": "رقم المعاملة",
-        "returnHome": "العودة للقائمة الرئيسية"
+        "returnHome": "العودة للقائمة الرئيسية",
+        "cancelReturn": "إلغاء وعودة",
+        "payOnline": "الدفع عبر الإنترنت",
+        "redirectMessage": "سيتم إعادة توجيهك إلى بوابة الدفع الآمنة لإتمام العملية.",
+        "selectMethodPrompt": "اختر طريقة الدفع للمتابعة.",
+        "paymentRequestReceived": "تم استلام طلب الدفع بنجاح",
+        "paymentFailed": "فشلت عملية الدفع. يرجى المحاولة مرة أخرى.",
+        "receiptRequired": "يرجى رفع صورة الإيصال للمتابعة.",
+        "methodRequired": "يرجى اختيار طريقة الدفع."
     }
 };

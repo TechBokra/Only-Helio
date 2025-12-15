@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -74,7 +75,8 @@ const AdminUserFormPage: React.FC = () => {
             nameAr: data.updates.nameAr,
             email: data.updates.email,
             type: data.updates.type,
-            status: data.updates.status
+            status: data.updates.status,
+            password: data.updates.password
         }),
         onSuccess: () => {
             showToast('User updated successfully!', 'success');
@@ -93,7 +95,9 @@ const AdminUserFormPage: React.FC = () => {
     };
     
     const isSubmitting = addMutation.isPending || updateMutation.isPending;
-    const partnerTypes = Object.entries(t_admin.partnerTypes).filter(([key]) => !['developer', 'agency', 'finishing'].includes(key));
+    // Allow all types to support editing pending partners
+    const partnerTypes = Object.entries(t_admin.partnerTypes);
+    const partnerStatuses = Object.entries(t_admin.partnerStatuses);
 
     if (isEdit && isLoading) return <div>Loading user...</div>;
 
@@ -136,13 +140,11 @@ const AdminUserFormPage: React.FC = () => {
                             <Input type="email" {...register('email', { required: true })} />
                         </div>
                         
-                        {!isEdit && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">{t_admin.userManagement.form.password}</label>
-                                <Input type="password" {...register('password')} />
-                                <p className="text-xs text-gray-500 mt-1">{t_admin.userManagement.form.passwordHelp}</p>
-                            </div>
-                        )}
+                        <div>
+                            <label className="block text-sm font-medium mb-1">{t_admin.userManagement.form.password}</label>
+                            <Input type="password" {...register('password')} />
+                            <p className="text-xs text-gray-500 mt-1">{t_admin.userManagement.form.passwordHelp}</p>
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -154,8 +156,7 @@ const AdminUserFormPage: React.FC = () => {
                              <div>
                                 <label className="block text-sm font-medium mb-1">{t_admin.userManagement.status}</label>
                                 <Select {...register('status')}>
-                                    <option value="active">Active</option>
-                                    <option value="disabled">Disabled</option>
+                                    {partnerStatuses.map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
                                 </Select>
                             </div>
                         </div>

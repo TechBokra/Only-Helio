@@ -409,7 +409,8 @@ export const admin = {
         "partnerStatuses": {
             "active": "Active",
             "pending": "Pending",
-            "disabled": "Disabled"
+            "disabled": "Disabled",
+            "pending_setup": "Pending Setup"
         },
         "roleDescriptions": {
             "DECORATION_MANAGER": "Manages decoration content and requests.",

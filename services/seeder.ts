@@ -6,16 +6,12 @@ import { propertiesData } from '../data/properties';
 import { decorationCategoriesData } from '../data/decorationCategories';
 import { portfolioData } from '../data/portfolio';
 import { leadsData } from '../data/leads';
-import { partnerRequestsData } from '../data/partnerRequests';
-import { propertyRequestsData } from '../data/propertyRequests';
-import { contactRequestsData } from '../data/contactRequests';
-import { propertyInquiriesData } from '../data/propertyInquiries';
+import { bannersData } from '../data/banners';
+import { routingRulesData } from '../data/routingRules';
 import { enTranslations } from '../data/translations';
-import { formsData } from '../data/forms'; // Ensure this import exists
 
 // Explicitly ensure system users exist first
 const ensureSystemUsers = async (logs: string[]) => {
-    // FIX: Supabase might be null in some environments, guard against it.
     if (!supabase) {
         logs.push("Supabase client not initialized, skipping system users creation.");
         return;
@@ -72,13 +68,15 @@ export const seedDatabase = async () => {
             const info = enTranslations.partnerInfo[p.id] || { name: p.id };
             return {
                 id: p.id,
-                name_en: info.name, // Fixed column name
+                name_en: info.name, 
+                name_ar: info.name, // Fallback
                 email: p.email,
                 type: p.type,
                 imageUrl: p.imageUrl,
                 status: p.status,
+                password: p.password, // IMPORTANT: Sync password for login
                 subscriptionPlan: p.subscriptionPlan,
-                password: p.password || 'password' // Ensure password exists
+                contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : undefined
             };
         });
         const { error: userError } = await supabase.from('User').upsert(usersPayload, { onConflict: 'id' });
@@ -109,7 +107,7 @@ export const seedDatabase = async () => {
         logs.push(`Projects Failed: ${e.message}`);
     }
 
-    // 3. Sync Properties (Simplified Payload)
+    // 3. Sync Properties
     try {
         const propsPayload = propertiesData.map(p => ({
             id: p.id,
@@ -131,7 +129,7 @@ export const seedDatabase = async () => {
             status: p.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
             imageUrl: p.imageUrl,
             gallery: p.gallery,
-            location: p.location,
+            location: JSON.stringify(p.location),
             installments: JSON.stringify(p.installments), 
             isInCompound: p.isInCompound,
             installmentsAvailable: p.installmentsAvailable,
@@ -142,13 +140,11 @@ export const seedDatabase = async () => {
         const { error: propError } = await supabase.from('Property').upsert(propsPayload, { onConflict: 'id' });
         
         if (propError) {
-            console.error("Supabase Property Error Details:", propError);
             logs.push(`Properties Failed: ${propError.message}`);
         } else {
             logs.push("Properties Synced");
         }
     } catch (e: any) {
-        console.error("Property Sync Exception:", e);
         logs.push(`Properties Exception: ${e.message}`);
     }
 
@@ -203,27 +199,35 @@ export const seedDatabase = async () => {
         logs.push("Leads Synced");
     } catch (e) { logs.push("Leads Skipped"); }
 
-    // 7. Requests (and new dynamic Forms)
+    // 7. Sync Banners
     try {
-        // Sync Forms first if table exists (assuming future structure, for now just updating mock data indirectly via update logic in requests)
-        // Note: In real app, forms would have their own table. For now, we simulate success.
-        
-        const propReqPayload = propertyRequestsData.map(r => ({
-            id: r.id, 
-            customerName: r.customerName, 
-            customerPhone: r.customerPhone,
-            status: r.status, 
-            createdAt: r.createdAt,
-            // Ensure JSONB compatibility
-            propertyDetails: typeof r.propertyDetails === 'string' ? r.propertyDetails : JSON.stringify(r.propertyDetails),
-            images: typeof r.images === 'string' ? r.images : JSON.stringify(r.images || [])
+        const bannersPayload = bannersData.map(b => ({
+            id: b.id,
+            title: b.title,
+            imageUrl: b.imageUrl,
+            link: b.link,
+            locations: b.locations,
+            status: b.status,
+            startDate: b.startDate,
+            endDate: b.endDate
         }));
-        await supabase.from('PropertyListingRequest').upsert(propReqPayload, { onConflict: 'id' });
-        logs.push("Requests Synced");
+        await supabase.from('Banner').upsert(bannersPayload, { onConflict: 'id' });
+        logs.push("Banners Synced");
+    } catch (e) { logs.push("Banners Skipped"); }
 
-    } catch (e) {
-        logs.push("Optional Requests Skipped");
-    }
+    // 8. Sync Routing Rules
+    try {
+        const rulesPayload = routingRulesData.map(r => ({
+            id: r.id,
+            name_en: r.name.en,
+            name_ar: r.name.ar,
+            active: r.active,
+            conditions: JSON.stringify(r.conditions),
+            action: JSON.stringify(r.action)
+        }));
+        await supabase.from('RoutingRule').upsert(rulesPayload, { onConflict: 'id' });
+        logs.push("Routing Rules Synced");
+    } catch (e) { logs.push("Routing Rules Skipped"); }
 
     return `Sync Complete. Details: ${logs.join(", ")}`;
 };

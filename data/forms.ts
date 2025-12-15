@@ -139,7 +139,8 @@ export let formsData: FormDefinition[] = [
              
              // Basic Property Info
              { id: 'ap6', key: 'address', type: 'text', label: { ar: 'العنوان التفصيلي', en: 'Detailed Address' }, required: true, width: 'full' },
-             { id: 'ap7', key: 'propertyType', type: 'select', label: { ar: 'نوع العقار', en: 'Property Type' }, required: true, width: 'third', options: ['Apartment', 'Villa', 'Commercial', 'Land'] }, // Matches DB Enum
+             // UPDATED: Used translation keys instead of raw strings
+             { id: 'ap7', key: 'propertyType', type: 'select', label: { ar: 'نوع العقار', en: 'Property Type' }, required: true, width: 'third', options: ['apartment', 'villa', 'commercial', 'land'] },
              { id: 'ap8', key: 'area', type: 'number', label: { ar: 'المساحة (م٢)', en: 'Area (m2)' }, required: true, width: 'third' },
              { id: 'ap9', key: 'price', type: 'number', label: { ar: 'السعر المطلوب (ج.م)', en: 'Price (EGP)' }, required: true, width: 'third' },
              
@@ -152,7 +153,8 @@ export let formsData: FormDefinition[] = [
              { id: 'ap_installments', key: 'hasInstallments', type: 'select', label: { ar: 'يوجد تقسيط؟', en: 'Installments?' }, required: true, width: 'half', options: ['yes', 'no'] },
              { id: 'ap_finance', key: 'realEstateFinanceAvailable', type: 'select', label: { ar: 'تمويل عقاري؟', en: 'Mortgage?' }, required: true, width: 'full', options: ['yes', 'no'] },
 
-             { id: 'ap10', key: 'finishingStatus', type: 'select', label: { ar: 'حالة التشطيب', en: 'Finishing Status' }, required: true, width: 'full', options: ['Core & Shell', 'Semi-finished', 'Fully Finished', 'Luxury Finishing'] },
+             // UPDATED: Used translation keys instead of raw strings
+             { id: 'ap10', key: 'finishingStatus', type: 'select', label: { ar: 'حالة التشطيب', en: 'Finishing Status' }, required: true, width: 'full', options: ['core_shell', 'semi_finished', 'fully_finished', 'super_lux', 'luxury'] },
              
              { id: 'ap11', key: 'description.ar', type: 'textarea', label: { ar: 'وصف العقار (عربي)', en: 'Description (AR)' }, required: true, width: 'full' },
              { id: 'ap12', key: 'description.en', type: 'textarea', label: { ar: 'وصف العقار (إنجليزي)', en: 'Description (EN)' }, required: false, width: 'full' },

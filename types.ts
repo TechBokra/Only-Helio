@@ -71,7 +71,7 @@ export type PartnerType =
     | 'customer_relations_manager'
     | 'listings_manager';
 
-export type PartnerStatus = 'active' | 'pending' | 'disabled';
+export type PartnerStatus = 'active' | 'pending' | 'disabled' | 'pending_setup';
 export type SubscriptionPlan = 'basic' | 'professional' | 'elite' | 'commission' | 'paid_listing';
 export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
 export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';

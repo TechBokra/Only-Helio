@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node -e \"const fs=require('fs'); if(fs.existsSync('api')) fs.rmSync('api', {recursive:true, force:true});\"",
-    "build": "npm run prebuild && tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

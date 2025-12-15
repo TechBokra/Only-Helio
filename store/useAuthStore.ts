@@ -84,7 +84,10 @@ export const useAuthStore = create<AuthState>()(
                 const state = get();
                 if (!state.currentUser) return false;
                 if (state.currentUser.role === Role.SUPER_ADMIN) return true;
-                return state.permissions.includes(permission);
+                
+                // DYNAMIC CHECK: Always look up from the source of truth to ensure permissions are fresh
+                const currentPermissions = rolePermissions.get(state.currentUser.role) || [];
+                return currentPermissions.includes(permission);
             },
 
             setCurrentUser: (user: Partner | null) => {
@@ -111,7 +114,14 @@ export const useAuthStore = create<AuthState>()(
         {
             name: 'onlyhelio-auth-storage',
             storage: createJSONStorage(() => localStorage),
-            partialize: (state) => ({ currentUser: state.currentUser, permissions: state.permissions }),
+            // Only persist currentUser, derived state (permissions) will be re-calculated
+            partialize: (state) => ({ currentUser: state.currentUser }),
+            onRehydrateStorage: () => (state) => {
+                // When store hydrates, ensure permissions match the user role immediately
+                if (state && state.currentUser) {
+                    state.permissions = rolePermissions.get(state.currentUser.role) || [];
+                }
+            }
         }
     )
 );

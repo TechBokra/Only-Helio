@@ -26,9 +26,9 @@ export const PATTERNS = {
 export const MESSAGES = {
     ar: {
         required: "هذا الحقل مطلوب",
-        invalid_email: "البريد الإلكتروني غير صحيح",
-        invalid_phone: "رقم الهاتف يجب أن يكون مصرياً صحيحاً (11 رقم يبدأ بـ 01)",
-        invalid_url: "رابط غير صحيح",
+        invalid_email: "يرجى إدخال بريد إلكتروني صحيح",
+        invalid_phone: "رقم الهاتف غير صحيح (يجب أن يكون 11 رقم ويبدأ بـ 01)",
+        invalid_url: "الرابط غير صحيح",
         min_length: (min: number) => `يجب أن يحتوي على ${min} حروف على الأقل`,
         max_length: (max: number) => `يجب ألا يزيد عن ${max} حرف`,
         invalid_number: "يجب إدخال أرقام فقط",

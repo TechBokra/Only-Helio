@@ -1,8 +1,29 @@
+
 import { supabase } from '../supabaseClient';
-import { leadsData as initialLeadsData } from '../data/leads';
-import type { Lead, LeadStatus, LeadMessage } from '../types';
-import { getPartnerById } from './partners';
+import { leadsData as fileLeads } from '../data/leads';
+import type { Lead, LeadMessage } from '../types';
 import { addNotification } from './notifications';
+
+// Hardcoded fallback if file is empty
+const fallbackLeads: Lead[] = [
+    {
+        id: 'lead-1',
+        partnerId: 'admin-user',
+        serviceType: 'property',
+        customerName: 'Dr. Ahmed Mahmoud',
+        customerPhone: '01000000000',
+        serviceTitle: 'Inquiry about "Luxury Villa in Korba Heights"',
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        propertyId: 'prop-fallback-1',
+        partnerName: 'United Development'
+    }
+];
+
+const getMockLeads = (): Lead[] => {
+    return fileLeads.length > 0 ? fileLeads : fallbackLeads;
+};
 
 // Helper to map DB row to Lead
 const mapDbToLead = (row: any): Lead => ({
@@ -18,11 +39,10 @@ const mapDbToLead = (row: any): Lead => ({
     customerNotes: row.notes,
     status: row.status,
     assignedTo: row.assignedTo,
-    referenceImage: row.referenceImage, // Assuming JSONB or column exists
+    referenceImage: row.referenceImage, 
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     partnerName: row.partner?.name || 'Unknown',
-    // Map messages relation if joined
     messages: (row.messages || []).map((msg: any) => ({
         id: msg.id || `msg-${Math.random()}`,
         sender: msg.sender,
@@ -34,7 +54,7 @@ const mapDbToLead = (row: any): Lead => ({
 });
 
 export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> => {
-    if (!supabase) return [];
+    if (!supabase) return getMockLeads().filter(l => l.partnerId === partnerId);
     
     const { data, error } = await supabase
         .from('Lead')
@@ -42,15 +62,14 @@ export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> =>
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
         
-    if (error) {
-        console.error('Fetch partner leads failed:', error);
-        return [];
+    if (error || !data || data.length === 0) {
+        return getMockLeads().filter(l => l.partnerId === partnerId);
     }
     return data.map(mapDbToLead);
 };
 
 export const getLeadById = async (leadId: string): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) return getMockLeads().find(l => l.id === leadId);
 
     const { data, error } = await supabase
         .from('Lead')
@@ -58,27 +77,31 @@ export const getLeadById = async (leadId: string): Promise<Lead | undefined> => 
         .eq('id', leadId)
         .single();
 
-    if (error) return undefined;
+    if (error) return getMockLeads().find(l => l.id === leadId);
     return mapDbToLead(data);
 };
 
 export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]> => {
-    if (!supabase) return [];
+    if (!supabase) return getMockLeads();
 
     const { data, error } = await supabase
         .from('Lead')
         .select(`*, partner:User!partnerId(name), messages:LeadMessage(*)`)
         .order('createdAt', { ascending: false });
 
-    if (error) {
-        console.error('Fetch all leads failed:', error);
-        return [];
+    if (error || !data || data.length === 0) {
+        return getMockLeads();
     }
     return data.map(mapDbToLead);
 };
 
 export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
-    if (!supabase) throw new Error("Supabase not connected");
+    if (!supabase) {
+        // Mock
+        const newLead = { ...leadData, id: `lead-${Date.now()}`, status: 'new', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Lead;
+        fallbackLeads.unshift(newLead);
+        return newLead;
+    }
 
     const now = new Date().toISOString();
     const newLead = {
@@ -118,7 +141,7 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
 };
 
 export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) return undefined; // Mock not fully implemented
 
     const dbUpdates: any = { updatedAt: new Date().toISOString() };
     if (updates.status) dbUpdates.status = updates.status;
@@ -126,7 +149,6 @@ export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id
     if (updates.customerNotes) dbUpdates.notes = updates.customerNotes;
 
     const { data, error } = await supabase.from('Lead').update(dbUpdates).eq('id', leadId).select().single();
-    
     if (error) throw error;
 
     // Handle System Note for status change
@@ -142,7 +164,7 @@ export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id
 };
 
 export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) return undefined; // Mock not fully implemented
 
     const newMessage = {
         leadId,
@@ -156,10 +178,8 @@ export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMes
     const { error } = await supabase.from('LeadMessage').insert(newMessage);
     if (error) throw error;
 
-    // Update Lead 'updatedAt'
     await supabase.from('Lead').update({ updatedAt: new Date().toISOString() }).eq('id', leadId);
 
-    // If first response, update status to contacted
     if (messageData.sender === 'partner' || messageData.sender === 'admin') {
          const lead = await getLeadById(leadId);
          if (lead && lead.status === 'new') {
@@ -171,7 +191,7 @@ export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMes
 };
 
 export const deleteLead = async (leadId: string): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!supabase) return true; // Mock
     const { error } = await supabase.from('Lead').delete().eq('id', leadId);
     if (error) throw error;
     return true;

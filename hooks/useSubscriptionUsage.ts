@@ -1,65 +1,76 @@
+
 import { useMemo, useCallback } from 'react';
-import type { PartnerType, SubscriptionPlan, Property, Project, PortfolioItem } from '../types';
-import { useAuth } from '../components/auth/AuthContext';
+import type { Property, Project, PortfolioItem } from '../types';
+import { useAuthStore } from '../store/useAuthStore'; // Corrected import to use store
 import { getPlanLimit } from '../utils/subscriptionUtils';
 import { useQuery } from '@tanstack/react-query';
-// FIX: Corrected import paths for services from the non-existent `api` directory to `services`.
-import { getAllProperties } from '../services/properties';
-import { getAllProjects } from '../services/projects';
-import { getAllPortfolioItems } from '../services/portfolio';
+import { getPropertiesByPartnerId } from '../services/properties';
+import { getProjectsByPartnerId } from '../services/projects';
+import { getPortfolioByPartnerId } from '../services/portfolio';
 
 type UsageType = 'properties' | 'projects' | 'units' | 'portfolio';
 
 export const useSubscriptionUsage = (usageType: UsageType) => {
-    const { currentUser } = useAuth();
-    
+    const currentUser = useAuthStore((state) => state.currentUser);
+    const userId = currentUser?.id || '';
+
+    // Fetch Partner Specific Data (DB Optimized)
     const { 
-        data: allProperties, 
+        data: partnerProperties, 
         isLoading: isLoadingProperties, 
         isError: isErrorProperties,
         refetch: refetchProperties 
-    } = useQuery({ queryKey: ['allProperties'], queryFn: getAllProperties, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-properties`, userId], 
+        queryFn: () => getPropertiesByPartnerId(userId), 
+        enabled: !!userId && (usageType === 'properties' || usageType === 'units')
+    });
 
     const { 
-        data: allProjects, 
+        data: partnerProjects, 
         isLoading: isLoadingProjects, 
         isError: isErrorProjects,
         refetch: refetchProjects 
-    } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-projects`, userId], 
+        queryFn: () => getProjectsByPartnerId(userId), 
+        enabled: !!userId && usageType === 'projects'
+    });
 
     const { 
-        data: allPortfolioItems, 
+        data: partnerPortfolio, 
         isLoading: isLoadingPortfolio, 
         isError: isErrorPortfolio,
         refetch: refetchPortfolio 
-    } = useQuery({ queryKey: ['allPortfolioItems'], queryFn: getAllPortfolioItems, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-portfolio`, userId], 
+        queryFn: () => getPortfolioByPartnerId(userId), 
+        enabled: !!userId && usageType === 'portfolio'
+    });
 
     const isLoading = isLoadingProperties || isLoadingProjects || isLoadingPortfolio;
     const isError = isErrorProperties || isErrorProjects || isErrorPortfolio;
 
     const refetchAll = useCallback(() => {
-        refetchProperties();
-        refetchProjects();
-        refetchPortfolio();
-    }, [refetchProperties, refetchProjects, refetchPortfolio]);
+        if (usageType === 'properties' || usageType === 'units') refetchProperties();
+        if (usageType === 'projects') refetchProjects();
+        if (usageType === 'portfolio') refetchPortfolio();
+    }, [refetchProperties, refetchProjects, refetchPortfolio, usageType]);
 
     const data = useMemo(() => {
-        if (!currentUser || isLoading) return [];
+        if (!currentUser) return [];
         switch (usageType) {
             case 'properties':
-            case 'units': // units are properties for a developer
-                // FIX: Explicitly type the parameter in the filter callback to resolve type inference issues.
-                return (allProperties || []).filter((p: Property) => p.partnerId === currentUser.id);
+            case 'units':
+                return partnerProperties || [];
             case 'projects':
-                // FIX: Explicitly type the parameter in the filter callback to resolve type inference issues.
-                return (allProjects || []).filter((p: Project) => p.partnerId === currentUser.id);
+                return partnerProjects || [];
             case 'portfolio':
-                // FIX: Explicitly type the parameter in the filter callback to resolve type inference issues.
-                return (allPortfolioItems || []).filter((p: PortfolioItem) => p.partnerId === currentUser.id);
+                return partnerPortfolio || [];
             default:
                 return [];
         }
-    }, [allProperties, allProjects, allPortfolioItems, currentUser, usageType, isLoading]);
+    }, [partnerProperties, partnerProjects, partnerPortfolio, currentUser, usageType]);
 
     const usageCount = useMemo(() => data.length, [data]);
 

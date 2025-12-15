@@ -16,6 +16,15 @@ const purposeOptions = [
     { en: 'For Rent', ar: 'إيجار' },
 ] as const;
 
+// Helper to map form keys (apartment) to internal DB Types (Apartment)
+const typeMapping: Record<string, string> = {
+    'apartment': 'Apartment',
+    'villa': 'Villa',
+    'commercial': 'Commercial',
+    'land': 'Land',
+    'office': 'Commercial', // Map office to Commercial for now
+};
+
 export const useAddPropertyForm = () => {
     const { language, t } = useLanguage();
     const t_page = t.addPropertyPage;
@@ -39,7 +48,7 @@ export const useAddPropertyForm = () => {
     const isLoadingContext = isLoadingPropTypes || isLoadingFinishing || isLoadingPlans || isLoadingAmenities;
 
     // React Hook Form
-    const { register, handleSubmit, watch, setValue, formState: { errors }, reset, getValues } = useForm({
+    const methods = useForm({
         defaultValues: {
             customerName: '', customerPhone: '', contactTime: '',
             description: { ar: '', en: '' },
@@ -59,6 +68,8 @@ export const useAddPropertyForm = () => {
             amenities: { en: [] as string[], ar: [] as string[] },
         }
     });
+    
+    const { register, handleSubmit, watch, setValue, formState: { errors }, reset, getValues } = methods;
     
     const watchPropertyType = watch("propertyType");
     const watchLatitude = watch("latitude");
@@ -135,12 +146,16 @@ export const useAddPropertyForm = () => {
         setIsLocationModalOpen(false);
     };
 
-    // Dynamic Options
+    // Dynamic Options Filtering
     const availableAmenities = useMemo(() => {
         if (!amenities) return [];
-        if (!watchPropertyType) return amenities;
+        // Map the selected form value (e.g., 'apartment') to the internal English Type (e.g., 'Apartment')
+        const internalTypeName = watchPropertyType ? typeMapping[watchPropertyType] : null;
+
+        if (!internalTypeName) return amenities;
+        
         return amenities.filter(amenity => 
-            !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(watchPropertyType)
+            !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(internalTypeName)
         );
     }, [amenities, watchPropertyType]);
 
@@ -173,31 +188,30 @@ export const useAddPropertyForm = () => {
             return;
         }
 
-        // Merge data from DynamicForm (formData) with hook state (images, location, etc)
-        // Note: DynamicForm fields use 'key', so ensure keys match.
-        // We fallback to hook state if DynamicForm data is missing specific fields (e.g. if they are custom inputs)
-
         const imageBase64Strings = await Promise.all(images.map(file => fileToBase64(file)));
         
         // Ensure lat/lng are present
         const lat = formData.latitude || getValues('latitude');
         const lng = formData.longitude || getValues('longitude');
         
+        // Find property type based on the selected KEY (e.g. 'apartment')
+        const selectedTypeOption = propertyTypes?.find(o => o.id.toLowerCase().includes(formData.propertyType) || o.en.toLowerCase() === formData.propertyType) || { en: 'Apartment', ar: 'شقة' };
+        const selectedFinishingOption = finishingStatuses?.find(o => o.en.toLowerCase().replace(/ /g,'_') === formData.finishingStatus || o.id.includes(formData.finishingStatus)) || { en: 'Core & Shell', ar: 'بدون تشطيب' };
+
         const propertyDetails = {
             purpose: purposeOptions.find(o => o.en === purpose)!,
-            // Set default pending titles as they are managed by admin later
             title: { ar: 'عقار جديد (في انتظار العنوان)', en: 'New Property (Pending Title)' },
             description: { ar: formData['description.ar'] || '', en: formData['description.en'] || '' },
-            propertyType: (propertyTypes || []).find(o => o.en === formData.propertyType)!,
-            finishingStatus: (finishingStatuses || []).find(o => o.en === formData.finishingStatus)!,
+            propertyType: selectedTypeOption,
+            finishingStatus: selectedFinishingOption,
             area: parseInt(formData.area),
             price: parseInt(formData.price),
             bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
             bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
             floor: formData.floor ? parseInt(formData.floor) : undefined,
             address: formData.address,
-            amenities: formData.amenities || getValues('amenities'), // Amenities might be handled by custom UI
-            location: { lat: parseFloat(lat || '30.0'), lng: parseFloat(lng || '31.0') }, // Default to Cairo if missing but ideally should be validated
+            amenities: formData.amenities || getValues('amenities'),
+            location: { lat: parseFloat(lat || '30.0'), lng: parseFloat(lng || '31.0') }, 
             isInCompound: formData.isInCompound === 'yes',
             deliveryType: formData.deliveryType,
             deliveryMonth: formData.deliveryMonth,
@@ -277,8 +291,9 @@ export const useAddPropertyForm = () => {
         watch,
         setValue,
         errors,
+        formMethods: methods, // Exposed the full methods object
         
-        // Exposed raw submit for external callers (DynamicForm)
+        // Exposed raw submit for external callers
         onSubmit,
 
         // Watchers

@@ -3,20 +3,11 @@ import { NavLink, Link } from 'react-router-dom';
 import { useLanguage } from './LanguageContext';
 import { 
     ChevronDoubleLeftIcon, ChevronDoubleRightIcon, LogoutIcon, CloseIcon, GlobeAltIcon
-} from '@/components/ui/Icons';
+} from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
-import { type Partner, Permission, Role } from '@/types';
+import { type Partner, Permission, Role } from '../../types';
 import ErrorBoundary from './ErrorBoundary';
-
-interface NavLinkItem {
-  name: (t: any) => string;
-  href: string;
-  icon: React.FC<{ className?: string }>;
-  exact?: boolean;
-  group: string;
-  permission: Permission;
-  roles?: Role[];
-}
+import type { NavLinkItem } from '../../data/navigation';
 
 interface DashboardSidebarProps {
   user: Partner;

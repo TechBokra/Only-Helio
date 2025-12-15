@@ -1,13 +1,13 @@
 
-import React, { useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Role, Project, Property, Lead, PortfolioItem } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { getAllProperties } from '../../services/properties';
-import { getAllProjects } from '../../services/projects';
-import { getAllLeads } from '../../services/leads';
-import { getAllPortfolioItems } from '../../services/portfolio';
+import { getPropertiesByPartnerId } from '../../services/properties';
+import { getProjectsByPartnerId } from '../../services/projects';
+import { getLeadsByPartnerId } from '../../services/leads';
+import { getPortfolioByPartnerId } from '../../services/portfolio';
 import StatCard from '../shared/StatCard';
 import { CubeIcon, BuildingIcon, InboxIcon, ClipboardDocumentListIcon, PhotoIcon } from '../ui/Icons';
 import { useLanguage } from '../shared/LanguageContext';
@@ -19,33 +19,50 @@ const DashboardHomePage: React.FC = () => {
     const { currentUser } = useAuth();
     const t_home = t.dashboardHome;
     
+    // Only fetch data relevant to the current user
     const { 
-        data: allProperties, 
+        data: properties, 
         isLoading: loadingProps, 
         isError: errorProps, 
         refetch: refetchProps 
-    } = useQuery({ queryKey: ['allPropertiesAdmin'], queryFn: getAllProperties, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-properties`, currentUser?.id], 
+        queryFn: () => getPropertiesByPartnerId(currentUser!.id), 
+        enabled: !!currentUser 
+    });
     
     const { 
-        data: allProjects, 
+        data: projects, 
         isLoading: loadingProjs, 
         isError: errorProjs, 
         refetch: refetchProjs 
-    } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-projects`, currentUser?.id], 
+        queryFn: () => getProjectsByPartnerId(currentUser!.id), 
+        enabled: !!currentUser && currentUser.role === Role.DEVELOPER_PARTNER 
+    });
     
     const { 
-        data: allLeads, 
+        data: leads, 
         isLoading: loadingLeads, 
         isError: errorLeads, 
         refetch: refetchLeads 
-    } = useQuery({ queryKey: ['allLeadsAdmin'], queryFn: getAllLeads, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-leads`, currentUser?.id], 
+        queryFn: () => getLeadsByPartnerId(currentUser!.id), 
+        enabled: !!currentUser 
+    });
     
     const { 
-        data: allPortfolioItems, 
+        data: portfolio, 
         isLoading: loadingPortfolio, 
         isError: errorPortfolio, 
         refetch: refetchPortfolio 
-    } = useQuery({ queryKey: ['allPortfolioItems'], queryFn: getAllPortfolioItems, enabled: !!currentUser });
+    } = useQuery({ 
+        queryKey: [`partner-portfolio`, currentUser?.id], 
+        queryFn: () => getPortfolioByPartnerId(currentUser!.id), 
+        enabled: !!currentUser && currentUser.role === Role.FINISHING_PARTNER 
+    });
 
     const isLoading = loadingProps || loadingProjs || loadingLeads || loadingPortfolio;
     const isError = errorProps || errorProjs || errorLeads || errorPortfolio;
@@ -56,16 +73,6 @@ const DashboardHomePage: React.FC = () => {
         refetchLeads();
         refetchPortfolio();
     };
-
-    const { properties, projects, leads, portfolio } = useMemo(() => {
-        if (!currentUser) return { properties: [], projects: [], leads: [], portfolio: [] };
-        return {
-            properties: (allProperties || []).filter(p => p.partnerId === currentUser.id),
-            projects: (allProjects || []).filter(p => p.partnerId === currentUser.id),
-            leads: (allLeads || []).filter(l => l.partnerId === currentUser.id),
-            portfolio: (allPortfolioItems || []).filter(p => p.partnerId === currentUser.id),
-        }
-    }, [allProperties, allProjects, allLeads, allPortfolioItems, currentUser]);
 
     const projectsWithUnitCount = useMemo(() => {
         if (!projects || !properties) return [];
@@ -209,7 +216,7 @@ const DashboardHomePage: React.FC = () => {
                 {currentUser.role === Role.FINISHING_PARTNER && (
                      <RequestList<PortfolioItem & {createdAt: string}>
                         title="Recent Portfolio Additions"
-                        requests={portfolio.map(p => ({...p, createdAt: new Date().toISOString()}))}
+                        requests={portfolio ? portfolio.map(p => ({...p, createdAt: new Date().toISOString()})) : []}
                         linkTo="/dashboard/portfolio"
                         itemRenderer={(item) => (
                             <li key={item.id} className="py-3">

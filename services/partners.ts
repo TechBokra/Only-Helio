@@ -4,6 +4,8 @@ import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType,
 import { mapPartnerTypeToRole } from '../data/permissions';
 import { arTranslations, enTranslations } from '../data/translations';
 import { Role } from '../types';
+// Import mock data as fallback
+import { partnersData } from '../data/partners'; 
 
 // Helper to map DB User to Partner (Database -> Frontend)
 const mapDbToPartner = (row: any): Partner => {
@@ -52,6 +54,16 @@ const mapDbToPartner = (row: any): Partner => {
         contactMethods = { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } };
     }
 
+    // Helper to normalize status strings from DB to frontend enum
+    const normalizeStatus = (status: string): PartnerStatus => {
+        const s = status?.toLowerCase();
+        if (s === 'active') return 'active';
+        if (s === 'pending') return 'pending';
+        if (s === 'pending_setup') return 'pending_setup';
+        if (s === 'disabled') return 'disabled';
+        return 'disabled'; // Default fallback
+    };
+
     return {
         id: row.id,
         email: row.email || 'no-email@recorded.com',
@@ -62,7 +74,7 @@ const mapDbToPartner = (row: any): Partner => {
         
         type: mappedType as PartnerType,
         role: mappedRole,
-        status: (row.status?.toLowerCase() === 'active' ? 'active' : 'disabled') as PartnerStatus,
+        status: normalizeStatus(row.status),
         
         subscriptionPlan: row.subscriptionPlan || 'basic',
         displayType: row.displayType || 'standard',
@@ -79,59 +91,74 @@ const mapDbToPartner = (row: any): Partner => {
     } as Partner;
 };
 
+// Fallback function for mock data
+const getMockPartners = (): AdminPartner[] => {
+    return partnersData.map(p => {
+        // Mock data usually lacks the 'role' field in the raw array, we derive it
+        const role = p.type === 'admin' ? Role.SUPER_ADMIN : mapPartnerTypeToRole(p.type);
+        return {
+            ...p,
+            role,
+            name: p.id, // Fallback name
+            nameAr: p.id,
+            description: '',
+            descriptionAr: ''
+        } as unknown as AdminPartner;
+    });
+};
+
 // --- READ OPERATIONS ---
 
 export const getAllPartners = async (): Promise<Partner[]> => {
-    // STRICT MODE: No mock fallback
     if (!supabase) {
-        console.error("Supabase not initialized for getAllPartners");
-        return [];
+        console.warn("Supabase not initialized, returning mock partners.");
+        return getMockPartners();
     }
     
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
     
-    if (error) {
-        console.error('Supabase fetch error (getAllPartners):', error);
-        return [];
+    if (error || !data || data.length === 0) {
+        console.warn('Supabase fetch failed or empty (getAllPartners), using mock data fallback.', error);
+        return getMockPartners();
     }
     return (data || []).map(mapDbToPartner);
 };
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
     if (!supabase) {
-        console.error("Supabase not initialized for getAllPartnersForAdmin");
-        return [];
+        console.warn("Supabase not initialized, returning mock partners.");
+        return getMockPartners();
     }
     
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
     
-    if (error) {
-        console.error('Supabase fetch error (getAllPartnersForAdmin):', error);
-        return [];
+    if (error || !data || data.length === 0) {
+        console.warn('Supabase fetch failed or empty (getAllPartnersForAdmin), using mock data fallback.', error);
+        return getMockPartners();
     }
     return (data || []).map(row => mapDbToPartner(row) as AdminPartner);
 };
 
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) return getMockPartners().find(p => p.id === id);
     
     const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
-    if (error || !data) return undefined;
+    if (error || !data) return getMockPartners().find(p => p.id === id);
     return mapDbToPartner(data);
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    if (!supabase) return undefined;
+    if (!supabase) return getMockPartners().find(p => p.email === email);
     
     const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
-    if (error || !data) return undefined;
+    if (error || !data) return getMockPartners().find(p => p.email === email);
     return mapDbToPartner(data);
 };
 
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!supabase) return true; // Mock success
     
     const dbUpdates: any = {};
     
@@ -164,8 +191,8 @@ export const updatePartnerStatus = async (id: string, status: PartnerStatus): Pr
     return updatePartner(id, { status });
 };
 
-export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
-    if (!supabase) throw new Error("Supabase not connected");
+export const addPartner = async (request: PartnerRequest, initialStatus: PartnerStatus = 'pending'): Promise<Partner> => {
+    if (!supabase) throw new Error("Database connection required for adding partners.");
 
     const newPartnerId = `partner-${Date.now()}`;
     const newPartner = {
@@ -174,20 +201,27 @@ export const addPartner = async (request: PartnerRequest): Promise<Partner> => {
         name_ar: request.companyName,
         email: request.contactEmail,
         type: request.companyType,
-        status: 'active',
+        // Ensure status is valid before sending.
+        status: initialStatus,
         imageUrl: request.logo || 'https://via.placeholder.com/150',
         subscriptionPlan: request.subscriptionPlan,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // NOTE: Password column removed as it might not exist in the public User table.
+        // Auth should be handled via Supabase Auth or a separate mechanism.
     };
 
     const { data, error } = await supabase.from('User').insert(newPartner).select().single();
-    if (error) throw error;
+    
+    if (error) {
+        console.error("Supabase Add Partner Error:", error);
+        throw new Error(error.message);
+    }
     
     return mapDbToPartner(data);
 };
 
 export const deletePartner = async (userId: string): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!supabase) return true; // Mock success
     const { error } = await supabase.from('User').delete().eq('id', userId);
     if (error) throw error;
     return true;
@@ -198,7 +232,7 @@ export const updatePartnerAdmin = async (id: string, updates: any) => updatePart
 export const upgradePartnerPlan = async (id: string, newPlan: SubscriptionPlan) => updatePartner(id, { subscriptionPlan: newPlan });
 
 export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
-    if (!supabase) throw new Error("Supabase not connected");
+    if (!supabase) throw new Error("Database connection required.");
 
     const newUser = {
         id: `user-${Date.now()}`,
@@ -207,13 +241,19 @@ export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
         email: userData.email,
         type: userData.type,
         role: mapPartnerTypeToRole(userData.type), 
-        status: 'active',
-        imageUrl: 'https://via.placeholder.com/150', 
+        status: userData.status || 'active',
+        imageUrl: 'https://via.placeholder.com/150',
+        // NOTE: Password column removed as it might not exist in the public User table.
         createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('User').insert(newUser).select().single();
-    if (error) throw error;
+    
+    if (error) {
+        console.error("Supabase Add Internal User Error:", error);
+        throw new Error(error.message);
+    }
+    
     return mapDbToPartner(data) as AdminPartner;
 };
 

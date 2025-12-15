@@ -22,6 +22,7 @@ const PaymentPage: React.FC = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
+    const t_pay = t.billing.payment;
     
     const { data: siteContent, isLoading: isLoadingContent } = useQuery({ queryKey: ['siteContent'], queryFn: getContent });
     
@@ -105,7 +106,7 @@ const PaymentPage: React.FC = () => {
             }
         },
         onError: () => {
-            showToast('Payment failed. Please try again.', 'error');
+            showToast(t_pay.paymentFailed, 'error');
         }
     });
 
@@ -113,13 +114,13 @@ const PaymentPage: React.FC = () => {
         let receiptUrl = undefined;
         
         if (!method) {
-             showToast("Please select a payment method", "error");
+             showToast(t_pay.methodRequired, "error");
              return;
         }
 
         if (method === 'instapay') {
             if (!receiptFile) {
-                showToast(language === 'ar' ? 'يرجى رفع صورة الإيصال' : 'Please upload receipt image', 'error');
+                showToast(t_pay.receiptRequired, 'error');
                 return;
             }
             receiptUrl = await fileToBase64(receiptFile);
@@ -152,30 +153,26 @@ const PaymentPage: React.FC = () => {
                     </div>
                     
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                        {method === 'card' 
-                            ? (language === 'ar' ? 'تم الدفع بنجاح!' : 'Payment Successful!') 
-                            : (language === 'ar' ? 'تم إرسال الطلب للمراجعة' : 'Payment Submitted for Review')}
+                        {method === 'card' ? t_pay.successTitle : t_pay.reviewTitle}
                     </h2>
                     
                     <p className="text-gray-600 dark:text-gray-300 mb-6">
-                        {method === 'card'
-                            ? (language === 'ar' ? 'تمت عملية الدفع بنجاح وتأكيد طلبك.' : 'Your payment was processed successfully and your request is confirmed.')
-                            : (language === 'ar' ? 'تم استلام إيصال التحويل. سيقوم فريقنا بمراجعة الطلب وتفعيله في أقرب وقت.' : 'Receipt received. Our team will review the transaction and activate your request shortly.')}
+                        {method === 'card' ? t_pay.successMessage : t_pay.reviewMessage}
                     </p>
 
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-8 text-sm text-left">
                         <div className="flex justify-between mb-2">
-                            <span className="text-gray-500">{language === 'ar' ? 'رقم المعاملة:' : 'Transaction ID:'}</span>
+                            <span className="text-gray-500">{t_pay.transactionId}:</span>
                             <span className="font-mono font-semibold">{transactionId}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-gray-500">{language === 'ar' ? 'المبلغ:' : 'Amount:'}</span>
+                            <span className="text-gray-500">{t_pay.amountDue}:</span>
                             <span className="font-semibold text-amber-600">{amount.toLocaleString()} EGP</span>
                         </div>
                     </div>
 
                     <Button onClick={() => navigate(contextData?.isUpgrade ? '/dashboard/subscription' : '/')} className="w-full">
-                        {language === 'ar' ? 'العودة للقائمة الرئيسية' : 'Return to Home'}
+                        {t_pay.returnHome}
                     </Button>
                 </Card>
             </div>
@@ -187,7 +184,7 @@ const PaymentPage: React.FC = () => {
             <div className="max-w-3xl mx-auto">
                 <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-6 transition-colors">
                     <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                    {language === 'ar' ? 'إلغاء وعودة' : 'Cancel & Return'}
+                    {t_pay.cancelReturn}
                 </button>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -195,20 +192,20 @@ const PaymentPage: React.FC = () => {
                     <div className="md:col-span-1">
                         <Card className="bg-white dark:bg-gray-800 sticky top-8">
                             <CardHeader className="pb-4 border-b border-gray-100 dark:border-gray-700">
-                                <CardTitle className="text-lg">{language === 'ar' ? 'ملخص الطلب' : 'Order Summary'}</CardTitle>
+                                <CardTitle className="text-lg">{t_pay.summary}</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
                                 <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{language === 'ar' ? 'الوصف' : 'Description'}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{t_pay.description}</p>
                                     <p className="font-medium text-gray-900 dark:text-white text-sm">{description}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{language === 'ar' ? 'المستخدم' : 'User'}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{t_pay.user}</p>
                                     <p className="font-medium text-gray-900 dark:text-white text-sm">{userName}</p>
                                 </div>
                                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                                     <div className="flex justify-between items-center">
-                                        <span className="font-bold text-gray-900 dark:text-white">{language === 'ar' ? 'الإجمالي' : 'Total'}</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">{t_pay.total}</span>
                                         <span className="text-2xl font-bold text-amber-600 dark:text-amber-500">{amount.toLocaleString()} <span className="text-sm">EGP</span></span>
                                     </div>
                                 </div>
@@ -222,13 +219,13 @@ const PaymentPage: React.FC = () => {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <LockClosedIcon className="w-5 h-5 text-green-600" />
-                                    {language === 'ar' ? 'دفع آمن' : 'Secure Payment'}
+                                    {t_pay.securePayment}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                        {language === 'ar' ? 'اختر طريقة الدفع' : 'Select Payment Method'}
+                                        {t_pay.selectMethod}
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {config?.instapay.enabled && (
@@ -271,7 +268,7 @@ const PaymentPage: React.FC = () => {
                                     {method === 'instapay' && (
                                         <div className="space-y-6 animate-fadeIn">
                                             <div>
-                                                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{language === 'ar' ? 'بيانات التحويل' : 'Transfer Details'}</h4>
+                                                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{t_pay.transferDetails}</h4>
                                                 
                                                 {config?.instapay.qrCodeUrl && (
                                                     <div className="mb-4 flex justify-center">
@@ -296,21 +293,21 @@ const PaymentPage: React.FC = () => {
                                                 
                                                 <div className="grid grid-cols-1 gap-3">
                                                     <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                                        <span className="text-gray-500 text-sm">Wallet Number</span>
+                                                        <span className="text-gray-500 text-sm">{t_pay.walletNumber}</span>
                                                         <span className="font-mono font-bold text-lg select-all text-amber-600">{config?.instapay.number}</span>
                                                     </div>
                                                     {config?.instapay.walletName && (
                                                         <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                                            <span className="text-gray-500 text-sm">Name</span>
+                                                            <span className="text-gray-500 text-sm">{t_pay.walletName}</span>
                                                             <span className="font-bold text-gray-800 dark:text-white">{config.instapay.walletName}</span>
                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{language === 'ar' ? 'صورة الإيصال' : 'Upload Receipt'}</label>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t_pay.uploadReceipt}</label>
                                                 <Input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)} className="bg-white dark:bg-gray-800" />
-                                                <p className="text-xs text-gray-400 mt-1">Please upload a clear screenshot of the transaction.</p>
+                                                <p className="text-xs text-gray-400 mt-1">{t_pay.uploadReceiptHint}</p>
                                             </div>
                                         </div>
                                     )}
@@ -319,19 +316,17 @@ const PaymentPage: React.FC = () => {
                                          <div className="text-center py-8 animate-fadeIn">
                                             <CreditCardIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                                             <p className="text-gray-600 dark:text-gray-300 font-medium mb-2">
-                                                {language === 'ar' ? 'الدفع عبر الإنترنت' : 'Online Payment'}
+                                                {t_pay.payOnline}
                                             </p>
                                             <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                                                {language === 'ar' 
-                                                    ? 'سيتم إعادة توجيهك إلى بوابة الدفع الآمنة Paymob لإتمام العملية.' 
-                                                    : 'You will be redirected to the secure Paymob payment gateway to complete your transaction.'}
+                                                {t_pay.redirectMessage}
                                             </p>
                                         </div>
                                     )}
                                     
                                     {!method && (
                                         <div className="text-center py-12 text-gray-400">
-                                            Select a payment method to proceed.
+                                            {t_pay.selectMethodPrompt}
                                         </div>
                                     )}
                                 </div>
@@ -346,7 +341,7 @@ const PaymentPage: React.FC = () => {
                                 >
                                     {method === 'card' 
                                         ? (language === 'ar' ? `دفع ${amount.toLocaleString()} EGP` : `Pay ${amount.toLocaleString()} EGP`) 
-                                        : (language === 'ar' ? 'تأكيد التحويل' : 'Confirm Transfer')
+                                        : t_pay.confirmTransfer
                                     }
                                 </Button>
                             </CardFooter>

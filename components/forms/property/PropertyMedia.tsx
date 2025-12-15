@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from '../../shared/LanguageContext';
 import FormField, { inputClasses } from '../../ui/FormField';
@@ -20,7 +21,7 @@ const PropertyMedia: React.FC<PropertyMediaProps> = ({
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b pb-2 border-gray-100 dark:border-gray-700">
-                {language === 'ar' ? 'الصور والوسائط' : 'Media & Images'}
+                {t.forms?.media || "Media"}
             </h2>
             
             <div className="space-y-6">
@@ -29,7 +30,9 @@ const PropertyMedia: React.FC<PropertyMediaProps> = ({
                         {mainImage ? (
                              <img src={mainImage} alt="Main preview" className="w-32 h-32 rounded-lg object-cover border border-amber-200 shadow-sm"/>
                         ) : (
-                            <div className="w-32 h-32 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                            <div className="w-32 h-32 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-xs">
+                                {language === 'ar' ? 'لا توجد صورة' : 'No Image'}
+                            </div>
                         )}
                         <input type="file" id="imageUrl" accept="image/*" onChange={handleMainImageChange} className={`${inputClasses} flex-grow`} />
                     </div>
@@ -55,7 +58,9 @@ const PropertyMedia: React.FC<PropertyMediaProps> = ({
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500 mt-2 italic text-center py-4">No gallery images added yet.</p>
+                            <p className="text-sm text-gray-500 mt-2 italic text-center py-4">
+                                {language === 'ar' ? 'لم تتم إضافة صور للمعرض بعد.' : 'No gallery images added yet.'}
+                            </p>
                         )}
                     </div>
                 </FormField>

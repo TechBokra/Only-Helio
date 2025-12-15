@@ -26,23 +26,6 @@ const AdminUsersPage: React.FC = () => {
         queryFn: getAllPartnersForAdmin,
     });
 
-    const internalUserRoles = [
-        Role.SUPER_ADMIN,
-        Role.DECORATION_MANAGER,
-        Role.PLATFORM_FINISHING_MANAGER,
-        Role.FINISHING_MARKET_MANAGER,
-        Role.PLATFORM_REAL_ESTATE_MANAGER,
-        Role.REAL_ESTATE_MARKET_MANAGER,
-        Role.PARTNER_RELATIONS_MANAGER,
-        Role.CONTENT_MANAGER,
-        Role.SERVICE_MANAGER,
-        Role.CUSTOMER_RELATIONS_MANAGER,
-        Role.LISTINGS_MANAGER,
-    ];
-
-    const users = React.useMemo(() => (partners || []).filter(p => internalUserRoles.includes(p.role)), [partners]);
-
-
     const deleteMutation = useMutation({
         mutationFn: deletePartner,
         onSuccess: () => {
@@ -61,9 +44,9 @@ const AdminUsersPage: React.FC = () => {
         filters,
         setFilter,
     } = useAdminTable({
-        data: users,
+        data: partners, // Show ALL partners/users so they don't disappear after activation or role change
         itemsPerPage: 15,
-        initialSort: { key: 'name', direction: 'ascending' },
+        initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (p: AdminPartner, term: string) =>
             p.name.toLowerCase().includes(term) ||
             (p.nameAr && p.nameAr.toLowerCase().includes(term)) ||
@@ -74,9 +57,8 @@ const AdminUsersPage: React.FC = () => {
         },
     });
 
-    const internalUserTypes = Object.entries(t_admin.partnerTypes).filter(
-        ([key]) => !['developer', 'agency', 'finishing'].includes(key),
-    );
+    // Allow filtering by ALL types 
+    const allUserTypes = Object.entries(t_admin.partnerTypes);
 
     const renderTable = (items: AdminPartner[]) => (
          <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -92,7 +74,7 @@ const AdminUsersPage: React.FC = () => {
                 <TableBody>
                         {isLoading ? (
                         <TableRow><TableCell colSpan={4} className="text-center p-8">Loading users...</TableCell></TableRow>
-                    ) : items.map(user => (
+                    ) : items.length > 0 ? items.map(user => (
                         <TableRow key={user.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
@@ -103,10 +85,14 @@ const AdminUsersPage: React.FC = () => {
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell className="capitalize">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes]}</TableCell>
+                            <TableCell className="capitalize">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes] || user.type}</TableCell>
                             <TableCell>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                                    {user.status}
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                        user.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                        user.status === 'pending_setup' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-gray-100 text-gray-800'
+                                    }`}>
+                                    {t_admin.partnerStatuses[user.status as keyof typeof t_admin.partnerStatuses] || user.status.replace('_', ' ')}
                                 </span>
                             </TableCell>
                             <TableCell className="space-x-2">
@@ -116,7 +102,9 @@ const AdminUsersPage: React.FC = () => {
                                 <Button variant="link" className="text-red-500" onClick={() => setUserToDelete(user.id)}>{t.adminShared.delete}</Button>
                             </TableCell>
                         </TableRow>
-                    ))}
+                    )) : (
+                        <TableRow><TableCell colSpan={4} className="text-center p-8">No users found.</TableCell></TableRow>
+                    )}
                 </TableBody>
             </Table>
         </div>
@@ -131,7 +119,13 @@ const AdminUsersPage: React.FC = () => {
                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
                      <div className="flex gap-2 mt-2">
                          <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">{t_admin.partnerTypes[user.type as keyof typeof t_admin.partnerTypes]}</span>
-                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{user.status}</span>
+                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                             user.status === 'active' ? 'bg-green-100 text-green-800' : 
+                             user.status === 'pending_setup' ? 'bg-blue-100 text-blue-800' :
+                             'bg-gray-100 text-gray-800'
+                         }`}>
+                             {t_admin.partnerStatuses[user.status as keyof typeof t_admin.partnerStatuses] || user.status.replace('_', ' ')}
+                        </span>
                      </div>
                  </div>
             </CardContent>
@@ -174,7 +168,7 @@ const AdminUsersPage: React.FC = () => {
                     <option value="all">
                         {t_admin.filter.filterByType} ({t_admin.filter.all})
                     </option>
-                    {internalUserTypes.map(([key, value]) => (
+                    {allUserTypes.map(([key, value]) => (
                         <option key={key} value={key}>
                             {value as string}
                         </option>
@@ -182,8 +176,9 @@ const AdminUsersPage: React.FC = () => {
                 </Select>
                  <Select value={filters.status || 'all'} onChange={e => setFilter('status', e.target.value)} className="max-w-xs">
                     <option value="all">{t_admin.filter.filterByStatus} ({t_admin.filter.all})</option>
-                    <option value="active">Active</option>
-                    <option value="disabled">Disabled</option>
+                    {Object.entries(t_admin.partnerStatuses).map(([key, value]) => (
+                        <option key={key} value={key}>{value as string}</option>
+                    ))}
                 </Select>
             </div>
              

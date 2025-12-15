@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from './LanguageContext';
-import GlobalSearch from '@/components/admin/GlobalSearch';
+import GlobalSearch from '../admin/GlobalSearch';
 import DashboardSidebar from './DashboardSidebar';
 import NotificationBell from './NotificationBell';
-import { MenuIcon, GlobeAltIcon } from '@/components/ui/Icons';
+import { MenuIcon, GlobeAltIcon } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
-import { Permission } from '@/types';
-import type { NavLinkItem } from '@/data/navigation';
+import { Permission } from '../../types';
+import type { NavLinkItem } from '../../data/navigation';
 
 interface DashboardLayoutProps {
   navLinks: NavLinkItem[];

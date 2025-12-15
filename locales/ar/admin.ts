@@ -409,7 +409,8 @@ export const admin = {
         "partnerStatuses": {
             "active": "نشط",
             "pending": "معلق",
-            "disabled": "معطل"
+            "disabled": "معطل",
+            "pending_setup": "تحت التجهيز"
         },
         "roleDescriptions": {
             "DECORATION_MANAGER": "إدارة محتوى وطلبات قسم الديكور.",

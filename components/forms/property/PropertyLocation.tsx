@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -11,12 +12,12 @@ interface PropertyLocationProps {
 
 const PropertyLocation: React.FC<PropertyLocationProps> = ({ onOpenMap }) => {
     const { register } = useFormContext();
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 border-b pb-2 border-gray-100 dark:border-gray-700">
-                {language === 'ar' ? 'الموقع على الخريطة' : 'Location Coordinates'}
+                {t.forms.locationMap}
             </h2>
             <div className="space-y-2">
                 <div className="flex flex-col sm:flex-row gap-4 items-end">
@@ -34,9 +35,7 @@ const PropertyLocation: React.FC<PropertyLocationProps> = ({ onOpenMap }) => {
                     </Button>
                 </div>
                 <p className="text-xs text-gray-500">
-                    {language === 'ar' 
-                        ? 'أدخل الإحداثيات يدوياً أو استخدم الخريطة للتحديد الدقيق.' 
-                        : 'Enter coordinates manually or use the map picker for precision.'}
+                    {t.forms.locationHint}
                 </p>
             </div>
         </div>

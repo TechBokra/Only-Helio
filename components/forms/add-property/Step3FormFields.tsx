@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import FormField from '../../ui/FormField';
@@ -29,7 +27,8 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
         setIsLocationModalOpen, availableAmenities,
         handleAmenityChange, isSubmitting, 
         cooperationType,
-        errors
+        errors,
+        formMethods // Destructure the full methods object
     } = props;
     
     const handleDynamicSubmit = (data: any) => {
@@ -73,6 +72,7 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
                 submitButtonText={t_page.submitButton}
                 headerContent={locationHeader} // Passed to appear at the TOP
                 hiddenFields={hiddenFields}
+                externalFormMethods={formMethods as any} // Pass shared methods
              >
                 {/* Children (Injected BELOW the dynamic form fields) */}
                 
@@ -90,6 +90,7 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
                                 <span className="text-sm">{amenity[language]}</span>
                             </label>
                         ))}
+                         {availableAmenities.length === 0 && <p className="text-sm text-gray-400 col-span-full italic text-center">Please select a Property Type to see relevant amenities.</p>}
                     </div>
                 </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -32,12 +33,12 @@ const AdminPartnerFormPage: React.FC = () => {
         enabled: isEdit
     });
 
-    const { register, handleSubmit, reset, watch, setValue } = useForm<Partial<PartnerRequest> & { displayType?: PartnerDisplayType, endDate?: string }>({
+    const { register, handleSubmit, reset, watch, setValue } = useForm<Partial<PartnerRequest> & { displayType?: PartnerDisplayType, endDate?: string, status?: PartnerStatus }>({
         defaultValues: {
             companyType: 'agency',
             subscriptionPlan: 'basic',
             displayType: 'standard',
-            status: 'approved'
+            status: 'approved' // Default for adding via form is active/approved
         }
     });
 
@@ -46,19 +47,20 @@ const AdminPartnerFormPage: React.FC = () => {
             // Cast to any to access AdminPartner fields
             const p = partnerToEdit as AdminPartner;
             reset({
-                companyName: language === 'ar' ? p.nameAr : p.name, // This is tricky with current mocking, usually we'd edit both langs
+                companyName: language === 'ar' ? p.nameAr : p.name, 
                 contactEmail: p.email,
                 companyType: p.type,
                 subscriptionPlan: p.subscriptionPlan,
                 displayType: p.displayType,
                 endDate: p.subscriptionEndDate?.split('T')[0],
-                description: language === 'ar' ? p.descriptionAr : p.description
+                description: language === 'ar' ? p.descriptionAr : p.description,
+                status: p.status
             });
         }
     }, [isEdit, partnerToEdit, reset, language]);
 
     const addMutation = useMutation({
-        mutationFn: (data: PartnerRequest) => addPartner(data),
+        mutationFn: (data: PartnerRequest) => addPartner(data), // Default addPartner uses 'pending' unless specified
         onSuccess: () => {
             showToast('Partner added successfully!', 'success');
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
@@ -82,7 +84,8 @@ const AdminPartnerFormPage: React.FC = () => {
             const updates: Partial<AdminPartner> = {
                 subscriptionPlan: data.subscriptionPlan,
                 subscriptionEndDate: data.endDate || undefined,
-                displayType: data.displayType
+                displayType: data.displayType,
+                status: data.status
             };
              updateMutation.mutate(updates);
         } else {
@@ -102,6 +105,7 @@ const AdminPartnerFormPage: React.FC = () => {
     const companyType = watch('companyType');
     const partnerTypes = ['developer', 'agency', 'finishing'];
     const availablePlans = plansData && companyType ? Object.keys(plansData[companyType as keyof typeof plansData] || {}) : ['basic', 'professional', 'elite', 'commission'];
+    const partnerStatuses = Object.entries(t_admin.partnerStatuses);
 
     if (isEdit && loadingPartner) return <div>Loading Partner...</div>;
 
@@ -172,6 +176,12 @@ const AdminPartnerFormPage: React.FC = () => {
                                         <option value="standard">{t_admin.partnerDisplayTypes.standard}</option>
                                         <option value="featured">{t_admin.partnerDisplayTypes.featured}</option>
                                         <option value="mega_project">{t_admin.partnerDisplayTypes.mega_project}</option>
+                                    </Select>
+                                </div>
+                                 <div>
+                                    <label className="block text-sm font-medium mb-1">{t_admin.partnerTable.status}</label>
+                                    <Select {...register('status')}>
+                                        {partnerStatuses.map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
                                     </Select>
                                 </div>
                             </div>

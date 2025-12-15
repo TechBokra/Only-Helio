@@ -30,7 +30,8 @@ const validationTypes: {value: ValidationRuleType, label: string}[] = [
 ];
 
 const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose }) => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const t_builder = t.adminDashboard.formManagement.builder;
     const { showToast } = useToast();
     const [expandedField, setExpandedField] = useState<number | null>(null);
 
@@ -84,27 +85,27 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formToEdit ? 'Edit Form' : 'Create New Form'}
+                        {formToEdit ? t.adminDashboard.formManagement.editForm : t.adminDashboard.formManagement.createForm}
                     </h2>
-                    <p className="text-sm text-gray-500">Design your data collection form with robust validation.</p>
+                    <p className="text-sm text-gray-500">{t.adminDashboard.formManagement.subtitle}</p>
                 </div>
-                <Button variant="secondary" onClick={onClose}><CloseIcon className="w-5 h-5 mr-2"/> Close</Button>
+                <Button variant="secondary" onClick={onClose}><CloseIcon className="w-5 h-5 mr-2"/> {t.adminShared.close}</Button>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 
                 {/* Basic Info */}
                 <Card>
-                    <CardHeader><CardTitle>General Configuration</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>{t_builder.settings}</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField label="Form Title (AR)" id="title.ar" error={errors.title?.ar?.message}>
+                        <FormField label={`${t.adminDashboard.formManagement.formTitle} (AR)`} id="title.ar" error={errors.title?.ar?.message}>
                             <Input {...register('title.ar', { required: 'Arabic title is required' })} dir="rtl" placeholder="مثال: اتصل بنا" />
                         </FormField>
-                        <FormField label="Form Title (EN)" id="title.en" error={errors.title?.en?.message}>
+                        <FormField label={`${t.adminDashboard.formManagement.formTitle} (EN)`} id="title.en" error={errors.title?.en?.message}>
                             <Input {...register('title.en', { required: 'English title is required' })} dir="ltr" placeholder="e.g. Contact Us" />
                         </FormField>
                         
-                        <FormField label="Slug (Unique ID)" id="slug" error={errors.slug?.message}>
+                        <FormField label={t.adminDashboard.formManagement.slug} id="slug" error={errors.slug?.message}>
                             <Input 
                                 {...register('slug', { required: 'Slug is required', pattern: { value: /^[a-z0-9-]+$/, message: 'Lowercase letters and hyphens only' } })} 
                                 placeholder="unique-form-id" 
@@ -115,11 +116,11 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                          <div className="flex items-end pb-3">
                             <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50 dark:bg-gray-800 w-full border-gray-200 dark:border-gray-700">
                                 <Checkbox id="isActive" {...register('isActive')} />
-                                <label htmlFor="isActive" className="cursor-pointer font-medium">Form is Active</label>
+                                <label htmlFor="isActive" className="cursor-pointer font-medium">{t.adminDashboard.manageBanners.active}</label>
                             </div>
                         </div>
                         
-                        <FormField label="Category" id="category">
+                        <FormField label={t.adminDashboard.formManagement.category} id="category">
                             <Select {...register('category')} className={selectClasses}>
                                 <option value="public">Public Pages</option>
                                 <option value="lead_gen">Lead Generation</option>
@@ -150,10 +151,10 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                 <div className="space-y-4">
                     <div className="flex items-center justify-between sticky top-0 bg-gray-50 dark:bg-gray-900 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
                         <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                            <CogIcon className="w-6 h-6 text-amber-500" /> Form Fields
+                            <CogIcon className="w-6 h-6 text-amber-500" /> {t_builder.fields}
                         </h3>
                         <Button type="button" onClick={addField} className="flex items-center gap-2 shadow-md">
-                            <PlusIcon className="w-5 h-5" /> Add Field
+                            <PlusIcon className="w-5 h-5" /> {t_builder.addField}
                         </Button>
                     </div>
 
@@ -169,7 +170,7 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pr-32 mb-2 items-center">
                                     <div className="md:col-span-4">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Label (EN)</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t_builder.fieldName} (EN)</label>
                                         <Input {...register(`fields.${index}.label.en`, { required: true })} dir="ltr" placeholder="Field Name" className="h-9 text-sm" />
                                     </div>
                                     <div className="md:col-span-3">
@@ -177,14 +178,14 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                                         <Input {...register(`fields.${index}.key`, { required: true, pattern: /^[a-zA-Z0-9_]+$/ })} placeholder="field_key" className="font-mono text-xs h-9 bg-gray-50" />
                                     </div>
                                      <div className="md:col-span-3">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t_builder.fieldType}</label>
                                         <Select {...register(`fields.${index}.type`)} className={`${selectClasses} h-9 py-1 text-sm`}>
                                             {fieldTypes.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                                         </Select>
                                     </div>
                                     <div className="md:col-span-2 flex items-center pt-5 justify-center">
                                          <Checkbox id={`req-${field.id}`} {...register(`fields.${index}.required`)} />
-                                        <label htmlFor={`req-${field.id}`} className="text-sm font-semibold ml-2 cursor-pointer">Required</label>
+                                        <label htmlFor={`req-${field.id}`} className="text-sm font-semibold ml-2 cursor-pointer">{t_builder.required}</label>
                                     </div>
                                 </div>
 
@@ -193,7 +194,7 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                                         <div className="space-y-4">
                                             <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">Display Options</h4>
                                             <div>
-                                                <label className="block text-xs font-medium mb-1">Label (Arabic)</label>
+                                                <label className="block text-xs font-medium mb-1">{t_builder.fieldName} (AR)</label>
                                                 <Input {...register(`fields.${index}.label.ar`, { required: true })} dir="rtl" placeholder="اسم الحقل" />
                                             </div>
                                              <div>
@@ -205,7 +206,7 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                                                 <Input {...register(`fields.${index}.placeholder.ar`)} dir="rtl" />
                                             </div>
                                              <div>
-                                                <label className="block text-xs font-medium mb-1">Width Layout</label>
+                                                <label className="block text-xs font-medium mb-1">{t_builder.width}</label>
                                                 <Select {...register(`fields.${index}.width`)} className={selectClasses}>
                                                     <option value="full">Full Width (100%)</option>
                                                     <option value="half">Half Width (50%)</option>
@@ -214,7 +215,7 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                                             </div>
                                             {['select', 'radio', 'checkbox'].includes(watch(`fields.${index}.type`)) && (
                                                 <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-100 dark:border-blue-800">
-                                                    <label className="block text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">Options (Comma Separated)</label>
+                                                    <label className="block text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">{t_builder.options}</label>
                                                     <Input {...register(`fields.${index}.options` as any)} placeholder="Option 1, Option 2, Option 3" />
                                                     <p className="text-[10px] text-blue-600 mt-1">Keys for translation should be defined in localization files.</p>
                                                 </div>
@@ -278,8 +279,8 @@ const AdminFormBuilder: React.FC<AdminFormBuilderProps> = ({ formToEdit, onClose
                 </div>
                 
                 <div className="sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4 z-20 shadow-lg rounded-b-lg -mx-4 -mb-4">
-                    <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-                    <Button type="submit" isLoading={isSubmitting}>Save Form</Button>
+                    <Button type="button" variant="secondary" onClick={onClose}>{t.adminShared.cancel}</Button>
+                    <Button type="submit" isLoading={isSubmitting}>{t.adminShared.save}</Button>
                 </div>
             </form>
         </div>

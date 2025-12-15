@@ -119,6 +119,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 try {
                     await addPropertyMutation.mutateAsync(newProperty);
                     showToast(language === 'ar' ? 'تمت الموافقة. تم إنشاء العقار كمسودة للمراجعة.' : 'Approved. Property created as Draft for review.', 'success');
+                    // Redirect to the Drafts list directly
                     navigate('/admin/properties/list?status=draft');
                 } catch (err: any) {
                     console.error("Failed to create property:", err);
@@ -173,6 +174,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
             } else {
                 showToast(`Request has been ${status}.`, 'success');
                 queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
+                navigate('/admin/property-requests');
             }
         },
         onError: (error: any) => {
@@ -341,7 +343,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                         <Button 
                             variant="secondary" 
                             onClick={() => updateRequestMutation.mutate('pending')} 
-                            isLoading={updateRequestMutation.isPending}
+                            isLoading={updateRequestMutation.isPending} 
                             className="flex items-center gap-2"
                         >
                             <ArrowPathIcon className="w-4 h-4" />

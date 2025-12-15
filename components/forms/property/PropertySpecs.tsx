@@ -87,7 +87,7 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
     return (
         <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b pb-2 border-gray-100 dark:border-gray-700">
-                {language === 'ar' ? 'المواصفات والتفاصيل' : 'Specifications & Details'}
+                {t.forms?.specifications || "Specifications"}
             </h2>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -107,7 +107,7 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                         onChange={e => handleComplexChange('type', e.target.value)}
                         className={selectClasses}
                     >
-                        <option value="">{language === 'ar' ? 'اختر النوع' : 'Select Type'}</option>
+                        <option value="">{t.forms?.select || "Select..."}</option>
                         {(propertyTypes || []).map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
                     </select>
                 </FormField>
@@ -122,7 +122,7 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                          {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
                     </select>
                 </FormField>
-                <FormField label="Area (m²)" id="area" required>
+                <FormField label={`${t.forms?.area || "Area"} (m²)`} id="area" required>
                     <input type="number" {...register("area", { required: true, valueAsNumber: true })} className={inputClasses} />
                 </FormField>
                 

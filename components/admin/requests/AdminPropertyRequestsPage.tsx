@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAllPropertyRequests } from '../../../services/propertyRequests';
@@ -17,14 +17,24 @@ import TableSkeleton from '../../shared/TableSkeleton';
 const AdminPropertyRequestsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
     const { data: requests, isLoading } = useQuery({
         queryKey: ['propertyRequests'],
         queryFn: getAllPropertyRequests,
     });
 
+    const filteredRequests = useMemo(() => {
+        if (!requests) return [];
+        if (activeTab === 'pending') {
+            return requests.filter(r => r.status === 'pending');
+        } else {
+            return requests.filter(r => r.status === 'approved' || r.status === 'rejected');
+        }
+    }, [requests, activeTab]);
+
     const { paginatedItems, totalPages, currentPage, setCurrentPage } = useAdminTable({
-        data: requests,
+        data: filteredRequests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (item: AddPropertyRequest, term: string) => 
@@ -91,7 +101,11 @@ const AdminPropertyRequestsPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>{safeDate(req.createdAt)}</TableCell>
                                 <TableCell>
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full capitalize">
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                        req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                        req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                        'bg-yellow-100 text-yellow-700'
+                                    }`}>
                                         {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
                                     </span>
                                 </TableCell>
@@ -120,7 +134,11 @@ const AdminPropertyRequestsPage: React.FC = () => {
                             <h3 className="font-bold text-gray-900 dark:text-white">{req.customerName || 'Unknown'}</h3>
                             <p className="text-sm text-gray-500">{req.customerPhone}</p>
                         </div>
-                        <span className="px-2 py-1 text-xs font-medium rounded-full capitalize bg-gray-100 dark:bg-gray-700">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                            req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                        }`}>
                             {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
                         </span>
                     </div>
@@ -157,6 +175,29 @@ const AdminPropertyRequestsPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.propertyRequestsTitle}</h1>
             <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.propertyRequestsSubtitle}</p>
+
+            <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
+                <button
+                    onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'pending'
+                            ? 'border-amber-500 text-amber-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                    }`}
+                >
+                    {language === 'ar' ? 'قيد الانتظار' : 'Pending Requests'}
+                </button>
+                <button
+                    onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'history'
+                            ? 'border-amber-500 text-amber-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                    }`}
+                >
+                    {language === 'ar' ? 'الأرشيف' : 'Archive (History)'}
+                </button>
+            </div>
 
             {isLoading ? loadingSkeletons : (
                 <ResponsiveList

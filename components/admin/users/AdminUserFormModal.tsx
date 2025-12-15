@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -65,7 +66,8 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
             nameAr: data.updates.nameAr,
             email: data.updates.email,
             type: data.updates.type,
-            status: data.updates.status
+            status: data.updates.status,
+            password: data.updates.password // Allow updating password
         }),
         onSuccess: () => {
             showToast('User updated successfully!', 'success');
@@ -84,7 +86,10 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
     };
     
     const isSubmitting = addMutation.isPending || updateMutation.isPending;
-    const partnerTypes = Object.entries(t_admin.partnerTypes).filter(([key]) => !['developer', 'agency', 'finishing'].includes(key));
+    
+    // Allow all types so that pending partners (developer/agency) can be edited without losing their role
+    const partnerTypes = Object.entries(t_admin.partnerTypes);
+    const partnerStatuses = Object.entries(t_admin.partnerStatuses);
 
     return (
         <Modal isOpen={true} onClose={onClose} aria-labelledby="user-form-title">
@@ -98,7 +103,14 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
                         <div><label>{t_admin.userManagement.form.nameEn}</label><Input {...register('nameEn', { required: true })} /></div>
                     </div>
                     <div><label>Email</label><Input type="email" {...register('email', { required: true })} /></div>
-                    {!userToEdit && <div><label>{t_admin.userManagement.form.password}</label><Input type="password" {...register('password')} /><p className="text-xs text-gray-500">{t_admin.userManagement.form.passwordHelp}</p></div>}
+                    
+                    {/* Always show password field (for new user or update) */}
+                    <div>
+                        <label>{t_admin.userManagement.form.password}</label>
+                        <Input type="password" {...register('password')} />
+                        <p className="text-xs text-gray-500">{t_admin.userManagement.form.passwordHelp}</p>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label>{t_admin.userManagement.role}</label>
@@ -109,8 +121,7 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
                          <div>
                             <label>{t_admin.userManagement.status}</label>
                             <Select {...register('status')}>
-                                <option value="active">Active</option>
-                                <option value="disabled">Disabled</option>
+                                {partnerStatuses.map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
                             </Select>
                         </div>
                     </div>

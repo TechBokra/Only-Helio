@@ -26,13 +26,13 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ projects, partner
     return (
         <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b pb-2 border-gray-100 dark:border-gray-700">
-                {language === 'ar' ? 'البيانات الأساسية' : 'Basic Information'}
+                {t.forms.basicInfo}
             </h2>
             
             {showProjectSelector && (
                 <FormField label={language === 'ar' ? 'المشروع (اختياري)' : 'Project (Optional)'} id="projectId">
                     <select {...register("projectId")} className={selectClasses}>
-                        <option value="">{language === 'ar' ? 'اختر مشروعاً...' : 'Select a project...'}</option>
+                        <option value="">{t.forms.select}</option>
                         {availableProjects?.map(proj => (
                             <option key={proj.id} value={proj.id}>{proj.name[language]}</option>
                         ))}
