@@ -1,49 +1,63 @@
 
+import { supabase } from '../supabaseClient';
 import { siteContentData as initialContentData } from '../data/content';
 import type { SiteContent } from '../types';
 
-const STORAGE_KEY = 'onlyhelio_mock_content';
+// Fallback in-memory cache
+let cachedContent: SiteContent = { ...initialContentData };
 
-// Helper to get initial data (Storage -> Mock)
-const getLocalData = (): SiteContent => {
+export const getContent = async (): Promise<SiteContent> => {
+    if (!supabase) return cachedContent;
+
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) return JSON.parse(stored);
-    } catch (e) { 
-        console.error("Failed to load mock content", e); 
-    }
-    return JSON.parse(JSON.stringify(initialContentData));
-};
+        const { data, error } = await supabase
+            .from('SiteContent')
+            .select('content')
+            .eq('id', 1)
+            .single();
 
-// Initialize with data from storage or fallback to static data
-let siteContentData: SiteContent = getLocalData();
-
-const SIMULATED_DELAY = 300;
-
-export const getContent = (): Promise<SiteContent> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Always refresh from storage in case another tab updated it
-            siteContentData = getLocalData();
-            resolve(siteContentData);
-        }, SIMULATED_DELAY);
-    });
-};
-
-export const updateContent = (updates: Partial<SiteContent>): Promise<SiteContent> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Update the local, in-memory data store.
-            siteContentData = { ...siteContentData, ...updates };
-            
-            // Persist to LocalStorage
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(siteContentData));
-            } catch (e) {
-                console.error("Failed to save content to storage", e);
+        if (error || !data) {
+            // If no content exists in DB, initialize it with default data
+            if (error?.code === 'PGRST116' || !data) { // PGRST116 is JSON code for "no rows returned"
+                console.log("Initializing DB with default site content...");
+                await supabase.from('SiteContent').upsert({ id: 1, content: initialContentData });
+                return initialContentData;
             }
+            console.warn("Error fetching content, using fallback:", error);
+            return cachedContent;
+        }
 
-            resolve(JSON.parse(JSON.stringify(siteContentData)));
-        }, SIMULATED_DELAY);
-    });
+        // Merge DB content with initial structure to ensure type safety if schema changes
+        cachedContent = { ...initialContentData, ...data.content };
+        return cachedContent;
+    } catch (e) {
+        console.error("Unexpected error fetching content:", e);
+        return cachedContent;
+    }
+};
+
+export const updateContent = async (updates: Partial<SiteContent>): Promise<SiteContent> => {
+    // 1. Get current latest state
+    const current = await getContent();
+    
+    // 2. Merge updates
+    const newContent = { ...current, ...updates };
+
+    if (!supabase) {
+        cachedContent = newContent;
+        return newContent;
+    }
+
+    // 3. Save to DB
+    const { error } = await supabase
+        .from('SiteContent')
+        .upsert({ id: 1, content: newContent, updatedAt: new Date().toISOString() });
+
+    if (error) {
+        console.error("Failed to save content to DB:", error);
+        throw error;
+    }
+
+    cachedContent = newContent;
+    return newContent;
 };

@@ -1,4 +1,5 @@
 
+
 export const partners = {
     "partnerInfo": {
         "united-development": { "name": "United Development Co.", "description": "Our strategic partner in developing luxury residential projects." },
@@ -14,6 +15,7 @@ export const partners = {
         "ebdaa-integrated-finishes": { "name": "Ebdaa Integrated Finishes", "description": "Offering innovative and integrated finishing solutions for spaces." },
         "future-real-estate": { "name": "Future Real Estate Marketing", "description": "Handling the marketing of our real estate projects with innovative plans." },
         "individual-listings": { "name": "Individual Listings", "description": "Properties listed directly by owners." },
+        "finishing-partner-1": { "name": "Elite Finishing Co.", "description": "High-end finishing and interior design services." },
 
         "admin-user": { "name": "Super Admin", "description": "Has full access to the platform." },
         "decoration-manager-1": { "name": "Decorations Manager", "description": "Responsible for decorations portfolio and custom requests." },

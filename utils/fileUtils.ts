@@ -1,23 +1,28 @@
 
-// Cloudinary Configuration
-// To enable Cloudinary, add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your .env file
-// @ts-ignore
-const CLOUDINARY_CLOUD_NAME = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || '';
-// @ts-ignore
-const CLOUDINARY_UPLOAD_PRESET = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+// Configuration
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (Cloudinary allows larger files)
+// Using hardcoded credentials to ensure immediate functionality without Env Var issues
+const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; 
+const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads';
 
 /**
- * Uploads a file to Cloudinary.
- * @param file The file to upload
- * @returns A Promise that resolves with the secure URL of the uploaded image
+ * Validates a file before processing
+ */
+const validateFile = (file: File): void => {
+    if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File size too large. Max allowed is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+    }
+};
+
+/**
+ * Uploads a file to Cloudinary via Unsigned Upload
  */
 const uploadToCloudinary = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    
-    // Add folder if needed, or other tags
-    // formData.append('folder', 'onlyhelio_assets'); 
+    // folder is optional, helps organize images in your Cloudinary dashboard
+    formData.append('folder', 'onlyhelio_properties'); 
 
     try {
         const response = await fetch(
@@ -34,7 +39,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
         }
 
         const data = await response.json();
-        return data.secure_url;
+        return data.secure_url; // Returns the HTTPS URL of the uploaded image
     } catch (error) {
         console.error('Cloudinary upload error:', error);
         throw error;
@@ -43,8 +48,6 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 
 /**
  * Converts a File object to a Base64 encoded string (Fallback method).
- * @param file The file to convert
- * @returns A Promise that resolves with the Base64 string
  */
 const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -56,25 +59,22 @@ const convertToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * Main file handler. Tries to upload to Cloudinary first.
- * If Cloudinary is not configured or fails, falls back to Base64 (legacy behavior).
+ * Main file handler. 
+ * Tries to upload to Cloudinary first.
+ * Falls back to Base64 if upload fails.
  * 
  * @param file The file to process
- * @returns A Promise that resolves with the image URL (Cloudinary or Base64)
+ * @returns A Promise that resolves with the image URL
  */
 export const fileToBase64 = async (file: File): Promise<string> => {
-    // Check if Cloudinary config is present
-    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
-        try {
-            console.log('Uploading to Cloudinary...');
-            const url = await uploadToCloudinary(file);
-            console.log('Upload successful:', url);
-            return url;
-        } catch (error) {
-            console.warn('Cloudinary upload failed, falling back to Base64.', error);
-        }
-    }
+    validateFile(file);
 
-    // Fallback to Base64
-    return convertToBase64(file);
+    try {
+        // Attempt upload to Cloudinary
+        const url = await uploadToCloudinary(file);
+        return url;
+    } catch (error) {
+        console.warn('Cloudinary upload failed, falling back to local Base64.', error);
+        return convertToBase64(file);
+    }
 };

@@ -32,15 +32,17 @@ const mapDbToProject = (row: any): Project => ({
     imageUrl_large: row.imageUrl,
     createdAt: row.createdAt,
     features: typeof row.features === 'string' ? JSON.parse(row.features) : (row.features || []),
-    partnerName: row.partner?.name
+    // Fix: map from name_en/name_ar
+    partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown Partner'
 });
 
 export const getAllProjects = async (): Promise<Project[]> => {
     if (!supabase) return getMockProjects();
 
+    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
     if (error || !data || data.length === 0) {
@@ -52,9 +54,10 @@ export const getAllProjects = async (): Promise<Project[]> => {
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
     if (!supabase) return getMockProjects().find(p => p.id === id);
 
+    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar)`)
         .eq('id', id)
         .single();
 
@@ -65,9 +68,10 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
 export const getProjectsByPartnerId = async (partnerId: string): Promise<Project[]> => {
     if (!supabase) return getMockProjects().filter(p => p.partnerId === partnerId);
 
+    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar)`)
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
 

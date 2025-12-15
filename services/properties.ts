@@ -63,8 +63,9 @@ const getMockProperties = (): Property[] => {
 
 const mapDbToProperty = (row: any): Property => {
     let partnerName = 'Only Helio';
-    if (row.partner && row.partner.name) {
-        partnerName = row.partner.name;
+    // Fix: Handle name_en / name_ar
+    if (row.partner) {
+        partnerName = row.partner.name_en || row.partner.name_ar || 'Only Helio';
     }
 
     const mainImage = row.imageUrl || 'https://via.placeholder.com/800x600?text=No+Image';
@@ -128,9 +129,10 @@ const mapDbToProperty = (row: any): Property => {
 export const getAllProperties = async (): Promise<Property[]> => {
     if (!supabase) return getMockProperties();
 
+    // Fix: Select name_en/name_ar instead of name
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar, imageUrl), project:Project (name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
     if (error || !data || data.length === 0) { 
@@ -164,9 +166,10 @@ export const getPaginatedProperties = async (options: {
 export const getPropertiesByPartnerId = async (partnerId: string): Promise<Property[]> => {
     if (!supabase) return getMockProperties().filter(p => p.partnerId === partnerId);
 
+    // Fix: Select name_en/name_ar instead of name
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar, imageUrl), project:Project (name_en, name_ar)`)
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
 
@@ -179,9 +182,10 @@ export const getPropertiesByPartnerId = async (partnerId: string): Promise<Prope
 export const getPropertiesByProjectId = async (projectId: string): Promise<Property[]> => {
     if (!supabase) return getMockProperties().filter(p => p.projectId === projectId);
 
+    // Fix: Select name_en/name_ar instead of name
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar, imageUrl), project:Project (name_en, name_ar)`)
         .eq('projectId', projectId);
 
     if (error || !data) return getMockProperties().filter(p => p.projectId === projectId);
@@ -191,9 +195,10 @@ export const getPropertiesByProjectId = async (projectId: string): Promise<Prope
 export const getPropertyById = async (id: string): Promise<Property | undefined> => {
     if (!supabase) return getMockProperties().find(p => p.id === id);
 
+    // Fix: Select name_en/name_ar instead of name
     const { data, error } = await supabase
         .from('Property')
-        .select(`*, partner:User!partnerId (name, imageUrl), project:Project (name_en, name_ar)`)
+        .select(`*, partner:User!partnerId (name_en, name_ar, imageUrl), project:Project (name_en, name_ar)`)
         .eq('id', id)
         .single();
 

@@ -1,4 +1,5 @@
 
+
 export const partners = {
     "partnerInfo": {
         "united-development": { "name": "الشركة المتحدة للتطوير", "description": "شريكنا الاستراتيجي في تطوير المشاريع السكنية الفاخرة." },
@@ -14,6 +15,7 @@ export const partners = {
         "ebdaa-integrated-finishes": { "name": "إبداع للتشطيبات المتكاملة", "description": "نقدم حلول تشطيب مبتكرة ومتكاملة للمساحات." },
         "future-real-estate": { "name": "المستقبل للتسويق العقاري", "description": "يتولون تسويق مشاريعنا العقارية بخطط مبتكرة." },
         "individual-listings": { "name": "عقارات الأفراد", "description": "عقارات معروضة مباشرة من الملاك." },
+        "finishing-partner-1": { "name": "شركة تشطيبات النخبة", "description": "خدمات تشطيب وتصميم داخلي راقية." },
         
         "admin-user": { "name": "المدير العام", "description": "يمتلك صلاحيات كاملة على المنصة." },
         "decoration-manager-1": { "name": "مدير قسم الديكور", "description": "مسؤول عن معرض الديكورات والطلبات الخاصة." },

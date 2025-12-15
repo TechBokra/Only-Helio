@@ -39,4 +39,21 @@ export let partnersData: (Omit<Partner, 'name' | 'description' | 'role'> & { pas
         },
         createdAt: '2023-01-01T00:00:00Z',
     },
+    {
+        id: 'finishing-partner-1',
+        imageUrl: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=150&h=150&fit=crop',
+        email: 'finish@onlyhelio.com',
+        password: 'password', 
+        type: 'finishing', 
+        status: 'active', 
+        subscriptionPlan: 'professional',
+        subscriptionEndDate: '2025-12-31T00:00:00Z', 
+        displayType: 'featured',
+        contactMethods: { 
+            whatsapp: { enabled: true, number: '01012345678' }, 
+            phone: { enabled: true, number: '01012345678' }, 
+            form: { enabled: true } 
+        },
+        createdAt: '2023-06-01T00:00:00Z',
+    },
 ];

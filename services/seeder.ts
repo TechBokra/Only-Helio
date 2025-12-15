@@ -9,8 +9,10 @@ import { leadsData } from '../data/leads';
 import { bannersData } from '../data/banners';
 import { routingRulesData } from '../data/routingRules';
 import { enTranslations } from '../data/translations';
+import { mapPartnerTypeToRole } from '../data/permissions';
+import { Role } from '../types';
 
-// Explicitly ensure system users exist first
+// Explicitly ensure system users exist first with CORRECT ROLES
 const ensureSystemUsers = async (logs: string[]) => {
     if (!supabase) {
         logs.push("Supabase client not initialized, skipping system users creation.");
@@ -24,6 +26,7 @@ const ensureSystemUsers = async (logs: string[]) => {
             name_ar: 'عقارات الأفراد',
             email: 'listings@onlyhelio.com',
             type: 'agency',
+            role: 'AGENCY_PARTNER', // Correct Role
             status: 'active',
             subscriptionPlan: 'basic',
             contactMethods: JSON.stringify({ whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } }),
@@ -39,15 +42,40 @@ const ensureSystemUsers = async (logs: string[]) => {
             status: 'active',
             subscriptionPlan: 'elite',
             createdAt: new Date().toISOString()
+        },
+        // Ensure the Finishing Partner exists in Real DB with correct role
+        {
+            id: 'finishing-partner-1',
+            name_en: 'Elite Finishing Co.',
+            name_ar: 'شركة تشطيبات النخبة',
+            email: 'finish@onlyhelio.com',
+            type: 'finishing',
+            role: 'FINISHING_PARTNER', // Correct Role
+            status: 'active',
+            subscriptionPlan: 'professional',
+            displayType: 'featured',
+            contactMethods: JSON.stringify({ whatsapp: { enabled: true, number: '01012345678' }, phone: { enabled: true, number: '01012345678' }, form: { enabled: true } }),
+            createdAt: new Date().toISOString()
+        },
+        // Correcting the developer partner found in screenshot
+        {
+            id: 'partner-1765631120718', // Keeping ID stable if possible
+            email: 'contact@development.com',
+            type: 'developer',
+            role: 'DEVELOPER_PARTNER', // Fix the 'user' role issue
+            status: 'active',
+            subscriptionPlan: 'professional',
+            createdAt: new Date().toISOString()
         }
     ];
 
     for (const user of systemUsers) {
-        const { error } = await supabase.from('User').upsert(user, { onConflict: 'id' });
+        // We use upsert to create or update if exists, ensuring the ID matches our Mock Data ID
+        const { error } = await supabase.from('User').upsert(user, { onConflict: 'email' }); // Using email to match screenshot users
         if (error) {
              logs.push(`Failed to create system user ${user.id}: ${error.message}`);
         } else {
-             logs.push(`System user ${user.id} ensured.`);
+             logs.push(`System user ${user.email} ensured with correct role.`);
         }
     }
 };
@@ -58,7 +86,7 @@ export const seedDatabase = async () => {
     console.log("Starting database seed...");
     let logs: string[] = [];
 
-    // 0. Ensure System Users (Critical for FKs)
+    // 0. Ensure System Users (Critical for FKs and Role Correction)
     await ensureSystemUsers(logs);
 
     // 1. Sync Users/Partners
@@ -66,15 +94,20 @@ export const seedDatabase = async () => {
         const usersPayload = partnersData.map(p => {
             // @ts-ignore
             const info = enTranslations.partnerInfo[p.id] || { name: p.id };
+            
+            // Calculate correct role
+            let role = p.type === 'admin' ? Role.SUPER_ADMIN : mapPartnerTypeToRole(p.type);
+            
             return {
                 id: p.id,
                 name_en: info.name, 
                 name_ar: info.name, // Fallback
                 email: p.email,
                 type: p.type,
+                role: role, // Ensure Role is sent
                 imageUrl: p.imageUrl,
                 status: p.status,
-                password: p.password, // IMPORTANT: Sync password for login
+                password: p.password, 
                 subscriptionPlan: p.subscriptionPlan,
                 contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : undefined
             };
