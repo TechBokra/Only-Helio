@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,17 @@ import { Select } from '../../ui/Select';
 import { Textarea } from '../../ui/Textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import { ArrowLeftIcon, UsersIcon } from '../../ui/Icons';
+
+interface PartnerFormValues {
+    companyName: string;
+    contactEmail: string;
+    description: string;
+    companyType: PartnerType;
+    subscriptionPlan: SubscriptionPlan;
+    displayType: PartnerDisplayType;
+    endDate?: string;
+    status: PartnerStatus;
+}
 
 const AdminPartnerFormPage: React.FC = () => {
     const { partnerId } = useParams();
@@ -33,18 +44,18 @@ const AdminPartnerFormPage: React.FC = () => {
         enabled: isEdit
     });
 
-    const { register, handleSubmit, reset, watch, setValue } = useForm<Partial<PartnerRequest> & { displayType?: PartnerDisplayType, endDate?: string, status?: PartnerStatus }>({
+    const { register, handleSubmit, reset, watch } = useForm<PartnerFormValues>({
         defaultValues: {
             companyType: 'agency',
             subscriptionPlan: 'basic',
             displayType: 'standard',
-            status: 'approved' // Default for adding via form is active/approved
+            status: 'active'
         }
     });
 
     useEffect(() => {
         if (isEdit && partnerToEdit) {
-            // Cast to any to access AdminPartner fields
+            // Cast to AdminPartner to access specific admin fields
             const p = partnerToEdit as AdminPartner;
             reset({
                 companyName: language === 'ar' ? p.nameAr : p.name, 
@@ -60,7 +71,7 @@ const AdminPartnerFormPage: React.FC = () => {
     }, [isEdit, partnerToEdit, reset, language]);
 
     const addMutation = useMutation({
-        mutationFn: (data: PartnerRequest) => addPartner(data), // Default addPartner uses 'pending' unless specified
+        mutationFn: ({ data, status }: { data: PartnerRequest, status: PartnerStatus }) => addPartner(data, status),
         onSuccess: () => {
             showToast('Partner added successfully!', 'success');
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
@@ -79,26 +90,41 @@ const AdminPartnerFormPage: React.FC = () => {
         onError: () => showToast('Failed to update partner.', 'error'),
     });
 
-    const onSubmit = (data: any) => {
+    const onSubmit = (data: PartnerFormValues) => {
         if (isEdit) {
             const updates: Partial<AdminPartner> = {
                 subscriptionPlan: data.subscriptionPlan,
                 subscriptionEndDate: data.endDate || undefined,
                 displayType: data.displayType,
-                status: data.status
+                status: data.status,
+                // Update basic info as well if needed
+                name: data.companyName,
+                email: data.contactEmail,
+                description: data.description
             };
              updateMutation.mutate(updates);
         } else {
-             const fullData = {
-                ...data,
+             // Construct a valid PartnerRequest object with defaults for missing fields
+             const fullData: PartnerRequest = {
+                companyName: data.companyName,
+                contactEmail: data.contactEmail,
+                companyType: data.companyType,
+                subscriptionPlan: data.subscriptionPlan,
+                description: data.description,
+                
+                // Defaults for required fields not in this form
                 id: `temp-${Date.now()}`,
                 createdAt: new Date().toISOString(),
                 documents: [],
                 managementContacts: [],
                 logo: 'https://via.placeholder.com/150',
-                status: 'approved' as const
+                status: 'approved',
+                contactName: 'Admin Entry',
+                contactPhone: '',
+                companyAddress: 'N/A',
+                website: ''
             };
-            addMutation.mutate(fullData);
+            addMutation.mutate({ data: fullData, status: data.status });
         }
     };
 

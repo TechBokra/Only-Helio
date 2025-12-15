@@ -27,7 +27,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
     const filteredRequests = useMemo(() => {
         if (!requests) return [];
         if (activeTab === 'pending') {
-            return requests.filter(r => r.status === 'pending' || r.status === 'new' || r.status === 'reviewed');
+            return requests.filter(r => r.status === 'pending');
         } else {
             return requests.filter(r => r.status === 'approved' || r.status === 'rejected');
         }
