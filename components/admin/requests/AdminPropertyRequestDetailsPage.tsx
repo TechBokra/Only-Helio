@@ -137,6 +137,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                                 name_ar: 'عقارات الأفراد',
                                 email: 'listings@onlyhelio.com',
                                 type: 'agency',
+                                role: 'AGENCY_PARTNER',
                                 status: 'active',
                                 subscriptionPlan: 'basic',
                                 contactMethods: JSON.stringify({ whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } }),

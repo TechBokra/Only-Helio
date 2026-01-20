@@ -1,13 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration from environment or hardcoded fallback for immediate dev testing
+// Configuration based on your provided credentials
 const CONFIG = {
     url: 'https://xyyvgpchkznznwbxbgrp.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5eXZncGNoa3puem53YnhiZ3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NTI1MDksImV4cCI6MjA4MTAyODUwOX0.1oRRd_bm3Ug9zXVR5Ae2xelGt0aN6uMP2rKpUu2AGVM'
 };
 
-// Helper to safely access environment variables
+// Helper to safely access environment variables (priority given to .env if exists)
 const getEnv = (key: string) => {
     try {
         // @ts-ignore
@@ -16,7 +16,7 @@ const getEnv = (key: string) => {
             return import.meta.env[key];
         }
     } catch (e) {
-        // Fallback or ignore error
+        // Fallback
     }
     return '';
 };
@@ -24,14 +24,12 @@ const getEnv = (key: string) => {
 const envUrl = getEnv('VITE_SUPABASE_URL');
 const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-// Prioritize Env vars, fallback to provided config
+// Prioritize Env vars, fallback to hardcoded config for immediate usage
 const supabaseUrl = envUrl || CONFIG.url;
 const supabaseKey = envKey || CONFIG.key;
 
 if (!supabaseUrl || !supabaseKey) {
-    console.warn('Supabase URL or Key is missing. The app will run in offline mode.');
+    console.error('CRITICAL: Supabase URL or Key is missing. Database features will fail.');
 }
 
-export const supabase = (supabaseUrl && supabaseKey) 
-    ? createClient(supabaseUrl, supabaseKey) 
-    : null;
+export const supabase = createClient(supabaseUrl, supabaseKey);

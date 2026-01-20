@@ -80,15 +80,6 @@ const DashboardSubscriptionPage: React.FC = () => {
         }
     }, [currentUser, language, t_sub.propertiesListed, t.dashboardHome]);
 
-    // Fix: Moved useMemo before conditional return to comply with Rules of Hooks
-    const planOrder: SubscriptionPlan[] = useMemo(() => {
-        if (!currentUser || !('type' in currentUser)) return [];
-        if (currentUser.type === 'finishing') {
-            return ['commission', 'professional', 'elite'];
-        }
-        return ['basic', 'professional', 'elite'];
-    }, [currentUser]);
-
     const handleUpgrade = (planKey: SubscriptionPlan, priceString: string) => {
         if (!currentUser) return;
         
@@ -126,6 +117,13 @@ const DashboardSubscriptionPage: React.FC = () => {
     
     const usagePercentage = currentLimit === Infinity ? 0 : (usageCount / currentLimit) * 100;
     
+    const planOrder: SubscriptionPlan[] = useMemo(() => {
+        if (currentUser.type === 'finishing') {
+            return ['commission', 'professional', 'elite'];
+        }
+        return ['basic', 'professional', 'elite'];
+    }, [currentUser.type]);
+
     const upgradeOptions = planOrder.filter(p => planOrder.indexOf(p) > planOrder.indexOf(currentPlanKey));
 
     return (

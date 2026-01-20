@@ -4,22 +4,18 @@ import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType,
 import { mapPartnerTypeToRole } from '../data/permissions';
 import { arTranslations, enTranslations } from '../data/translations';
 import { Role } from '../types';
-// Import mock data as fallback
-import { partnersData } from '../data/partners'; 
 
 // Helper to map DB User to Partner (Database -> Frontend)
 const mapDbToPartner = (row: any): Partner => {
     if (!row) return null as any; 
 
-    // 1. Handle Admin special case
+    // 1. Handle Admin special case (Legacy check, can be removed if DB is clean)
     if (row.email === 'admin@onlyhelio.com' || row.email === 'tamer@onlyhelio.com') {
         row.type = 'admin';
         row.role = Role.SUPER_ADMIN;
     }
 
     // 2. Intelligent Role Mapping
-    // If the database has "user" as the role (default), we must calculate the correct
-    // privilege role based on the 'type' column to allow dashboard access.
     let mappedRole = row.role;
     const dbType = row.type as PartnerType;
 
@@ -27,12 +23,10 @@ const mapDbToPartner = (row: any): Partner => {
         if (dbType) {
             mappedRole = mapPartnerTypeToRole(dbType);
         } else {
-             // Fallback for very old records without type
              mappedRole = Role.AGENCY_PARTNER; 
         }
     }
     
-    // Normalize DB casing if necessary (e.g. 'super_admin' -> 'SUPER_ADMIN')
     if (mappedRole === 'super_admin') mappedRole = Role.SUPER_ADMIN;
 
     const translations = {
@@ -40,7 +34,6 @@ const mapDbToPartner = (row: any): Partner => {
         en: enTranslations.partnerInfo
     };
     
-    // SAFETY: Check if translation exists for this ID.
     // @ts-ignore
     const enTrans = translations.en[row.id];
     
@@ -49,7 +42,7 @@ const mapDbToPartner = (row: any): Partner => {
     const dbDescEn = row.description_en || '';
     const dbDescAr = row.description_ar || '';
 
-    // Parse contact methods if stored as JSON string
+    // Parse contact methods
     let contactMethods = row.contactMethods;
     if (typeof contactMethods === 'string') {
         try {
@@ -61,16 +54,6 @@ const mapDbToPartner = (row: any): Partner => {
         contactMethods = { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } };
     }
 
-    // Helper to normalize status strings from DB to frontend enum
-    const normalizeStatus = (status: string): PartnerStatus => {
-        const s = status?.toLowerCase();
-        if (s === 'active') return 'active';
-        if (s === 'pending') return 'pending';
-        if (s === 'pending_setup') return 'pending_setup';
-        if (s === 'disabled') return 'disabled';
-        return 'active'; // Default active if unknown to prevent lockout
-    };
-
     return {
         id: row.id,
         email: row.email || 'no-email@recorded.com',
@@ -80,13 +63,12 @@ const mapDbToPartner = (row: any): Partner => {
         imageUrl_large: row.imageUrl,
         
         type: dbType || 'agency',
-        role: mappedRole, // Now contains the correct Enum (e.g., FINISHING_PARTNER)
-        status: normalizeStatus(row.status),
+        role: mappedRole, 
+        status: row.status || 'active',
         
         subscriptionPlan: row.subscriptionPlan || 'basic',
         displayType: row.displayType || 'standard',
         
-        // Prioritize translation file if key matches, otherwise use DB columns
         name: enTrans?.name || dbNameEn,
         nameAr: (translations.ar as any)[row.id]?.name || dbNameAr,
         
@@ -99,81 +81,43 @@ const mapDbToPartner = (row: any): Partner => {
     } as Partner;
 };
 
-// Fallback function for mock data
-const getMockPartners = (): AdminPartner[] => {
-    return partnersData.map(p => {
-        // Mock data usually lacks the 'role' field in the raw array, we derive it
-        const role = p.type === 'admin' ? Role.SUPER_ADMIN : mapPartnerTypeToRole(p.type);
-        return {
-            ...p,
-            role,
-            name: p.id, // Fallback name
-            nameAr: p.id,
-            description: '',
-            descriptionAr: ''
-        } as unknown as AdminPartner;
-    });
-};
-
 // --- READ OPERATIONS ---
 
 export const getAllPartners = async (): Promise<Partner[]> => {
-    if (!supabase) {
-        console.warn("Supabase not initialized, returning mock partners.");
-        return getMockPartners();
-    }
-    
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
     
-    if (error || !data || data.length === 0) {
-        console.warn('Supabase fetch failed or empty (getAllPartners), using mock data fallback.', error);
-        return getMockPartners();
+    if (error) {
+        console.error('Supabase fetch failed (getAllPartners):', error);
+        return [];
     }
     return (data || []).map(mapDbToPartner);
 };
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
-    if (!supabase) {
-        console.warn("Supabase not initialized, returning mock partners.");
-        return getMockPartners();
-    }
-    
     const { data, error } = await supabase.from('User').select('*').order('createdAt', { ascending: false });
     
-    if (error || !data || data.length === 0) {
-        console.warn('Supabase fetch failed or empty (getAllPartnersForAdmin), using mock data fallback.', error);
-        return getMockPartners();
+    if (error) {
+        console.error('Supabase fetch failed (getAllPartnersForAdmin):', error);
+        return [];
     }
     return (data || []).map(row => mapDbToPartner(row) as AdminPartner);
 };
 
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
-    if (!supabase) return getMockPartners().find(p => p.id === id);
-    
     const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
-    if (error || !data) return getMockPartners().find(p => p.id === id);
+    if (error || !data) return undefined;
     return mapDbToPartner(data);
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
-    if (!supabase) return getMockPartners().find(p => p.email === email);
-    
     const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
-    if (error || !data) {
-        // Fallback for specific hardcoded demo users if not in DB yet
-        if (email === 'finish@onlyhelio.com' || email === 'admin@onlyhelio.com') {
-             return getMockPartners().find(p => p.email === email);
-        }
-        return undefined;
-    }
+    if (error || !data) return undefined;
     return mapDbToPartner(data);
 };
 
 // --- WRITE OPERATIONS ---
 
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
-    if (!supabase) return true; // Mock success
-    
     const dbUpdates: any = {};
     
     if (updates.nameEn !== undefined) dbUpdates.name_en = updates.nameEn;
@@ -185,19 +129,17 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.imageUrl !== undefined) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
-    if (updates.type !== undefined) dbUpdates.type = updates.type;
-    
-    // Ensure we update role if type changes
     if (updates.type !== undefined) {
-         dbUpdates.role = mapPartnerTypeToRole(updates.type);
+        dbUpdates.type = updates.type;
+        dbUpdates.role = mapPartnerTypeToRole(updates.type);
     }
     
     if (updates.role !== undefined) dbUpdates.role = updates.role;
-    
     if (updates.subscriptionPlan !== undefined) dbUpdates.subscriptionPlan = updates.subscriptionPlan;
     if (updates.subscriptionEndDate !== undefined) dbUpdates.subscriptionEndDate = updates.subscriptionEndDate;
     if (updates.displayType !== undefined) dbUpdates.displayType = updates.displayType;
     if (updates.contactMethods !== undefined) dbUpdates.contactMethods = JSON.stringify(updates.contactMethods);
+    if (updates.password !== undefined) dbUpdates.password = updates.password;
 
     const { error } = await supabase.from('User').update(dbUpdates).eq('id', id);
     
@@ -213,8 +155,6 @@ export const updatePartnerStatus = async (id: string, status: PartnerStatus): Pr
 };
 
 export const addPartner = async (request: PartnerRequest, initialStatus: PartnerStatus = 'pending'): Promise<Partner> => {
-    if (!supabase) throw new Error("Database connection required for adding partners.");
-
     const newPartnerId = `partner-${Date.now()}`;
     const newPartner = {
         id: newPartnerId,
@@ -222,12 +162,13 @@ export const addPartner = async (request: PartnerRequest, initialStatus: Partner
         name_ar: request.companyName,
         email: request.contactEmail,
         type: request.companyType,
-        // CRITICAL: Set the role based on type
         role: mapPartnerTypeToRole(request.companyType),
         status: initialStatus,
         imageUrl: request.logo || 'https://via.placeholder.com/150',
         subscriptionPlan: request.subscriptionPlan,
         createdAt: new Date().toISOString(),
+        // Default password for new partners - in prod this should be handled by invite flow
+        password: 'password123' 
     };
 
     const { data, error } = await supabase.from('User').insert(newPartner).select().single();
@@ -241,7 +182,6 @@ export const addPartner = async (request: PartnerRequest, initialStatus: Partner
 };
 
 export const deletePartner = async (userId: string): Promise<boolean> => {
-    if (!supabase) return true; // Mock success
     const { error } = await supabase.from('User').delete().eq('id', userId);
     if (error) throw error;
     return true;
@@ -252,8 +192,6 @@ export const updatePartnerAdmin = async (id: string, updates: any) => updatePart
 export const upgradePartnerPlan = async (id: string, newPlan: SubscriptionPlan) => updatePartner(id, { subscriptionPlan: newPlan });
 
 export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
-    if (!supabase) throw new Error("Database connection required.");
-
     const role = mapPartnerTypeToRole(userData.type);
 
     const newUser = {
@@ -265,7 +203,8 @@ export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
         role: role, 
         status: userData.status || 'active',
         imageUrl: 'https://via.placeholder.com/150',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        password: userData.password || 'password123'
     };
 
     const { data, error } = await supabase.from('User').insert(newUser).select().single();

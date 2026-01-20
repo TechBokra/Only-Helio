@@ -95,8 +95,11 @@ const AdminUserFormPage: React.FC = () => {
     };
     
     const isSubmitting = addMutation.isPending || updateMutation.isPending;
-    // Allow all types to support editing pending partners
-    const partnerTypes = Object.entries(t_admin.partnerTypes);
+    
+    // Clean Code: Filter out external partner types (developer, agency, finishing) to only allow creating internal users
+    const partnerTypes = Object.entries(t_admin.partnerTypes).filter(([key]) => 
+        !['developer', 'agency', 'finishing'].includes(key)
+    );
     const partnerStatuses = Object.entries(t_admin.partnerStatuses);
 
     if (isEdit && isLoading) return <div>Loading user...</div>;

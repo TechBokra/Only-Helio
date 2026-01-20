@@ -1,24 +1,6 @@
 
 import { supabase } from '../supabaseClient';
 import type { Project } from '../types';
-import { projectsData as fileProjects } from '../data/projects';
-
-const fallbackProjects: Project[] = [
-    {
-        id: 'proj-1',
-        partnerId: 'admin-user',
-        name: { en: 'Helio Gardens', ar: 'هليوبوليس جاردنز' },
-        description: { en: 'A luxurious compound in the heart of New Heliopolis.', ar: 'كمبوند فاخر في قلب هليوبوليس الجديدة.' },
-        imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-        createdAt: new Date().toISOString(),
-        features: [{ icon: 'ParkIcon', text: { en: 'Green Areas', ar: 'مساحات خضراء' } }],
-        partnerName: 'United Development'
-    }
-];
-
-const getMockProjects = (): Project[] => {
-    return fileProjects.length > 0 ? fileProjects : fallbackProjects;
-}
 
 // Helper to map DB row to Project type
 const mapDbToProject = (row: any): Project => ({
@@ -32,63 +14,52 @@ const mapDbToProject = (row: any): Project => ({
     imageUrl_large: row.imageUrl,
     createdAt: row.createdAt,
     features: typeof row.features === 'string' ? JSON.parse(row.features) : (row.features || []),
-    // Fix: map from name_en/name_ar
-    partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown Partner'
+    partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown'
 });
 
 export const getAllProjects = async (): Promise<Project[]> => {
-    if (!supabase) return getMockProjects();
-
-    // Fix: Select name_en and name_ar instead of name
+    // Explicit constraint name: Project_partnerId_fkey
+    // Fetch name_en and name_ar instead of 'name'
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name_en, name_ar)`)
+        .select(`*, partner:User!Project_partnerId_fkey(name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-        return getMockProjects();
+    if (error) {
+        console.error("Error fetching projects:", JSON.stringify(error, null, 2));
+        // Fallback
+        if (error.code === 'PGRST200') {
+             const { data: fallbackData } = await supabase.from('Project').select('*').order('createdAt', { ascending: false });
+             return (fallbackData || []).map(mapDbToProject);
+        }
+        return [];
     }
-    return data.map(mapDbToProject);
+    return (data || []).map(mapDbToProject);
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
-    if (!supabase) return getMockProjects().find(p => p.id === id);
-
-    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name_en, name_ar)`)
+        .select(`*, partner:User!Project_partnerId_fkey(name_en, name_ar)`)
         .eq('id', id)
         .single();
 
-    if (error) return getMockProjects().find(p => p.id === id);
+    if (error) return undefined;
     return mapDbToProject(data);
 };
 
 export const getProjectsByPartnerId = async (partnerId: string): Promise<Project[]> => {
-    if (!supabase) return getMockProjects().filter(p => p.partnerId === partnerId);
-
-    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Project')
-        .select(`*, partner:User!partnerId (name_en, name_ar)`)
+        .select(`*, partner:User!Project_partnerId_fkey(name_en, name_ar)`)
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-        return getMockProjects().filter(p => p.partnerId === partnerId);
-    }
-    return data.map(mapDbToProject);
+    if (error) return [];
+    return (data || []).map(mapDbToProject);
 };
 
 export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
-    if (!supabase) {
-         // Mock
-         const newP = { ...project, id: `proj-${Date.now()}`, createdAt: new Date().toISOString() };
-         fallbackProjects.push(newP);
-         return newP;
-    }
-
     const newId = crypto.randomUUID();
 
     const dbPayload = {
@@ -109,8 +80,6 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
-    if (!supabase) return undefined; // Mock not fully implemented for updates yet
-
     const dbUpdates: any = {};
     if (updates.name) { dbUpdates.name_en = updates.name.en; dbUpdates.name_ar = updates.name.ar; }
     if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
@@ -123,7 +92,6 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
-    if (!supabase) return true; // Mock
     const { error } = await supabase.from('Project').delete().eq('id', projectId);
     return !error;
 };

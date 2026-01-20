@@ -1,6 +1,5 @@
 
 import { supabase } from '../supabaseClient';
-import { leadsData as fileLeads } from '../data/leads';
 import type { Lead, LeadMessage } from '../types';
 import { addNotification } from './notifications';
 
@@ -21,7 +20,6 @@ const mapDbToLead = (row: any): Lead => ({
     referenceImage: row.referenceImage, 
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    // Fix: Use name_en or name_ar as fallback since 'name' column doesn't exist
     partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown',
     messages: (row.messages || []).map((msg: any) => ({
         id: msg.id || `msg-${Math.random()}`,
@@ -34,61 +32,47 @@ const mapDbToLead = (row: any): Lead => ({
 });
 
 export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> => {
-    if (!supabase) return [];
-    
-    // Fix: Select name_en and name_ar instead of name
+    // Lead has multiple FKs to User. Must use explicit constraint name from SQL script.
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!partnerId(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
         
-    if (error) {
-        console.error('Error fetching leads:', error);
+    if (error || !data) {
+        console.error("Error fetching leads:", JSON.stringify(error, null, 2));
         return [];
     }
-    return (data || []).map(mapDbToLead);
+    return data.map(mapDbToLead);
 };
 
 export const getLeadById = async (leadId: string): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
-
-    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!partnerId(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
         .eq('id', leadId)
         .single();
 
-    if (error) {
-        console.error('Error fetching lead:', error);
-        return undefined;
-    }
+    if (error) return undefined;
     return mapDbToLead(data);
 };
 
 export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]> => {
-    if (!supabase) return [];
-
-    // Fix: Select name_en and name_ar instead of name
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!partnerId(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
         .order('createdAt', { ascending: false });
 
-    if (error) {
-        console.error('Error fetching all leads:', error);
-        return [];
+    if (error || !data) {
+         console.error("Error fetching all leads:", JSON.stringify(error, null, 2));
+         return [];
     }
-    return (data || []).map(mapDbToLead);
+    return data.map(mapDbToLead);
 };
 
 export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
-    if (!supabase) throw new Error('Supabase client not initialized');
-
     const now = new Date().toISOString();
     const newLead = {
-        id: `lead-${Date.now()}`, // Temporary ID logic if DB doesn't auto-gen UUID, but DB should handle this ideally.
         partnerId: leadData.partnerId,
         managerId: leadData.managerId,
         propertyId: leadData.propertyId,
@@ -102,22 +86,19 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
         createdAt: now,
         updatedAt: now
     };
-    
-    // Remove ID if let DB handle it (UUID)
-    const { id, ...payload } = newLead;
 
-    const { data, error } = await supabase.from('Lead').insert(payload).select().single();
-    if (error) throw error;
+    const { data, error } = await supabase.from('Lead').insert(newLead).select().single();
+    if (error) {
+        console.error("Error adding lead:", JSON.stringify(error, null, 2));
+        throw error;
+    }
 
     // Send notification
     const targetUserId = leadData.managerId || leadData.partnerId;
-    // Determine correct link based on role
-    let link = '/dashboard/leads';
-    if (leadData.managerId) {
-         link = leadData.serviceType === 'finishing' ? '/admin/finishing-requests' : '/admin/decoration-requests';
-    }
+    const link = leadData.managerId 
+        ? (leadData.serviceType === 'finishing' ? '/admin/finishing-requests' : '/admin/decoration-requests')
+        : '/dashboard/leads';
 
-    // We use the fire-and-forget approach for notifications to not block the lead creation
     addNotification({
         userId: targetUserId,
         message: {
@@ -125,14 +106,12 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
             en: `New lead from "${leadData.customerName}".`,
         },
         link: link,
-    }).catch(console.error);
+    });
 
     return mapDbToLead(data);
 };
 
 export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
-
     const dbUpdates: any = { updatedAt: new Date().toISOString() };
     if (updates.status) dbUpdates.status = updates.status;
     if (updates.assignedTo) dbUpdates.assignedTo = updates.assignedTo;
@@ -154,8 +133,6 @@ export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id
 };
 
 export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Lead | undefined> => {
-    if (!supabase) return undefined;
-
     const newMessage = {
         leadId,
         sender: messageData.sender,
@@ -181,7 +158,6 @@ export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMes
 };
 
 export const deleteLead = async (leadId: string): Promise<boolean> => {
-    if (!supabase) return false;
     const { error } = await supabase.from('Lead').delete().eq('id', leadId);
     if (error) throw error;
     return true;

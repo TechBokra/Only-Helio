@@ -1,16 +1,13 @@
-import { RequestType, Role } from '../types';
-import type { Request, Lead, LeadMessage } from '../types';
+
+import { RequestType } from '../types';
+import type { Request, LeadMessage } from '../types';
 import { addNotification } from './notifications';
 import { getAllRoutingRules } from './routingRules';
-import { getPartnerById } from './partners';
-// Import specific services
 import { getLeadById, getAllLeads, addLead, updateLead } from './leads';
 import { getAllPartnerRequests, addPartnerRequest, updatePartnerRequestStatus } from './partnerRequests';
 import { getAllPropertyRequests, addPropertyRequest, updatePropertyRequestStatus } from './propertyRequests';
-import { getAllContactRequests, addContactRequest, updateContactRequestStatus } from './contactRequests';
-import { getAllPropertyInquiries, addPropertyInquiry, updatePropertyInquiryStatus } from './propertyInquiries';
-
-const SIMULATED_DELAY = 300;
+import { getAllContactRequests, addContactRequest } from './contactRequests';
+import { getAllPropertyInquiries, addPropertyInquiry } from './propertyInquiries';
 
 // Helper to access nested properties of an object using a string path
 const getNestedValue = (obj: any, path: string): any => {
@@ -35,106 +32,105 @@ const checkCondition = (request: Request, condition: any): boolean => {
     }
 }
 
-export const getAllRequests = (): Promise<Request[]> => {
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-            const allRequests: Request[] = [];
+export const getAllRequests = async (): Promise<Request[]> => {
+    const allRequests: Request[] = [];
 
-            // 1. Leads
-            const leads = await getAllLeads();
-            allRequests.push(...leads.map(lead => ({
+    // 1. Leads
+    try {
+        const leads = await getAllLeads();
+        allRequests.push(...leads.map(lead => ({
+            id: lead.id,
+            type: RequestType.LEAD,
+            status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress'),
+            assignedTo: lead.assignedTo || lead.managerId || lead.partnerId,
+            assignedToName: lead.partnerName,
+            createdAt: lead.createdAt,
+            updatedAt: lead.updatedAt,
+            requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
+            payload: lead
+        } as Request)));
+    } catch (e) { console.error("Error fetching leads for requests", e); }
+
+    // 2. Partner Requests
+    try {
+        const partnerReqs = await getAllPartnerRequests();
+        allRequests.push(...partnerReqs.map(req => ({
+            id: req.id,
+            type: RequestType.PARTNER_APPLICATION,
+            status: req.status,
+            createdAt: req.createdAt,
+            requesterInfo: { name: req.contactName, phone: req.contactPhone, email: req.contactEmail },
+            payload: req
+        } as Request)));
+    } catch (e) { console.error("Error fetching partner requests", e); }
+
+    // 3. Property Requests
+    try {
+        const propReqs = await getAllPropertyRequests();
+        allRequests.push(...propReqs.map(req => ({
+            id: req.id,
+            type: RequestType.PROPERTY_LISTING_REQUEST,
+            status: req.status,
+            createdAt: req.createdAt,
+            requesterInfo: { name: req.customerName, phone: req.customerPhone },
+            payload: req
+        } as Request)));
+    } catch (e) { console.error("Error fetching property requests", e); }
+
+    // 4. Contact Requests
+    try {
+        const contactReqs = await getAllContactRequests();
+        allRequests.push(...contactReqs.map(req => ({
+            id: req.id,
+            type: RequestType.CONTACT_MESSAGE,
+            status: req.status,
+            createdAt: req.createdAt,
+            requesterInfo: { name: req.name, phone: req.phone },
+            payload: req
+        } as Request)));
+    } catch (e) { console.error("Error fetching contact requests", e); }
+
+    // 5. Property Inquiries
+    try {
+        const propInquiries = await getAllPropertyInquiries();
+        allRequests.push(...propInquiries.map(req => ({
+            id: req.id,
+            type: RequestType.PROPERTY_INQUIRY,
+            status: req.status,
+            createdAt: req.createdAt,
+            requesterInfo: { name: req.customerName, phone: req.customerPhone },
+            payload: req
+        } as Request)));
+    } catch (e) { console.error("Error fetching property inquiries", e); }
+
+    // Sort all by date
+    return allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const getRequestById = async (id: string): Promise<Request | undefined> => {
+    // Try finding in Leads first (common)
+    try {
+        const lead = await getLeadById(id);
+        if (lead) {
+            return {
                 id: lead.id,
                 type: RequestType.LEAD,
-                status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress'),
-                assignedTo: lead.assignedTo || lead.managerId || lead.partnerId,
-                assignedToName: lead.partnerName,
+                status: lead.status as any,
+                assignedTo: lead.managerId || lead.partnerId,
                 createdAt: lead.createdAt,
                 updatedAt: lead.updatedAt,
                 requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
                 payload: lead
-            } as Request)));
+            } as Request;
+        }
+    } catch (e) { /* ignore */ }
 
-            // 2. Partner Requests
-            const partnerReqs = await getAllPartnerRequests();
-            allRequests.push(...partnerReqs.map(req => ({
-                id: req.id,
-                type: RequestType.PARTNER_APPLICATION,
-                status: req.status,
-                createdAt: req.createdAt,
-                requesterInfo: { name: req.contactName, phone: req.contactPhone, email: req.contactEmail },
-                payload: req
-            } as Request)));
-
-            // 3. Property Requests
-            const propReqs = await getAllPropertyRequests();
-            allRequests.push(...propReqs.map(req => ({
-                id: req.id,
-                type: RequestType.PROPERTY_LISTING_REQUEST,
-                status: req.status,
-                createdAt: req.createdAt,
-                requesterInfo: { name: req.customerName, phone: req.customerPhone },
-                payload: req
-            } as Request)));
-
-             // 4. Contact Requests
-            const contactReqs = await getAllContactRequests();
-            allRequests.push(...contactReqs.map(req => ({
-                id: req.id,
-                type: RequestType.CONTACT_MESSAGE,
-                status: req.status,
-                createdAt: req.createdAt,
-                requesterInfo: { name: req.name, phone: req.phone },
-                payload: req
-            } as Request)));
-
-             // 5. Property Inquiries
-            const propInquiries = await getAllPropertyInquiries();
-            allRequests.push(...propInquiries.map(req => ({
-                id: req.id,
-                type: RequestType.PROPERTY_INQUIRY,
-                status: req.status,
-                createdAt: req.createdAt,
-                requesterInfo: { name: req.customerName, phone: req.customerPhone },
-                payload: req
-            } as Request)));
-
-            // Sort all by date
-            resolve(allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        }, SIMULATED_DELAY);
-    });
-};
-
-export const getRequestById = (id: string): Promise<Request | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-            // Try finding in Leads first (common)
-            const lead = await getLeadById(id);
-            if (lead) {
-                resolve({
-                    id: lead.id,
-                    type: RequestType.LEAD,
-                    status: lead.status as any,
-                    assignedTo: lead.managerId || lead.partnerId,
-                    createdAt: lead.createdAt,
-                    updatedAt: lead.updatedAt,
-                    requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
-                    payload: lead
-                } as Request);
-                return;
-            }
-
-            // Try other services
-            // Note: In a real DB, we would query the specific table based on ID prefix or separate calls
-            // Here we iterate for simplicity in mock environment
-            const allRequests = await getAllRequests();
-            const found = allRequests.find(r => r.id === id);
-            resolve(found);
-        }, SIMULATED_DELAY);
-    });
+    // Fallback: Fetch all and find (not optimal but works for varied types in MVP)
+    const allRequests = await getAllRequests();
+    return allRequests.find(r => r.id === id);
 };
 
 export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | 'type' | 'status' | 'createdAt' | 'updatedAt'>): Promise<Request> => {
-    
     let newRequest: Request;
 
     // DELEGATION: Route to specific service based on type
@@ -176,7 +172,8 @@ export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | '
             companyAddress: payload.companyAddress,
             logo: payload.logo,
             documents: payload.documents,
-            subscriptionPlan: payload.subscriptionPlan
+            subscriptionPlan: payload.subscriptionPlan,
+            managementContacts: payload.managementContacts // Pass management contacts
         });
         newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
 
@@ -214,94 +211,86 @@ export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | '
         throw new Error("Unknown request type");
     }
 
-    // --- Dynamic Routing Logic (Applies primarily to Leads/Requests where assignment makes sense) ---
-    // Note: For simplicity in this refactor, we are mostly relying on the specific service's default notification logic
-    // but we can update the 'assignedTo' field on the entity if a rule matches.
-    
-    // For LEADs, we might want to update the Lead entity with a new manager if a rule matches.
+    // --- Dynamic Routing Logic ---
     if (type === RequestType.LEAD) {
-        const rules = await getAllRoutingRules();
-        const activeRules = rules.filter(r => r.active);
-        for (const rule of activeRules) {
-            const isMatch = rule.conditions.every(condition => checkCondition(newRequest, condition));
-            if (isMatch) {
-                // Update the underlying Lead
-                await updateLead(newRequest.id, { assignedTo: rule.action.assignTo, status: 'in-progress' });
-                // Notify the new assignee
-                addNotification({
-                    userId: rule.action.assignTo,
-                    message: { ar: `تم تعيين طلب جديد لك.`, en: `A new request has been assigned to you.` },
-                    link: `/dashboard/leads/${newRequest.id}`
-                });
-                break; 
+        try {
+            const rules = await getAllRoutingRules();
+            const activeRules = rules.filter(r => r.active);
+            for (const rule of activeRules) {
+                const isMatch = rule.conditions.every(condition => checkCondition(newRequest, condition));
+                if (isMatch) {
+                    // Update the underlying Lead
+                    await updateLead(newRequest.id, { assignedTo: rule.action.assignTo, status: 'in-progress' });
+                    // Notify the new assignee
+                    addNotification({
+                        userId: rule.action.assignTo,
+                        message: { ar: `تم تعيين طلب جديد لك.`, en: `A new request has been assigned to you.` },
+                        link: `/dashboard/leads/${newRequest.id}`
+                    });
+                    break; 
+                }
             }
+        } catch (e) {
+            console.warn("Routing rule execution failed", e);
         }
     }
 
     return newRequest;
 };
 
-export const updateRequest = (id: string, updates: Partial<Request>): Promise<Request | undefined> => {
-    return new Promise(async (resolve) => {
-        setTimeout(async () => {
-             // 1. Try Leads
-            const lead = await getLeadById(id);
-            if (lead) {
-                const leadUpdates: any = {};
-                // Map status back to lead status
-                if (updates.status === 'in-progress') leadUpdates.status = 'in-progress';
-                if (updates.status === 'closed') leadUpdates.status = 'completed';
-                if (updates.status === 'rejected') leadUpdates.status = 'cancelled';
-                if (updates.assignedTo) leadUpdates.assignedTo = updates.assignedTo;
-                
-                await updateLead(id, leadUpdates);
-                const updated = await getLeadById(id);
-                 resolve({
-                    id: updated!.id,
-                    type: RequestType.LEAD,
-                    status: updated!.status as any, // mapping approximation
-                    createdAt: updated!.createdAt,
-                    requesterInfo: { name: updated!.customerName, phone: updated!.customerPhone },
-                    payload: updated
-                } as Request);
-                return;
-            }
-
-            // 2. Partner Requests
-            const partReqs = await getAllPartnerRequests();
-            if (partReqs.find(r => r.id === id)) {
-                if (updates.status === 'approved' || updates.status === 'rejected') {
-                    await updatePartnerRequestStatus(id, updates.status);
-                }
-                resolve(undefined); // Returning undefined triggers reload in UI usually
-                return;
-            }
+export const updateRequest = async (id: string, updates: Partial<Request>): Promise<Request | undefined> => {
+    // 1. Try Leads
+    try {
+        const lead = await getLeadById(id);
+        if (lead) {
+            const leadUpdates: any = {};
+            // Map status back to lead status
+            if (updates.status === 'in-progress') leadUpdates.status = 'in-progress';
+            if (updates.status === 'closed') leadUpdates.status = 'completed';
+            if (updates.status === 'rejected') leadUpdates.status = 'cancelled';
+            if (updates.assignedTo) leadUpdates.assignedTo = updates.assignedTo;
             
-            // 3. Property Requests
-            const propReqs = await getAllPropertyRequests();
-             if (propReqs.find(r => r.id === id)) {
-                 // Map generic status to RequestStatus
-                if (['approved', 'rejected', 'pending'].includes(updates.status as string)) {
-                    await updatePropertyRequestStatus(id, updates.status as any);
-                }
-                resolve(undefined);
-                return;
-            }
+            await updateLead(id, leadUpdates);
+            const updated = await getLeadById(id);
+            return {
+                id: updated!.id,
+                type: RequestType.LEAD,
+                status: updated!.status as any, 
+                createdAt: updated!.createdAt,
+                requesterInfo: { name: updated!.customerName, phone: updated!.customerPhone },
+                payload: updated
+            } as Request;
+        }
+    } catch(e) { /* not a lead or fetch error */ }
 
-            // 4. Contact & Inquiries
-            // ... similar logic for others if status updates are supported
-            
-            resolve(undefined);
-        }, SIMULATED_DELAY);
-    });
+    // 2. Partner Requests
+    try {
+        const partReqs = await getAllPartnerRequests();
+        if (partReqs.find(r => r.id === id)) {
+            if (updates.status === 'approved' || updates.status === 'rejected') {
+                await updatePartnerRequestStatus(id, updates.status);
+            }
+            return undefined;
+        }
+    } catch (e) { /* ignore */ }
+    
+    // 3. Property Requests
+    try {
+        const propReqs = await getAllPropertyRequests();
+        if (propReqs.find(r => r.id === id)) {
+            if (['approved', 'rejected', 'pending'].includes(updates.status as string)) {
+                await updatePropertyRequestStatus(id, updates.status as any);
+            }
+            return undefined;
+        }
+    } catch (e) { /* ignore */ }
+
+    return undefined;
 };
 
-export const addMessageToLead = (requestId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Request | undefined> => {
-    return new Promise(async (resolve) => {
-        // Re-import to be safe
-        const { addMessageToLead: serviceAddMessage } = await import('./leads');
-        await serviceAddMessage(requestId, messageData);
-        const updatedReq = await getRequestById(requestId);
-        resolve(updatedReq);
-    });
+export const addMessageToLead = async (requestId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Request | undefined> => {
+    // Re-import to be safe or use direct module reference
+    const { addMessageToLead: serviceAddMessage } = await import('./leads');
+    await serviceAddMessage(requestId, messageData);
+    return getRequestById(requestId);
 };

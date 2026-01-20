@@ -3,61 +3,58 @@ import { supabase } from '../supabaseClient';
 import { siteContentData as initialContentData } from '../data/content';
 import type { SiteContent } from '../types';
 
-// Fallback in-memory cache
-let cachedContent: SiteContent = { ...initialContentData };
+const CONTENT_KEY = 'site_content_v1';
 
 export const getContent = async (): Promise<SiteContent> => {
-    if (!supabase) return cachedContent;
-
     try {
+        // Try fetching from Supabase SystemSetting table
         const { data, error } = await supabase
-            .from('SiteContent')
-            .select('content')
-            .eq('id', 1)
+            .from('SystemSetting')
+            .select('value')
+            .eq('key', CONTENT_KEY)
             .single();
 
-        if (error || !data) {
-            // If no content exists in DB, initialize it with default data
-            if (error?.code === 'PGRST116' || !data) { // PGRST116 is JSON code for "no rows returned"
-                console.log("Initializing DB with default site content...");
-                await supabase.from('SiteContent').upsert({ id: 1, content: initialContentData });
-                return initialContentData;
-            }
-            console.warn("Error fetching content, using fallback:", error);
-            return cachedContent;
+        if (data && data.value) {
+            // Parse JSONB value
+            return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
         }
+        
+        // Fallback: If not in DB, try LocalStorage (migration path)
+        const stored = localStorage.getItem('onlyhelio_mock_content');
+        if (stored) return JSON.parse(stored);
 
-        // Merge DB content with initial structure to ensure type safety if schema changes
-        cachedContent = { ...initialContentData, ...data.content };
-        return cachedContent;
     } catch (e) {
-        console.error("Unexpected error fetching content:", e);
-        return cachedContent;
+        console.error("Failed to load content from DB:", e);
     }
+    
+    // Default fallback
+    return JSON.parse(JSON.stringify(initialContentData));
 };
 
 export const updateContent = async (updates: Partial<SiteContent>): Promise<SiteContent> => {
-    // 1. Get current latest state
-    const current = await getContent();
-    
-    // 2. Merge updates
-    const newContent = { ...current, ...updates };
+    // 1. Get current state to merge
+    const currentContent = await getContent();
+    const newContent = { ...currentContent, ...updates };
 
-    if (!supabase) {
-        cachedContent = newContent;
-        return newContent;
+    try {
+        // 2. Upsert into Supabase
+        const { error } = await supabase
+            .from('SystemSetting')
+            .upsert({ 
+                key: CONTENT_KEY, 
+                value: JSON.stringify(newContent),
+                group: 'cms' 
+            }, { onConflict: 'key' });
+
+        if (error) throw error;
+
+        // 3. Update LocalStorage as backup/cache
+        localStorage.setItem('onlyhelio_mock_content', JSON.stringify(newContent));
+
+    } catch (e) {
+        console.error("Failed to save content to DB:", e);
+        throw e;
     }
 
-    // 3. Save to DB
-    const { error } = await supabase
-        .from('SiteContent')
-        .upsert({ id: 1, content: newContent, updatedAt: new Date().toISOString() });
-
-    if (error) {
-        console.error("Failed to save content to DB:", error);
-        throw error;
-    }
-
-    cachedContent = newContent;
     return newContent;
 };

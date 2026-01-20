@@ -14,10 +14,13 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -28,15 +31,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   handleRetry = () => {
-      if (this.props.onReset) {
-          this.props.onReset();
-      }
-      this.setState({ hasError: false, error: null });
-  };
+    if (this.props.onReset) {
+      this.props.onReset();
+    }
+    this.setState({ hasError: false, error: null });
+  }
 
   handleGoHome = () => {
-      window.location.href = '/';
-  };
+    window.location.href = '/';
+  }
 
   render() {
     if (this.state.hasError) {

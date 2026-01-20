@@ -87,8 +87,10 @@ const AdminUserFormModal: React.FC<AdminUserFormModalProps> = ({ userToEdit, onC
     
     const isSubmitting = addMutation.isPending || updateMutation.isPending;
     
-    // Allow all types so that pending partners (developer/agency) can be edited without losing their role
-    const partnerTypes = Object.entries(t_admin.partnerTypes);
+    // Clean Code: Filter out external partner types (developer, agency, finishing) to only allow creating internal users
+    const partnerTypes = Object.entries(t_admin.partnerTypes).filter(([key]) => 
+        !['developer', 'agency', 'finishing'].includes(key)
+    );
     const partnerStatuses = Object.entries(t_admin.partnerStatuses);
 
     return (

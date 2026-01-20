@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllPartnersForAdmin, deletePartner } from '../../../services/partners';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
-import { AdminPartner, PartnerStatus, PartnerType, Role } from '../../../types';
+import { AdminPartner } from '../../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import Pagination from '../../shared/Pagination';
 import { Input } from '../../ui/Input';
@@ -21,10 +21,15 @@ const AdminUsersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
-    const { data: partners, isLoading } = useQuery({
+    const { data: allUsers, isLoading } = useQuery({
         queryKey: ['allPartnersAdmin'],
         queryFn: getAllPartnersForAdmin,
     });
+
+    // Code Cleaning: Strictly filter to show only internal users (exclude business partners)
+    const internalUsers = useMemo(() => {
+        return (allUsers || []).filter(u => !['developer', 'agency', 'finishing'].includes(u.type));
+    }, [allUsers]);
 
     const deleteMutation = useMutation({
         mutationFn: deletePartner,
@@ -44,7 +49,7 @@ const AdminUsersPage: React.FC = () => {
         filters,
         setFilter,
     } = useAdminTable({
-        data: partners, // Show ALL partners/users so they don't disappear after activation or role change
+        data: internalUsers,
         itemsPerPage: 15,
         initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (p: AdminPartner, term: string) =>
@@ -57,8 +62,10 @@ const AdminUsersPage: React.FC = () => {
         },
     });
 
-    // Allow filtering by ALL types 
-    const allUserTypes = Object.entries(t_admin.partnerTypes);
+    // Filter available types for the dropdown to only show internal roles found in translations
+    const internalUserTypes = Object.entries(t_admin.partnerTypes).filter(([key]) => 
+        !['developer', 'agency', 'finishing'].includes(key)
+    );
 
     const renderTable = (items: AdminPartner[]) => (
          <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -151,7 +158,10 @@ const AdminUsersPage: React.FC = () => {
                 />
             )}
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t_admin.userManagement.title}</h1>
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t_admin.userManagement.title}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">Manage internal team members and administrators.</p>
+                </div>
                  <Link to="/admin/users/new">
                     <Button>{t_admin.userManagement.addUser}</Button>
                 </Link>
@@ -168,7 +178,7 @@ const AdminUsersPage: React.FC = () => {
                     <option value="all">
                         {t_admin.filter.filterByType} ({t_admin.filter.all})
                     </option>
-                    {allUserTypes.map(([key, value]) => (
+                    {internalUserTypes.map(([key, value]) => (
                         <option key={key} value={key}>
                             {value as string}
                         </option>
