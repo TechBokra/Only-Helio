@@ -25,7 +25,8 @@ const mapDbToProperty = (row: any): Property => {
         imageUrl_small: mainImage, 
         imageUrl_medium: mainImage,
         imageUrl_large: mainImage,
-        gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery) : (row.gallery || []),
+        // JSONB/Array fields are automatically parsed by Supabase client, but we add checks for safety
+        gallery: Array.isArray(row.gallery) ? row.gallery : (typeof row.gallery === 'string' ? JSON.parse(row.gallery) : []),
         status: { 
             en: row.status === 'For Rent' ? 'For Rent' : 'For Sale',
             ar: row.status === 'For Rent' ? 'إيجار' : 'للبيع'
@@ -41,11 +42,11 @@ const mapDbToProperty = (row: any): Property => {
         listingStatus: row.listingStatus || 'active',
         listingStartDate: row.listingStartDate || row.createdAt,
         amenities: {
-            en: row.amenities ? (Array.isArray(row.amenities) ? row.amenities : []) : [],
+            en: Array.isArray(row.amenities) ? row.amenities : [],
             ar: [] 
         },
-        location: typeof row.location === 'string' ? JSON.parse(row.location) : (row.location || { lat: 30.0, lng: 31.0 }),
-        installments: typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments,
+        location: typeof row.location === 'object' ? row.location : (typeof row.location === 'string' ? JSON.parse(row.location) : { lat: 30.0, lng: 31.0 }),
+        installments: typeof row.installments === 'object' ? row.installments : (typeof row.installments === 'string' ? JSON.parse(row.installments) : row.installments),
         isInCompound: !!row.isInCompound,
         installmentsAvailable: !!row.installmentsAvailable,
         realEstateFinanceAvailable: !!row.realEstateFinanceAvailable,
@@ -159,9 +160,12 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
         type_ar: property.type.ar,
         status: property.status.en === 'For Sale' ? 'For Sale' : 'For Rent',
         imageUrl: property.imageUrl,
-        gallery: JSON.stringify(property.gallery),
-        location: JSON.stringify(property.location),
-        installments: JSON.stringify(property.installments),
+        // Pass arrays and objects directly for Supabase to handle JSONB/ARRAY types
+        gallery: property.gallery,
+        location: property.location,
+        installments: property.installments,
+        amenities: property.amenities.en, // Storing English keys array in 'amenities' column
+        
         isInCompound: property.isInCompound,
         installmentsAvailable: property.installmentsAvailable,
         realEstateFinanceAvailable: property.realEstateFinanceAvailable,
@@ -179,7 +183,23 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
 };
 
 export const updateProperty = async (propertyId: string, updates: Partial<Property>): Promise<Property | undefined> => {
-    const { data, error } = await supabase.from('Property').update(updates as any).eq('id', propertyId).select().single();
+    // Map partial frontend Property type to DB columns if needed
+    const dbUpdates: any = { ...updates };
+    
+    // Remap specific nested objects to DB columns if present in updates
+    if (updates.title) {
+        dbUpdates.title_en = updates.title.en;
+        dbUpdates.title_ar = updates.title.ar;
+        delete dbUpdates.title;
+    }
+    if (updates.listingStatus) {
+        dbUpdates.listingStatus = updates.listingStatus;
+    }
+    if (updates.amenities) {
+        dbUpdates.amenities = updates.amenities.en;
+    }
+
+    const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
     if (error) return undefined;
     return mapDbToProperty(data);
 };

@@ -13,6 +13,7 @@ const mapDbToProject = (row: any): Project => ({
     imageUrl_medium: row.imageUrl,
     imageUrl_large: row.imageUrl,
     createdAt: row.createdAt,
+    // Safely handle both string (legacy) and object (new) formats
     features: typeof row.features === 'string' ? JSON.parse(row.features) : (row.features || []),
     partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown'
 });
@@ -70,7 +71,8 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
         description_en: project.description.en,
         description_ar: project.description.ar,
         imageUrl: project.imageUrl,
-        features: JSON.stringify(project.features || []), 
+        // Pass array directly for JSONB
+        features: project.features || [], 
         createdAt: new Date().toISOString()
     };
 
@@ -84,7 +86,8 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
     if (updates.name) { dbUpdates.name_en = updates.name.en; dbUpdates.name_ar = updates.name.ar; }
     if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
-    if (updates.features) dbUpdates.features = JSON.stringify(updates.features);
+    // Pass array directly for JSONB
+    if (updates.features) dbUpdates.features = updates.features;
 
     const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
     if (error) { console.error('Error updating project:', error); return undefined; }

@@ -45,9 +45,9 @@ export const addPartnerRequest = async (data: Omit<PartnerRequest, 'id' | 'statu
         id: `preq-${Date.now()}`,
         status: 'pending',
         createdAt: new Date().toISOString(),
-        // Ensure complex objects are stringified for JSONB columns if needed, or pass as is if Supabase client handles it
-        documents: JSON.stringify(data.documents || []),
-        managementContacts: JSON.stringify(data.managementContacts || [])
+        // Pass objects directly for JSONB columns
+        documents: data.documents || [],
+        managementContacts: data.managementContacts || []
     };
 
     const { data: inserted, error } = await supabase.from('PartnerRequest').insert(newRequest).select().single();

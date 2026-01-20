@@ -1,3 +1,4 @@
+
 import { propertiesData } from '../data/properties';
 import { partnersData } from '../data/partners';
 import { projectsData } from '../data/projects';
@@ -112,6 +113,8 @@ async function main() {
       const role = roleMap[p.type] || 'AGENCY_PARTNER';
       const status = statusMap[p.status] || 'PENDING';
 
+      // Note: contactMethods is not in your DB schema JSON, but we keep it here 
+      // in case you add it later. We pass the object directly for JSONB.
       await prisma.user.create({
           data: {
             id: p.id,
@@ -127,7 +130,7 @@ async function main() {
             name_ar: arInfo?.name || p.id,
             description_en: enInfo?.description || '',
             description_ar: arInfo?.description || '',
-            contactMethods: p.contactMethods ? JSON.stringify(p.contactMethods) : undefined,
+            contactMethods: p.contactMethods, // Removed JSON.stringify
           }
       });
   }
@@ -144,7 +147,7 @@ async function main() {
       description_ar: p.description.ar,
       imageUrl: p.imageUrl,
       createdAt: new Date(p.createdAt),
-      features: JSON.stringify(p.features),
+      features: p.features, // Removed JSON.stringify (features is jsonb)
     })),
   });
 
@@ -157,7 +160,7 @@ async function main() {
         partnerId: prop.partnerId,
         projectId: prop.projectId,
         imageUrl: prop.imageUrl,
-        gallery: prop.gallery,
+        gallery: prop.gallery, // Already Array
         listingStatus: prop.listingStatus,
         price: prop.priceNumeric,
         price_en: prop.price.en,
@@ -186,8 +189,8 @@ async function main() {
         deliveryImmediate: prop.delivery.isImmediate,
         deliveryDate: prop.delivery.date ? new Date(prop.delivery.date) : null,
         
-        installments: prop.installments ? JSON.stringify(prop.installments) : undefined,
-        location: JSON.stringify(prop.location),
+        installments: prop.installments, // Removed JSON.stringify (jsonb)
+        location: prop.location, // Removed JSON.stringify (jsonb)
         
         listingStartDate: prop.listingStartDate ? new Date(prop.listingStartDate) : null,
         contactMethod: prop.contactMethod,
@@ -327,8 +330,8 @@ async function main() {
           name_en: rule.name.en,
           name_ar: rule.name.ar,
           active: rule.active,
-          conditions: JSON.stringify(rule.conditions),
-          action: JSON.stringify(rule.action)
+          conditions: rule.conditions, // Removed JSON.stringify (jsonb)
+          action: rule.action // Removed JSON.stringify (jsonb)
       }))
   });
 

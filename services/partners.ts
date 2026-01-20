@@ -42,7 +42,7 @@ const mapDbToPartner = (row: any): Partner => {
     const dbDescEn = row.description_en || '';
     const dbDescAr = row.description_ar || '';
 
-    // Parse contact methods
+    // Parse contact methods - safely handle both object (JSONB) and string (legacy)
     let contactMethods = row.contactMethods;
     if (typeof contactMethods === 'string') {
         try {
@@ -138,7 +138,8 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.subscriptionPlan !== undefined) dbUpdates.subscriptionPlan = updates.subscriptionPlan;
     if (updates.subscriptionEndDate !== undefined) dbUpdates.subscriptionEndDate = updates.subscriptionEndDate;
     if (updates.displayType !== undefined) dbUpdates.displayType = updates.displayType;
-    if (updates.contactMethods !== undefined) dbUpdates.contactMethods = JSON.stringify(updates.contactMethods);
+    // Pass object directly for JSONB
+    if (updates.contactMethods !== undefined) dbUpdates.contactMethods = updates.contactMethods;
     if (updates.password !== undefined) dbUpdates.password = updates.password;
 
     const { error } = await supabase.from('User').update(dbUpdates).eq('id', id);

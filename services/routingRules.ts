@@ -19,7 +19,7 @@ export const getAllRoutingRules = async (): Promise<RoutingRule[]> => {
     const { data, error } = await supabase
         .from('RoutingRule')
         .select('*')
-        .order('createdAt', { ascending: true }); // Assuming 'createdAt' or 'order' column exists, otherwise generic sort
+        .order('createdAt', { ascending: true });
 
     if (error) {
         console.error('Error fetching routing rules:', error);
@@ -35,8 +35,9 @@ export const addRoutingRule = async (rule: Omit<RoutingRule, 'id'>): Promise<Rou
         name_en: rule.name.en,
         name_ar: rule.name.ar,
         active: rule.active,
-        conditions: JSON.stringify(rule.conditions),
-        action: JSON.stringify(rule.action),
+        // Pass objects directly for JSONB
+        conditions: rule.conditions,
+        action: rule.action,
         createdAt: new Date().toISOString()
     };
 
@@ -53,8 +54,9 @@ export const updateRoutingRule = async (id: string, updates: Partial<RoutingRule
         if (updates.name.ar !== undefined) dbUpdates.name_ar = updates.name.ar;
     }
     if (updates.active !== undefined) dbUpdates.active = updates.active;
-    if (updates.conditions !== undefined) dbUpdates.conditions = JSON.stringify(updates.conditions);
-    if (updates.action !== undefined) dbUpdates.action = JSON.stringify(updates.action);
+    // Pass objects directly for JSONB
+    if (updates.conditions !== undefined) dbUpdates.conditions = updates.conditions;
+    if (updates.action !== undefined) dbUpdates.action = updates.action;
 
     const { data, error } = await supabase.from('RoutingRule').update(dbUpdates).eq('id', id).select().single();
     
@@ -75,12 +77,6 @@ export const deleteRoutingRule = async (id: string): Promise<boolean> => {
 };
 
 export const reorderRoutingRules = async (id: string, direction: 'up' | 'down'): Promise<RoutingRule[]> => {
-    // In a SQL DB without a specific 'order' column, reordering typically involves swapping values or updating an index.
-    // For this implementation, we will fetch all, reorder in JS, and then assume the frontend sort or a future 'order' column handles it.
-    // Since we lack an explicit 'order' column in the implicit schema from seed.ts, this is a best-effort in-memory sort 
-    // that might not persist order strictly without schema changes. 
-    // However, to satisfy the UI requirement, we'll return the reordered list.
-    
     const rules = await getAllRoutingRules();
     const index = rules.findIndex(r => r.id === id);
     if (index < 0) return rules;
@@ -91,8 +87,8 @@ export const reorderRoutingRules = async (id: string, direction: 'up' | 'down'):
         rules.splice(index, 1);
         rules.splice(newIndex, 0, item);
         
-        // Ideally, we would update an 'orderIndex' column here for both affected rows.
-        // await supabase.from('RoutingRule').upsert([...])
+        // Note: Actual DB reordering would require an 'orderIndex' column updates here.
+        // For MVP, we modify in-memory return but data won't persist order without that column.
     }
     return rules;
 };

@@ -45,8 +45,9 @@ export const addPropertyRequest = async (data: Omit<AddPropertyRequest, 'id' | '
         status: 'pending',
         createdAt: new Date().toISOString(),
         managerId: 'customer-relations-manager-1',
-        propertyDetails: JSON.stringify(data.propertyDetails),
-        images: JSON.stringify(data.images || [])
+        // Pass objects directly for JSONB
+        propertyDetails: data.propertyDetails,
+        images: data.images || []
     };
 
     const { data: inserted, error } = await supabase.from('PropertyListingRequest').insert(newRequest).select().single();
