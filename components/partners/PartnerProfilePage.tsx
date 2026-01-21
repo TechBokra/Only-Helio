@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import type { Language, PortfolioItem, Property, AdminPartner, Project } from '../../types';
@@ -51,10 +50,17 @@ const PartnerProfilePage: React.FC = () => {
 
     const loading = isLoadingPartner || isLoadingPortfolio || isLoadingProperties;
 
-    const localizedPartner = useMemo(() => {
+    // Use translation if available, otherwise fallback to DB data
+    const displayData = useMemo(() => {
         if (!partnerInfo) return null;
-        return t.partnerInfo[partnerInfo.id] || null;
-    }, [partnerInfo, t]);
+        
+        const localized = t.partnerInfo?.[partnerInfo.id];
+        
+        return {
+            name: localized?.name || (language === 'ar' ? (partnerInfo.nameAr || partnerInfo.name) : partnerInfo.name),
+            description: localized?.description || (language === 'ar' ? (partnerInfo.descriptionAr || partnerInfo.description) : partnerInfo.description)
+        };
+    }, [partnerInfo, t, language]);
 
 
     const [lightboxState, setLightboxState] = useState({
@@ -74,8 +80,8 @@ const PartnerProfilePage: React.FC = () => {
     };
     
     const handleRequestService = () => {
-        if (!partnerInfo || !localizedPartner) return;
-        const serviceTitle = `${t.partnerProfilePage.serviceRequestFor} ${localizedPartner.name}`;
+        if (!partnerInfo || !displayData) return;
+        const serviceTitle = `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}`;
         navigate('/request-service', {
             state: {
                 serviceTitle,
@@ -85,9 +91,9 @@ const PartnerProfilePage: React.FC = () => {
     };
 
     const handleWhatsAppShare = () => {
-        if (!partnerId || !localizedPartner) return;
+        if (!partnerId || !displayData) return;
         const urlToShare = window.location.href;
-        const text = encodeURIComponent(`${localizedPartner.name}\n${urlToShare}`);
+        const text = encodeURIComponent(`${displayData.name}\n${urlToShare}`);
         window.open(`https://wa.me/?text=${text}`, '_blank');
         setShareModalOpen(false);
     };
@@ -109,7 +115,7 @@ const PartnerProfilePage: React.FC = () => {
         return <PartnerProfileSkeleton />;
     }
 
-    if (!partnerInfo || !localizedPartner) {
+    if (!partnerInfo || !displayData) {
         return (
             <div className="py-20 text-center container mx-auto px-6">
                 <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{t.partnerProfilePage.partnerNotFound}</h1>
@@ -151,9 +157,9 @@ const PartnerProfilePage: React.FC = () => {
             
             <section className="py-20 bg-gray-50 dark:bg-gray-800">
                 <div className="container mx-auto px-6 text-center">
-                    <img src={partnerInfo.imageUrl} alt={localizedPartner.name} className="w-32 h-32 rounded-full object-cover mx-auto mb-6 border-4 border-white dark:border-gray-700 shadow-lg"/>
-                    <h1 className="text-4xl md:text-5xl font-bold text-amber-500">{localizedPartner.name}</h1>
-                    <p className="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 mt-4">{localizedPartner.description}</p>
+                    <img src={partnerInfo.imageUrl} alt={displayData.name} className="w-32 h-32 rounded-full object-cover mx-auto mb-6 border-4 border-white dark:border-gray-700 shadow-lg"/>
+                    <h1 className="text-4xl md:text-5xl font-bold text-amber-500">{displayData.name}</h1>
+                    <p className="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 mt-4">{displayData.description}</p>
                     <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                         <Button
                             onClick={handleRequestService}

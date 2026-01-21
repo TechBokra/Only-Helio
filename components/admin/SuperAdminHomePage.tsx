@@ -1,9 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import type { Lead, AdminPartner, Property, AddPropertyRequest, ContactRequest, PartnerRequest, PropertyInquiryRequest, Project, Language } from '../../types';
-import { UserPlusIcon, ClipboardDocumentListIcon, InboxIcon, BuildingIcon, UsersIcon, ChartBarIcon, CubeIcon } from '../ui/Icons';
-import { isListingActive } from '../../utils/propertyUtils';
+import { Link as RouterLink } from 'react-router-dom';
 import { getAllPartnerRequests } from '../../services/partnerRequests';
 import { getAllPropertyRequests } from '../../services/propertyRequests';
 import { getAllContactRequests } from '../../services/contactRequests';
@@ -11,15 +9,16 @@ import { getAllPartnersForAdmin } from '../../services/partners';
 import { getAllProperties } from '../../services/properties';
 import { getAllProjects } from '../../services/projects';
 import { getAllLeads } from '../../services/leads';
+import { UserPlusIcon, ClipboardDocumentListIcon, InboxIcon, UsersIcon, BuildingIcon, CubeIcon, ChartBarIcon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
 import StatCard from '../shared/StatCard';
 import { useLanguage } from '../shared/LanguageContext';
 import { Card, CardContent } from '../ui/Card';
+import { isListingActive } from '../../utils/propertyUtils';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
 
 const ActionCard: React.FC<{ title: string; count: number; linkTo: string; icon: React.FC<{className?: string}>; t: any }> = ({ title, count, linkTo, icon: Icon, t }) => (
     <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 p-0">
@@ -41,13 +40,13 @@ const ActionCard: React.FC<{ title: string; count: number; linkTo: string; icon:
 const SuperAdminHomePage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_home = t.adminDashboard.home;
-    const t_analytics = t.adminAnalytics;
     
+    // Parallel data fetching
     const { data: partnerRequests, isLoading: loadingPartnerRequests } = useQuery({ queryKey: ['partnerRequests'], queryFn: getAllPartnerRequests });
     const { data: propertyRequests, isLoading: loadingPropertyRequests } = useQuery({ queryKey: ['propertyRequests'], queryFn: getAllPropertyRequests });
     const { data: contactRequests, isLoading: loadingContactRequests } = useQuery({ queryKey: ['contactRequests'], queryFn: getAllContactRequests });
     const { data: partners, isLoading: loadingPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
-    const { data: properties, isLoading: loadingProperties } = useQuery({ queryKey: ['allProperties'], queryFn: getAllProperties });
+    const { data: properties, isLoading: loadingProperties } = useQuery({ queryKey: ['allPropertiesAdmin'], queryFn: getAllProperties });
     const { data: projects, isLoading: loadingProjects } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
     const { data: leads, isLoading: loadingLeads } = useQuery({ queryKey: ['allLeads'], queryFn: getAllLeads });
 
@@ -56,7 +55,7 @@ const SuperAdminHomePage: React.FC = () => {
     const memoizedData = useMemo(() => {
         if (loading) return null;
 
-        // Correct Logic: Filter partners by TYPE to exclude admins/managers from the count
+        // Logic Improvement: Filter strictly for business partners
         const businessPartnerTypes = ['developer', 'agency', 'finishing'];
         const activePartnersCount = (partners || []).filter(p => 
             p.status === 'active' && businessPartnerTypes.includes(p.type)
@@ -79,7 +78,7 @@ const SuperAdminHomePage: React.FC = () => {
         const topPartners = Object.entries(leadStats.partnerLeads)
             .sort(([, countA], [, countB]) => Number(countB) - Number(countA)).slice(0, 5)
             .map(([partnerId, count]) => ({ partner: (partners || []).find(p => p.id === partnerId), count }))
-            .filter(p => p.partner && businessPartnerTypes.includes(p.partner.type)); // Ensure only business partners show in stats
+            .filter(p => p.partner && businessPartnerTypes.includes(p.partner.type)); // Exclude admins from stats
 
         const topProperties = Object.entries(leadStats.propertyLeads)
             .sort(([, countA], [, countB]) => Number(countB) - Number(countA)).slice(0, 5)
@@ -92,7 +91,7 @@ const SuperAdminHomePage: React.FC = () => {
             activePartnersCount, activePropertiesCount, totalProjectsCount, totalLeadsCount,
             topPartners, topProperties
         };
-    }, [loading, partnerRequests, propertyRequests, contactRequests, leads, properties, partners, projects, language]);
+    }, [loading, partnerRequests, propertyRequests, contactRequests, leads, properties, partners, projects]);
 
     if (loading || !memoizedData) {
         return <div className="animate-pulse h-screen bg-gray-50 dark:bg-gray-800"></div>
@@ -117,7 +116,7 @@ const SuperAdminHomePage: React.FC = () => {
     const topPartnersChartData = {
         labels: topPartners.map(p => p.partner ? (language === 'ar' ? p.partner.nameAr : p.partner.name) : 'N/A'),
         datasets: [{
-            label: t_analytics.leads,
+            label: 'Leads',
             data: topPartners.map(p => p.count),
             backgroundColor: 'rgba(245, 158, 11, 0.6)',
             borderColor: 'rgba(245, 158, 11, 1)',
@@ -128,14 +127,13 @@ const SuperAdminHomePage: React.FC = () => {
     const topPropertiesChartData = {
         labels: topProperties.map(p => p.property ? p.property.title[language] : 'N/A'),
         datasets: [{
-            label: t_home.inquiries,
+            label: 'Inquiries',
             data: topProperties.map(p => p.count),
             backgroundColor: 'rgba(217, 119, 6, 0.6)',
             borderColor: 'rgba(217, 119, 6, 1)',
             borderWidth: 1,
         }]
     };
-
 
     return (
         <div>
@@ -145,9 +143,9 @@ const SuperAdminHomePage: React.FC = () => {
             <div className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">{t_home.actionableItems}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Update links to point to the new nested routes */}
-                    <ActionCard title={t_home.pendingPartnerRequests} count={pendingPartners} linkTo="/admin/partners/requests" icon={UserPlusIcon} t={t} />
-                    <ActionCard title={t_home.pendingPropertyRequests} count={pendingProperties} linkTo="/admin/properties/listing-requests" icon={ClipboardDocumentListIcon} t={t} />
+                    {/* Explicitly pointing to decoupled routes */}
+                    <ActionCard title={t_home.pendingPartnerRequests} count={pendingPartners} linkTo="/admin/partner-requests" icon={UserPlusIcon} t={t} />
+                    <ActionCard title={t_home.pendingPropertyRequests} count={pendingProperties} linkTo="/admin/property-requests" icon={ClipboardDocumentListIcon} t={t} />
                     <ActionCard title={t_home.newContactMessages} count={newContacts} linkTo="/admin/contact-requests" icon={InboxIcon} t={t} />
                 </div>
             </div>

@@ -1,8 +1,8 @@
 
 // Cloudinary Configuration
-const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; // Key Name provided
-const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; // Upload preset provided
-const CLOUDINARY_API_KEY = '532568532962456'; // API Key provided
+const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; 
+const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; 
+const CLOUDINARY_API_KEY = '532568532962456'; 
 
 /**
  * Uploads a file to Cloudinary.

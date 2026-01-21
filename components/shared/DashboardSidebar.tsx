@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useLanguage } from './LanguageContext';
@@ -40,15 +41,15 @@ const SidebarContent: React.FC<Omit<DashboardSidebarProps, 'isOpen' | 'setIsOpen
     }, [navLinks, hasPermission, user]);
     
     const linkGroups = useMemo(() => {
+        // Updated Group Order to match keys in data/navigation.ts
         const groupOrder = [
             'Overview', 
-            'Request Triage', 
-            'Real Estate Market',
-            'Platform Operations', 
-            'Partner Relations', 
-            'Content & Listings', 
-            'System', 
-            'Partner'
+            'Real Estate',      // Matches 'Real Estate' in navigation.ts
+            'Operations',       // Matches 'Operations' (Finishing/Decor)
+            'Partners',         // Matches 'Partners'
+            'Communications',   // Matches 'Communications'
+            'System',           // Matches 'System'
+            'Partner'           // Matches 'Partner' (for partner dashboard)
         ];
         const groups: { [key: string]: typeof visibleNavLinks } = {};
         
@@ -85,10 +86,16 @@ const SidebarContent: React.FC<Omit<DashboardSidebarProps, 'isOpen' | 'setIsOpen
                         </div>
                     </li>
                     
-                    {linkGroups.map((group, index) => (
+                    {linkGroups.map((group) => (
                          <li key={group.name}>
                             <div className={`text-xs font-bold leading-6 text-gray-400 px-2 uppercase tracking-wider mb-1 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0 pointer-events-none' : 'opacity-100'}`}>
-                                {group.name.replace(/([A-Z])/g, ' $1').trim()}
+                                {group.name === 'Overview' && language === 'ar' ? 'نظرة عامة' : 
+                                 group.name === 'Real Estate' && language === 'ar' ? 'سوق العقارات' :
+                                 group.name === 'Operations' && language === 'ar' ? 'العمليات والخدمات' :
+                                 group.name === 'Partners' && language === 'ar' ? 'الشركاء' :
+                                 group.name === 'Communications' && language === 'ar' ? 'التواصل' :
+                                 group.name === 'System' && language === 'ar' ? 'النظام' :
+                                 group.name}
                             </div>
                             <ul role="list" className="-mx-2 space-y-1">
                                 {group.links.map(link => {

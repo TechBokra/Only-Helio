@@ -14,7 +14,7 @@ export const admin = {
             "partnersList": "قائمة الشركاء",
             "users": "المستخدمين",
             "rolesAndPermissions": "الأدوار والصلاحيات",
-            "properties": "العقارات",
+            "properties": "كل العقارات",
             "propertiesList": "قائمة العقارات",
             "projects": "المشاريع",
             "allLeads": "كل الطلبات",
@@ -36,7 +36,12 @@ export const admin = {
             "platformDecorations": "خدمات الديكور",
             "platformFinishing": "إدارة تشطيبات المنصة",
             "finance": "المركز المالي",
-            "forms": "إدارة النماذج"
+            "forms": "إدارة النماذج",
+            "aiEstimator": "إعدادات مقدر الذكاء الاصطناعي"
+        },
+        "aiEstimatorSettings": {
+            "title": "إعدادات مقدر التكلفة",
+            "subtitle": "تكوين المراحل والبنود والأسعار الأساسية المستخدمة في مقدر تكلفة التشطيب."
         },
         "finance": {
             "title": "المركز المالي",

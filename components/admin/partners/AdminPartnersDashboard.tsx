@@ -94,7 +94,7 @@ const AdminPartnersDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard title={t_admin.partnersManagement.totalPartners} value={dashboardData.totalPartners} icon={UsersIcon} linkTo="/admin/partners/list" />
                 <StatCard title={t_admin.listingsManagerHome.totalProjects} value={dashboardData.totalProjects} icon={CubeIcon} linkTo="/admin/projects" />
-                <StatCard title={t_admin.home.pendingPartnerRequests} value={dashboardData.pendingRequests} icon={UserPlusIcon} linkTo="/admin/partners/requests" />
+                <StatCard title={t_admin.home.pendingPartnerRequests} value={dashboardData.pendingRequests} icon={UserPlusIcon} linkTo="/admin/partner-requests" />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -108,10 +108,10 @@ const AdminPartnersDashboard: React.FC = () => {
                 <RequestList<PartnerRequest>
                     title={t_admin.partnersManagement.recentPartnerRequests}
                     requests={partnerRequests}
-                    linkTo="/admin/partners/requests"
+                    linkTo="/admin/partner-requests"
                     itemRenderer={(item) => (
                         <li key={item.id} className="py-3">
-                            <Link to={`/admin/partners/requests/${item.id}`} className="flex justify-between items-center group">
+                            <Link to={`/admin/partner-requests/${item.id}`} className="flex justify-between items-center group">
                                 <div>
                                     <p className="font-medium group-hover:text-amber-600">{item.companyName}</p>
                                     <p className="text-sm text-gray-500">{item.contactName}</p>

@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { AdminPartner } from '../../types';
@@ -7,10 +8,13 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Card, CardContent } from '../ui/Card';
 
 const PartnerCard: React.FC<{ partner: AdminPartner }> = ({ partner }) => {
-    const { t } = useLanguage();
-    const localizedPartner = t.partnerInfo[partner.id];
-
-    if (!localizedPartner) return null;
+    const { language, t } = useLanguage();
+    
+    // Try to get localized info from translation file, fallback to DB data
+    const localizedInfo = t.partnerInfo?.[partner.id];
+    
+    const name = localizedInfo?.name || (language === 'ar' ? (partner.nameAr || partner.name) : partner.name);
+    const description = localizedInfo?.description || (language === 'ar' ? (partner.descriptionAr || partner.description) : partner.description);
 
     return (
         <Link to={`/partners/${partner.id}`} className="block h-full">
@@ -18,28 +22,28 @@ const PartnerCard: React.FC<{ partner: AdminPartner }> = ({ partner }) => {
                 <picture>
                     <source
                         type="image/webp"
-                        srcSet={`${partner.imageUrl_small}&fm=webp 480w, ${partner.imageUrl_medium}&fm=webp 800w, ${
+                        srcSet={`${partner.imageUrl_small || partner.imageUrl}&fm=webp 480w, ${partner.imageUrl_medium || partner.imageUrl}&fm=webp 800w, ${
                             partner.imageUrl_large || partner.imageUrl
                         }&fm=webp 1200w`}
                         sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
                     />
                     <img
                         src={partner.imageUrl_large || partner.imageUrl}
-                        srcSet={`${partner.imageUrl_small} 480w, ${partner.imageUrl_medium} 800w, ${
+                        srcSet={`${partner.imageUrl_small || partner.imageUrl} 480w, ${partner.imageUrl_medium || partner.imageUrl} 800w, ${
                             partner.imageUrl_large || partner.imageUrl
                         } 1200w`}
                         sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                        alt={localizedPartner.name}
+                        alt={name}
                         className="w-full h-48 object-cover"
                         loading="lazy"
                     />
                 </picture>
                 <CardContent className="p-6 flex flex-col flex-grow">
                     <h3 className="text-xl font-bold text-amber-500 mb-2 group-hover:text-amber-400 transition-colors">
-                        {localizedPartner.name}
+                        {name}
                     </h3>
-                    <p className="text-gray-600 text-sm flex-grow">
-                        {localizedPartner.description}
+                    <p className="text-gray-600 text-sm flex-grow line-clamp-3">
+                        {description}
                     </p>
                 </CardContent>
             </Card>

@@ -6,11 +6,12 @@ import { aiEstimatorConfigData as defaultConfig } from '../data/aiConfig';
 const CONFIG_KEY = 'ai_estimator_config';
 
 export const getAIEstimatorConfig = async (): Promise<AIEstimatorConfig> => {
+    // Changed .single() to .maybeSingle()
     const { data, error } = await supabase
         .from('SystemSetting')
         .select('value')
         .eq('key', CONFIG_KEY)
-        .single();
+        .maybeSingle();
 
     if (error || !data) {
         return JSON.parse(JSON.stringify(defaultConfig));

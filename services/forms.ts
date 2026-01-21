@@ -2,7 +2,6 @@
 import { supabase } from '../supabaseClient';
 import type { FormDefinition } from '../types';
 
-// Helper to map DB row to FormDefinition
 const mapDbToForm = (row: any): FormDefinition => ({
     id: row.id,
     slug: row.slug,
@@ -64,13 +63,13 @@ export const saveForm = async (form: FormDefinition): Promise<FormDefinition> =>
         submitButtonLabel_en: form.submitButtonLabel?.en,
         submitButtonLabel_ar: form.submitButtonLabel?.ar,
         isActive: form.isActive,
-        fields: form.fields, // JSONB
+        fields: form.fields, // JSONB handled by supabase client usually, or pass as object
         updatedAt: new Date().toISOString()
     };
 
     let result;
     
-    // Check if updating or creating (ID might be temporary 'form-timestamp' from builder)
+    // Update if ID exists and is a UUID (not a temp ID starting with 'form-')
     if (form.id && !form.id.startsWith('form-')) {
          const { data, error } = await supabase
             .from('FormDefinition')

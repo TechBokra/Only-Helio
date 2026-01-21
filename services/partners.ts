@@ -2,20 +2,20 @@
 import { supabase } from '../supabaseClient';
 import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType, SubscriptionPlan } from '../types';
 import { mapPartnerTypeToRole } from '../data/permissions';
-import { arTranslations, enTranslations } from '../data/translations';
 import { Role } from '../types';
 
 // Helper to map DB User to Partner (Database -> Frontend)
+// Now strictly uses DB columns, removing dependency on '../data/translations'
 const mapDbToPartner = (row: any): Partner => {
     if (!row) return null as any; 
 
-    // 1. Handle Admin special case (Legacy check, can be removed if DB is clean)
+    // 1. Handle Admin special case
     if (row.email === 'admin@onlyhelio.com' || row.email === 'tamer@onlyhelio.com') {
         row.type = 'admin';
         row.role = Role.SUPER_ADMIN;
     }
 
-    // 2. Intelligent Role Mapping
+    // 2. Role Mapping
     let mappedRole = row.role;
     const dbType = row.type as PartnerType;
 
@@ -29,20 +29,7 @@ const mapDbToPartner = (row: any): Partner => {
     
     if (mappedRole === 'super_admin') mappedRole = Role.SUPER_ADMIN;
 
-    const translations = {
-        ar: arTranslations.partnerInfo,
-        en: enTranslations.partnerInfo
-    };
-    
-    // @ts-ignore
-    const enTrans = translations.en[row.id];
-    
-    const dbNameEn = row.name_en || row.name || 'Unnamed User';
-    const dbNameAr = row.name_ar || row.name || 'مستخدم';
-    const dbDescEn = row.description_en || '';
-    const dbDescAr = row.description_ar || '';
-
-    // Parse contact methods - safely handle both object (JSONB) and string (legacy)
+    // 3. Contact Methods Parsing
     let contactMethods = row.contactMethods;
     if (typeof contactMethods === 'string') {
         try {
@@ -54,9 +41,10 @@ const mapDbToPartner = (row: any): Partner => {
         contactMethods = { whatsapp: { enabled: false }, phone: { enabled: false }, form: { enabled: true } };
     }
 
+    // 4. Construct Partner Object
     return {
         id: row.id,
-        email: row.email || 'no-email@recorded.com',
+        email: row.email || '',
         imageUrl: row.imageUrl || 'https://via.placeholder.com/150',
         imageUrl_small: row.imageUrl,
         imageUrl_medium: row.imageUrl,
@@ -69,11 +57,12 @@ const mapDbToPartner = (row: any): Partner => {
         subscriptionPlan: row.subscriptionPlan || 'basic',
         displayType: row.displayType || 'standard',
         
-        name: enTrans?.name || dbNameEn,
-        nameAr: (translations.ar as any)[row.id]?.name || dbNameAr,
+        // Use localized names directly from DB
+        name: row.name_en || row.name || 'Unnamed User',
+        nameAr: row.name_ar || row.name || 'مستخدم',
         
-        description: enTrans?.description || dbDescEn,
-        descriptionAr: (translations.ar as any)[row.id]?.description || dbDescAr,
+        description: row.description_en || '',
+        descriptionAr: row.description_ar || '',
         
         contactMethods: contactMethods,
         subscriptionEndDate: row.subscriptionEndDate,
@@ -120,15 +109,20 @@ export const getPartnerByEmail = async (email: string): Promise<Partner | undefi
 export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
     const dbUpdates: any = {};
     
+    // Explicitly map frontend keys to DB columns
     if (updates.nameEn !== undefined) dbUpdates.name_en = updates.nameEn;
     if (updates.nameAr !== undefined) dbUpdates.name_ar = updates.nameAr;
     if (updates.descriptionEn !== undefined) dbUpdates.description_en = updates.descriptionEn;
     if (updates.descriptionAr !== undefined) dbUpdates.description_ar = updates.descriptionAr;
     
-    if (updates.name !== undefined) dbUpdates.name_en = updates.name;
+    // Fallbacks if only 'name' or 'description' is passed (usually implies English or default)
+    if (updates.name !== undefined && updates.nameEn === undefined) dbUpdates.name_en = updates.name;
+    if (updates.description !== undefined && updates.descriptionEn === undefined) dbUpdates.description_en = updates.description;
+
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.imageUrl !== undefined) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
+    
     if (updates.type !== undefined) {
         dbUpdates.type = updates.type;
         dbUpdates.role = mapPartnerTypeToRole(updates.type);
@@ -138,7 +132,7 @@ export const updatePartner = async (id: string, updates: any): Promise<boolean> 
     if (updates.subscriptionPlan !== undefined) dbUpdates.subscriptionPlan = updates.subscriptionPlan;
     if (updates.subscriptionEndDate !== undefined) dbUpdates.subscriptionEndDate = updates.subscriptionEndDate;
     if (updates.displayType !== undefined) dbUpdates.displayType = updates.displayType;
-    // Pass object directly for JSONB
+    
     if (updates.contactMethods !== undefined) dbUpdates.contactMethods = updates.contactMethods;
     if (updates.password !== undefined) dbUpdates.password = updates.password;
 
@@ -160,7 +154,7 @@ export const addPartner = async (request: PartnerRequest, initialStatus: Partner
     const newPartner = {
         id: newPartnerId,
         name_en: request.companyName,
-        name_ar: request.companyName,
+        name_ar: request.companyName, // Default AR name to company name until edited
         email: request.contactEmail,
         type: request.companyType,
         role: mapPartnerTypeToRole(request.companyType),
@@ -168,7 +162,8 @@ export const addPartner = async (request: PartnerRequest, initialStatus: Partner
         imageUrl: request.logo || 'https://via.placeholder.com/150',
         subscriptionPlan: request.subscriptionPlan,
         createdAt: new Date().toISOString(),
-        // Default password for new partners - in prod this should be handled by invite flow
+        description_en: request.description,
+        description_ar: request.description,
         password: 'password123' 
     };
 

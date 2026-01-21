@@ -14,6 +14,12 @@ const buildPlansObject = (rows: any[]) => {
         if (!plans[cat]) plans[cat] = {};
 
         const planDetails = {
+            name: row.name_en, 
+            price: row.price_en,
+            description: row.description_en,
+            features: row.features_en || [],
+            commissionRate: row.commissionRate,
+            // Structure for bilingual support in UI
             ar: {
                 name: row.name_ar,
                 price: row.price_ar,
@@ -63,7 +69,6 @@ export const updatePlan = async (
     subCategory?: 'sale' | 'rent'
 ): Promise<boolean> => {
     
-    // Construct the update query based on provided fields
     const dbUpdates: any = { updatedAt: new Date().toISOString() };
     
     // Arabic Updates

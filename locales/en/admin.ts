@@ -21,7 +21,7 @@ export const admin = {
             "myRequests": "My Requests",
             "subscriptionPlans": "Subscription Plans",
             "propertyFilters": "Property Filters",
-            "decorationsManagement": "Decorations",
+            "decorationsManagement": "Decorations Management",
             "banners": "Banners",
             "siteContent": "Site Content",
             "settings": "Settings",
@@ -36,7 +36,12 @@ export const admin = {
             "platformDecorations": "Decor Services",
             "platformFinishing": "Platform Finishing",
             "finance": "Finance Center",
-            "forms": "Form Management"
+            "forms": "Form Management",
+            "aiEstimator": "AI Estimator Config"
+        },
+        "aiEstimatorSettings": {
+            "title": "AI Estimator Settings",
+            "subtitle": "Configure stages, items, and base prices used for the finishing cost estimator.",
         },
         "finance": {
             "title": "Financial Center",

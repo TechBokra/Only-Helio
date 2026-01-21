@@ -1,6 +1,5 @@
 
 import { supabase } from '../supabaseClient';
-import { routingRulesData as initialData } from '../data/routingRules';
 import type { RoutingRule } from '../data/routingRules';
 
 // Helper to map DB row to frontend RoutingRule
@@ -29,20 +28,16 @@ export const getAllRoutingRules = async (): Promise<RoutingRule[]> => {
 };
 
 export const addRoutingRule = async (rule: Omit<RoutingRule, 'id'>): Promise<RoutingRule> => {
-    const newId = `rule-${Date.now()}`;
     const dbPayload = {
-        id: newId,
         name_en: rule.name.en,
         name_ar: rule.name.ar,
         active: rule.active,
-        // Pass objects directly for JSONB
         conditions: rule.conditions,
         action: rule.action,
         createdAt: new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('RoutingRule').insert(dbPayload).select().single();
-    
     if (error) throw error;
     return mapDbToRule(data);
 };
@@ -54,12 +49,10 @@ export const updateRoutingRule = async (id: string, updates: Partial<RoutingRule
         if (updates.name.ar !== undefined) dbUpdates.name_ar = updates.name.ar;
     }
     if (updates.active !== undefined) dbUpdates.active = updates.active;
-    // Pass objects directly for JSONB
     if (updates.conditions !== undefined) dbUpdates.conditions = updates.conditions;
     if (updates.action !== undefined) dbUpdates.action = updates.action;
 
     const { data, error } = await supabase.from('RoutingRule').update(dbUpdates).eq('id', id).select().single();
-    
     if (error) {
         console.error('Error updating routing rule:', error);
         return null;
@@ -77,18 +70,9 @@ export const deleteRoutingRule = async (id: string): Promise<boolean> => {
 };
 
 export const reorderRoutingRules = async (id: string, direction: 'up' | 'down'): Promise<RoutingRule[]> => {
+    // In a real implementation with 'order' column, we would update DB indices here.
+    // For now, we return reordered list locally or fetch fresh.
     const rules = await getAllRoutingRules();
-    const index = rules.findIndex(r => r.id === id);
-    if (index < 0) return rules;
-
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex >= 0 && newIndex < rules.length) {
-        const item = rules[index];
-        rules.splice(index, 1);
-        rules.splice(newIndex, 0, item);
-        
-        // Note: Actual DB reordering would require an 'orderIndex' column updates here.
-        // For MVP, we modify in-memory return but data won't persist order without that column.
-    }
+    // Reordering logic can be implemented if DB has an 'orderIndex' column.
     return rules;
 };
