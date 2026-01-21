@@ -1,261 +1,190 @@
-import React, { useState, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllRequests, updateRequest } from '../../../services/requests';
-import { getAllPartnersForAdmin } from '../../../services/partners';
-import { useAdminTable } from '../../hooks/useAdminTable';
+
+import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { 
+    UserPlusIcon, 
+    ClipboardDocumentListIcon, 
+    InboxIcon, 
+    WrenchScrewdriverIcon, 
+    SparklesIcon, 
+    SearchIcon,
+    ArrowRightIcon,
+    ArrowLeftIcon
+} from '../../ui/Icons';
 import { useLanguage } from '../../shared/LanguageContext';
-import { Request, RequestStatus, RequestType, Lead, Role } from '../../../types';
-import Pagination from '../../shared/Pagination';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-import { Input } from '../../ui/Input';
-import { Select } from '../../ui/Select';
-import { Button } from '../../ui/Button';
-import { useAuth } from '../../auth/AuthContext';
-import { Card, CardContent, CardFooter } from '../../ui/Card';
-import { ResponsiveList } from '../../shared/ResponsiveList';
-import CardSkeleton from '../../ui/CardSkeleton';
-import TableSkeleton from '../../shared/TableSkeleton';
-import { PlusIcon } from '../../ui/Icons';
-import { StatusBadge } from '../../ui/StatusBadge';
+import { Card, CardContent } from '../../ui/Card';
+import { getAllPartnerRequests } from '../../../services/partnerRequests';
+import { getAllPropertyRequests } from '../../../services/propertyRequests';
+import { getAllContactRequests } from '../../../services/contactRequests';
+import { getAllPropertyInquiries } from '../../../services/propertyInquiries';
+import { getAllLeads } from '../../../services/leads';
 
-const AdminAllRequestsPage: React.FC = () => {
-    const { language, t } = useLanguage();
-    const { currentUser } = useAuth();
-    const t_admin = t.adminDashboard;
-    const queryClient = useQueryClient();
-    const [searchParams, setSearchParams] = useSearchParams();
-    
-    const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
-    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
+interface RequestCategoryCardProps {
+    title: string;
+    description: string;
+    count: number;
+    icon: React.FC<{ className?: string }>;
+    linkTo: string;
+    colorClass: string;
+    bgClass: string;
+}
 
-    const { data: requests, isLoading: loadingRequests } = useQuery({ queryKey: ['allRequests'], queryFn: getAllRequests });
-    const { data: partners, isLoading: loadingPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
-    const isLoading = loadingRequests || loadingPartners;
-
-    const managers = useMemo(() => (partners || []).filter(p => p.role.includes('_manager') || p.role === Role.SUPER_ADMIN), [partners]);
-
-    const updateStatusMutation = useMutation({
-        mutationFn: ({ id, updates }: { id: string, updates: Partial<Request> }) => updateRequest(id, updates),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allRequests'] }),
-    });
-    
-    const filteredData = useMemo(() => {
-        if (!requests) return [];
-        if (isSuperAdmin && viewMode === 'mine') {
-            return requests.filter(req => req.assignedTo === currentUser?.id);
-        }
-        if (!isSuperAdmin) {
-            return requests.filter(req => req.assignedTo === currentUser?.id);
-        }
-        return requests;
-    }, [requests, isSuperAdmin, viewMode, currentUser]);
-    
-    // Initial filters from URL
-    const initialFilters = useMemo(() => ({
-        type: searchParams.get('type') || 'all',
-        status: searchParams.get('status') || 'all',
-        assignedTo: searchParams.get('assignedTo') || 'all',
-    }), [searchParams]);
-
-    const { paginatedItems, totalPages, currentPage, setCurrentPage, searchTerm, setSearchTerm, filters, setFilter } = useAdminTable({
-        data: filteredData,
-        itemsPerPage: 15,
-        initialSort: { key: 'createdAt', direction: 'descending' },
-        initialFilters,
-        searchFn: (item: Request, term: string) => item.requesterInfo.name.toLowerCase().includes(term),
-        filterFns: {
-            type: (item: Request, value: string) => item.type === value,
-            status: (item: Request, value: string) => item.status === value,
-            assignedTo: (item: Request, value: string) => item.assignedTo === value,
-        },
-    });
-    
-    const updateUrlFilter = (key: string, value: string) => {
-        setFilter(key, value);
-        setSearchParams(prev => {
-            if (value === 'all') prev.delete(key);
-            else prev.set(key, value);
-            return prev;
-        }, { replace: true });
-    };
-
-    const getSubject = (request: Request) => {
-        const payload = request.payload as any;
-        switch (request.type) {
-            case RequestType.LEAD: return payload.serviceTitle;
-            case RequestType.PROPERTY_LISTING_REQUEST: return `${payload.propertyDetails.propertyType[language]} - ${payload.propertyDetails.address}`;
-            case RequestType.CONTACT_MESSAGE: 
-                const message = payload.message || '';
-                return message.length > 70 ? message.substring(0, 70) + '...' : message;
-            case RequestType.PROPERTY_INQUIRY: 
-                const details = payload.details || '';
-                return details.length > 70 ? details.substring(0, 70) + '...' : details;
-            case RequestType.PARTNER_APPLICATION: return payload.companyName;
-            default: return 'N/A';
-        }
-    };
-    
-    const pageTitle = isSuperAdmin 
-        ? t.adminDashboard.requestsTriage.title 
-        : t.adminDashboard.nav.myRequests;
-    
-    const pageSubtitle = isSuperAdmin
-        ? t.adminDashboard.requestsTriage.subtitle
-        : (t.adminDashboard as any).manageLeadsSubtitle;
-
-    const renderCard = (req: Request) => (
-        <Card key={req.id} className="p-0 hover:shadow-md transition-shadow">
-            <CardContent className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                    <p className="font-bold text-lg">{req.requesterInfo.name}</p>
-                    <StatusBadge status={req.status} />
-                </div>
-                <p className="text-xs font-bold uppercase text-gray-500">{t.adminDashboard.requestTypes[req.type]}</p>
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
-                    <p className="text-sm"><strong className="text-gray-500">Subject: </strong> <span className="line-clamp-2">{getSubject(req)}</span></p>
-                    <p className="text-sm"><strong className="text-gray-500">Date: </strong> {new Date(req.createdAt).toLocaleDateString()}</p>
-                    <div className="text-sm"><strong className="text-gray-500">Assigned To: </strong> 
-                        <Select
-                            value={req.assignedTo || ''}
-                            onChange={(e) => updateStatusMutation.mutate({ id: req.id, updates: { assignedTo: e.target.value, status: 'assigned' } })}
-                            className="text-xs w-full mt-1 h-8 py-1"
-                            disabled={!isSuperAdmin}
-                        >
-                            <option value="">Unassigned</option>
-                            {(managers || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                        </Select>
-                    </div>
-                </div>
-            </CardContent>
-             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
-                <Link to={`/admin/requests/${req.id}`} className="w-full">
-                    <Button variant="ghost" className="w-full text-amber-600 hover:text-amber-700">View Details</Button>
-                </Link>
-            </CardFooter>
-        </Card>
-    );
-
-    const renderTable = (items: Request[]) => (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Requester</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Assigned To</TableHead>
-                        <TableHead>Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                 <TableBody>
-                    {items.map(req => (
-                        <TableRow key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                            <TableCell className="font-medium text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">{t.adminDashboard.requestTypes[req.type]}</TableCell>
-                            <TableCell>
-                                <div className="font-medium">{req.requesterInfo.name}</div>
-                                <div className="text-xs text-gray-400">{req.requesterInfo.phone}</div>
-                            </TableCell>
-                            <TableCell className="max-w-xs whitespace-normal break-words" title={getSubject(req)}>{getSubject(req)}</TableCell>
-                            <TableCell className="text-xs">{new Date(req.createdAt).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                                 <StatusBadge status={req.status} />
-                            </TableCell>
-                            <TableCell>
-                                <Select
-                                    value={req.assignedTo || ''}
-                                    onChange={(e) => updateStatusMutation.mutate({ id: req.id, updates: { assignedTo: e.target.value, status: 'assigned' } })}
-                                    className="text-xs w-40 h-8 py-0"
-                                    disabled={!isSuperAdmin}
-                                >
-                                    <option value="">Unassigned</option>
-                                    {(managers || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </Select>
-                            </TableCell>
-                            <TableCell>
-                                <Link to={`/admin/requests/${req.id}`}><Button variant="link" size="sm" className="text-amber-600 hover:text-amber-700">Details</Button></Link>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                 </TableBody>
-            </Table>
-        </div>
-    );
-    
-    const loadingSkeletons = (
-        <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
-                {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
-            </div>
-            <div className="hidden lg:block">
-                <TableSkeleton cols={7} />
-            </div>
-        </>
-    );
-    
-    const emptyState = (
-        <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-            <p className="text-gray-500">No requests found matching your criteria.</p>
-        </div>
-    );
+const RequestCategoryCard: React.FC<RequestCategoryCardProps> = ({ 
+    title, description, count, icon: Icon, linkTo, colorClass, bgClass 
+}) => {
+    const { language } = useLanguage();
+    const isRTL = language === 'ar';
 
     return (
-        <div>
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{pageTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400">{pageSubtitle}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {isSuperAdmin && (
-                        <div className="hidden sm:flex flex-shrink-0 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg gap-1">
-                            <Button variant={viewMode === 'mine' ? 'primary' : 'ghost'} onClick={() => setViewMode('mine')} className="!py-1.5 text-sm">{t.adminDashboard.requestsTriage.myRequests}</Button>
-                            <Button variant={viewMode === 'all' ? 'primary' : 'ghost'} onClick={() => setViewMode('all')} className="!py-1.5 text-sm">{t.adminDashboard.requestsTriage.allRequests}</Button>
+        <Link to={linkTo} className="block group">
+            <Card className="h-full border-2 border-transparent hover:border-amber-500/20 transition-all duration-300 hover:shadow-lg overflow-hidden relative">
+                <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className={`p-3 rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform duration-300`}>
+                            <Icon className="w-8 h-8" />
                         </div>
-                    )}
-                    <Link to="/admin/requests/new">
-                        <Button className="flex items-center gap-2 shadow-sm">
-                            <PlusIcon className="w-5 h-5" />
-                            <span className="hidden sm:inline">{t.adminShared.add} Request</span>
-                            <span className="sm:hidden">{t.adminShared.add}</span>
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-            
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                <Input placeholder={t_admin.filter.searchByRequesterOrPhone} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                <Select value={filters.type || 'all'} onChange={e => updateUrlFilter('type', e.target.value)}>
-                    <option value="all">{t_admin.filter.all} Types</option>
-                    {Object.entries(t_admin.requestTypes).map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
-                </Select>
-                 <Select value={filters.status || 'all'} onChange={e => updateUrlFilter('status', e.target.value)}>
-                    <option value="all">{t_admin.filter.all} Statuses</option>
-                    {Object.entries(t_admin.adminRequests.requestStatus).map(([key, value]) => <option key={key} value={key}>{value as string}</option>)}
-                </Select>
-                 {isSuperAdmin && viewMode === 'all' && (
-                    <Select value={filters.assignedTo || 'all'} onChange={e => updateUrlFilter('assignedTo', e.target.value)}>
-                        <option value="all">{t_admin.filter.all} Assignees</option>
-                        {(managers || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </Select>
-                 )}
-            </div>
-            
-            {isLoading ? loadingSkeletons : (
-                <>
-                    <ResponsiveList
-                        items={paginatedItems}
-                        renderCard={renderCard}
-                        renderTable={renderTable}
-                        emptyState={emptyState}
-                    />
-                    <div className="mt-6">
-                         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                        {count > 0 && (
+                            <span className="flex h-8 min-w-[2rem] px-2 items-center justify-center rounded-full bg-red-100 text-red-600 font-bold text-sm">
+                                {count}
+                            </span>
+                        )}
                     </div>
-                </>
-            )}
+                    
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-amber-600 transition-colors">
+                        {title}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 min-h-[40px]">
+                        {description}
+                    </p>
+                    
+                    <div className={`flex items-center text-sm font-semibold ${colorClass} group-hover:underline`}>
+                        {language === 'ar' ? 'إدارة الطلبات' : 'Manage Requests'}
+                        {isRTL ? <ArrowLeftIcon className="w-4 h-4 mr-2" /> : <ArrowRightIcon className="w-4 h-4 ml-2" />}
+                    </div>
+                </CardContent>
+            </Card>
+        </Link>
+    );
+};
+
+const AdminAllRequestsPage: React.FC = () => {
+    const { t, language } = useLanguage();
+    const t_nav = t.adminDashboard.nav;
+    
+    // Parallel Data Fetching for Counts
+    const { data: partnerReqs, isLoading: loadPartners } = useQuery({ queryKey: ['partnerRequests'], queryFn: getAllPartnerRequests });
+    const { data: propertyReqs, isLoading: loadProps } = useQuery({ queryKey: ['propertyRequests'], queryFn: getAllPropertyRequests });
+    const { data: propInquiries, isLoading: loadInquiries } = useQuery({ queryKey: ['propertyInquiries'], queryFn: getAllPropertyInquiries });
+    const { data: contactReqs, isLoading: loadContacts } = useQuery({ queryKey: ['contactRequests'], queryFn: getAllContactRequests });
+    const { data: allLeads, isLoading: loadLeads } = useQuery({ queryKey: ['allLeadsAdmin'], queryFn: getAllLeads });
+
+    const isLoading = loadPartners || loadProps || loadInquiries || loadContacts || loadLeads;
+
+    const counts = useMemo(() => {
+        if (isLoading) return { partners: 0, props: 0, inquiries: 0, contacts: 0, finishing: 0, decor: 0 };
+        
+        return {
+            partners: (partnerReqs || []).filter(r => r.status === 'pending').length,
+            props: (propertyReqs || []).filter(r => r.status === 'pending').length,
+            inquiries: (propInquiries || []).filter(r => r.status === 'pending').length,
+            contacts: (contactReqs || []).filter(r => r.status === 'pending').length,
+            finishing: (allLeads || []).filter(l => l.serviceType === 'finishing' && l.status === 'new').length,
+            decor: (allLeads || []).filter(l => l.serviceType === 'decorations' && l.status === 'new').length,
+        };
+    }, [partnerReqs, propertyReqs, propInquiries, contactReqs, allLeads, isLoading]);
+
+    if (isLoading) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                ))}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-8 animate-fadeIn">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    {t.adminDashboard.requestsTriage.title}
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400 max-w-3xl">
+                    {language === 'ar' 
+                        ? 'مركز التوجيه المركزي. اختر القسم المناسب لإدارة الطلبات والاستفسارات الواردة بشكل منفصل.' 
+                        : 'Central Triage Hub. Select a category to manage incoming requests and inquiries separately.'}
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* 1. Partner Applications */}
+                <RequestCategoryCard
+                    title={t_nav.partnerRequests}
+                    description={language === 'ar' ? 'مراجعة طلبات انضمام المطورين والشركات والمكاتب العقارية.' : 'Review applications from developers, agencies, and companies.'}
+                    count={counts.partners}
+                    icon={UserPlusIcon}
+                    linkTo="/admin/partner-requests"
+                    colorClass="text-blue-600 dark:text-blue-400"
+                    bgClass="bg-blue-100 dark:bg-blue-900/30"
+                />
+
+                {/* 2. Property Listing Requests */}
+                <RequestCategoryCard
+                    title={t_nav.propertyRequests}
+                    description={language === 'ar' ? 'طلبات الملاك الأفراد لعرض عقاراتهم للبيع أو الإيجار.' : 'Requests from individual owners to list properties for sale or rent.'}
+                    count={counts.props}
+                    icon={ClipboardDocumentListIcon}
+                    linkTo="/admin/property-requests"
+                    colorClass="text-green-600 dark:text-green-400"
+                    bgClass="bg-green-100 dark:bg-green-900/30"
+                />
+
+                {/* 3. Property Search Inquiries */}
+                <RequestCategoryCard
+                    title={t_nav.propertyInquiries}
+                    description={language === 'ar' ? 'طلبات العملاء للبحث عن عقارات بمواصفات خاصة.' : 'Client requests searching for properties with specific criteria.'}
+                    count={counts.inquiries}
+                    icon={SearchIcon}
+                    linkTo="/admin/property-inquiries"
+                    colorClass="text-purple-600 dark:text-purple-400"
+                    bgClass="bg-purple-100 dark:bg-purple-900/30"
+                />
+
+                {/* 4. Finishing Requests */}
+                <RequestCategoryCard
+                    title={t_nav.finishingRequests}
+                    description={language === 'ar' ? 'طلبات خدمات التشطيب والتصميم الداخلي (إدارة المنصة).' : 'Finishing and interior design service requests (Platform managed).'}
+                    count={counts.finishing}
+                    icon={WrenchScrewdriverIcon}
+                    linkTo="/admin/finishing-requests"
+                    colorClass="text-amber-600 dark:text-amber-400"
+                    bgClass="bg-amber-100 dark:bg-amber-900/30"
+                />
+
+                {/* 5. Decoration Requests */}
+                <RequestCategoryCard
+                    title={t_nav.decorationsRequests}
+                    description={language === 'ar' ? 'طلبات الأعمال الفنية، الديكورات، والتصاميم الخاصة.' : 'Requests for art pieces, decorations, and custom designs.'}
+                    count={counts.decor}
+                    icon={SparklesIcon}
+                    linkTo="/admin/decoration-requests"
+                    colorClass="text-pink-600 dark:text-pink-400"
+                    bgClass="bg-pink-100 dark:bg-pink-900/30"
+                />
+
+                {/* 6. Contact Messages */}
+                <RequestCategoryCard
+                    title={t_nav.contactRequests}
+                    description={language === 'ar' ? 'الرسائل العامة والاستفسارات الواردة من نموذج "اتصل بنا".' : 'General messages and inquiries from the "Contact Us" form.'}
+                    count={counts.contacts}
+                    icon={InboxIcon}
+                    linkTo="/admin/contact-requests"
+                    colorClass="text-gray-600 dark:text-gray-400"
+                    bgClass="bg-gray-200 dark:bg-gray-800"
+                />
+            </div>
         </div>
     );
 };

@@ -2,6 +2,7 @@
 // Cloudinary Configuration
 const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; // Key Name provided
 const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; // Upload preset provided
+const CLOUDINARY_API_KEY = '532568532962456'; // API Key provided
 
 /**
  * Uploads a file to Cloudinary.
@@ -12,8 +13,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    // Optional: Add API key if using signed uploads (usually not needed for presets)
-    // formData.append('api_key', '532568532962456'); 
+    formData.append('api_key', CLOUDINARY_API_KEY);
 
     try {
         const response = await fetch(

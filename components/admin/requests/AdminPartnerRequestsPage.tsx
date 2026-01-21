@@ -3,11 +3,9 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAllPartnerRequests } from '../../../services/partnerRequests';
-// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
-// FIX: Corrected import path for Pagination from 'ui' to 'shared'.
 import Pagination from '../../shared/Pagination';
 import type { PartnerRequest } from '../../../types';
 import { Button } from '../../ui/Button';
@@ -80,7 +78,8 @@ const AdminPartnerRequestsPage: React.FC = () => {
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <Link to={`/admin/partner-requests/${req.id}`}>
+                                    {/* Updated link to nested route */}
+                                    <Link to={`/admin/partners/requests/${req.id}`}>
                                         <Button variant="outline" size="sm">
                                             {t_admin.table.details}
                                         </Button>
@@ -119,7 +118,8 @@ const AdminPartnerRequestsPage: React.FC = () => {
                 <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                 <Link to={`/admin/partner-requests/${req.id}`} className="w-full">
+                 {/* Updated link to nested route */}
+                 <Link to={`/admin/partners/requests/${req.id}`} className="w-full">
                     <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
                 </Link>
             </CardFooter>
@@ -128,13 +128,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.partnerRequestsTitle}</h1>
-                    <p className="text-gray-500 dark:text-gray-400">{t_admin.partnerRequestsSubtitle}</p>
-                </div>
-            </div>
-
+             {/* Header is handled by Layout now */}
             <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}

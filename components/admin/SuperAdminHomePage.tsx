@@ -1,6 +1,4 @@
 
-
-
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Lead, AdminPartner, Property, AddPropertyRequest, ContactRequest, PartnerRequest, PropertyInquiryRequest, Project, Language } from '../../types';
@@ -11,8 +9,8 @@ import { getAllPropertyRequests } from '../../services/propertyRequests';
 import { getAllContactRequests } from '../../services/contactRequests';
 import { getAllPartnersForAdmin } from '../../services/partners';
 import { getAllProperties } from '../../services/properties';
-import { getAllLeads } from '../../services/leads';
 import { getAllProjects } from '../../services/projects';
+import { getAllLeads } from '../../services/leads';
 import { useQuery } from '@tanstack/react-query';
 import StatCard from '../shared/StatCard';
 import { useLanguage } from '../shared/LanguageContext';
@@ -58,7 +56,12 @@ const SuperAdminHomePage: React.FC = () => {
     const memoizedData = useMemo(() => {
         if (loading) return null;
 
-        const activePartnersCount = (partners || []).filter(p => p.status === 'active').length;
+        // Correct Logic: Filter partners by TYPE to exclude admins/managers from the count
+        const businessPartnerTypes = ['developer', 'agency', 'finishing'];
+        const activePartnersCount = (partners || []).filter(p => 
+            p.status === 'active' && businessPartnerTypes.includes(p.type)
+        ).length;
+
         const activePropertiesCount = (properties || []).filter(isListingActive).length;
         const totalProjectsCount = (projects || []).length;
         const totalLeadsCount = (leads || []).length;
@@ -76,7 +79,7 @@ const SuperAdminHomePage: React.FC = () => {
         const topPartners = Object.entries(leadStats.partnerLeads)
             .sort(([, countA], [, countB]) => Number(countB) - Number(countA)).slice(0, 5)
             .map(([partnerId, count]) => ({ partner: (partners || []).find(p => p.id === partnerId), count }))
-            .filter(p => p.partner && p.partner.type !== 'admin');
+            .filter(p => p.partner && businessPartnerTypes.includes(p.partner.type)); // Ensure only business partners show in stats
 
         const topProperties = Object.entries(leadStats.propertyLeads)
             .sort(([, countA], [, countB]) => Number(countB) - Number(countA)).slice(0, 5)
@@ -142,8 +145,9 @@ const SuperAdminHomePage: React.FC = () => {
             <div className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">{t_home.actionableItems}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <ActionCard title={t_home.pendingPartnerRequests} count={pendingPartners} linkTo="/admin/partner-requests" icon={UserPlusIcon} t={t} />
-                    <ActionCard title={t_home.pendingPropertyRequests} count={pendingProperties} linkTo="/admin/property-requests" icon={ClipboardDocumentListIcon} t={t} />
+                    {/* Update links to point to the new nested routes */}
+                    <ActionCard title={t_home.pendingPartnerRequests} count={pendingPartners} linkTo="/admin/partners/requests" icon={UserPlusIcon} t={t} />
+                    <ActionCard title={t_home.pendingPropertyRequests} count={pendingProperties} linkTo="/admin/properties/listing-requests" icon={ClipboardDocumentListIcon} t={t} />
                     <ActionCard title={t_home.newContactMessages} count={newContacts} linkTo="/admin/contact-requests" icon={InboxIcon} t={t} />
                 </div>
             </div>
@@ -151,10 +155,10 @@ const SuperAdminHomePage: React.FC = () => {
              <div className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Key Metrics</h2>
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard title={t_home.activePartners} value={activePartnersCount} icon={UsersIcon} linkTo="/admin/partners" />
+                    <StatCard title={t_home.activePartners} value={activePartnersCount} icon={UsersIcon} linkTo="/admin/partners/list" />
                     <StatCard title={t_home.activeProperties} value={activePropertiesCount} icon={BuildingIcon} linkTo="/admin/properties" />
                     <StatCard title={t.adminDashboard.listingsManagerHome.totalProjects} value={totalProjectsCount} icon={CubeIcon} linkTo="/admin/projects" />
-                    <StatCard title={t_home.totalLeads} value={totalLeadsCount} icon={ChartBarIcon} linkTo="/admin/leads" />
+                    <StatCard title={t_home.totalLeads} value={totalLeadsCount} icon={ChartBarIcon} linkTo="/admin/analytics" />
                 </div>
             </div>
 

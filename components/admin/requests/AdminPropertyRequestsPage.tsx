@@ -42,7 +42,6 @@ const AdminPropertyRequestsPage: React.FC = () => {
         filterFns: {},
     });
 
-    // Helper to safely format date
     const safeDate = (dateStr: string | undefined) => {
         try {
             if (!dateStr) return 'N/A';
@@ -54,7 +53,6 @@ const AdminPropertyRequestsPage: React.FC = () => {
         }
     };
 
-    // Helper to safely get property info
     const getPropInfo = (req: AddPropertyRequest) => {
         const pd = req.propertyDetails || {};
         const type = pd.propertyType?.[language] || pd.propertyType?.en || 'N/A';
@@ -110,7 +108,8 @@ const AdminPropertyRequestsPage: React.FC = () => {
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <Link to={`/admin/property-requests/${req.id}`}>
+                                    {/* Updated nested route */}
+                                    <Link to={`/admin/properties/listing-requests/${req.id}`}>
                                         <Button variant="outline" size="sm">
                                             {t_admin.table.details}
                                         </Button>
@@ -152,7 +151,8 @@ const AdminPropertyRequestsPage: React.FC = () => {
                     <p className="text-xs text-gray-400 text-right">{safeDate(req.createdAt)}</p>
                 </CardContent>
                 <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                    <Link to={`/admin/property-requests/${req.id}`} className="w-full">
+                    {/* Updated nested route */}
+                    <Link to={`/admin/properties/listing-requests/${req.id}`} className="w-full">
                         <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
                     </Link>
                 </CardFooter>
@@ -173,9 +173,8 @@ const AdminPropertyRequestsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.propertyRequestsTitle}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.propertyRequestsSubtitle}</p>
-
+            {/* Header handled by Layout */}
+            
             <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}

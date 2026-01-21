@@ -26,10 +26,8 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.notifications.title, href: '/admin/notifications', icon: BellIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'Overview' },
   { name: t => t.adminDashboard.nav.reports, href: '/admin/reports', icon: FileDownloadIcon, permission: Permission.VIEW_ANALYTICS, group: 'Overview' },
   
-  // --- Group: Real Estate Market (Direct Links) ---
-  { name: t => t.adminDashboard.nav.propertyRequests, href: '/admin/property-requests', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_PROPERTY_REQUESTS, group: 'Real Estate Market' },
-  { name: t => t.adminDashboard.nav.propertyInquiries, href: '/admin/property-inquiries', icon: SearchIcon, permission: Permission.MANAGE_PROPERTY_INQUIRIES, group: 'Real Estate Market' },
-  { name: t => t.adminDashboard.nav.contactRequests, href: '/admin/contact-requests', icon: PhoneIcon, permission: Permission.MANAGE_CONTACT_REQUESTS, group: 'Real Estate Market' },
+  // --- Group: Communications ---
+  { name: t => t.adminDashboard.nav.contactRequests, href: '/admin/contact-requests', icon: PhoneIcon, permission: Permission.MANAGE_CONTACT_REQUESTS, group: 'Communications' },
   
   // --- Group: Platform Operations ---
   { name: t => t.adminDashboard.nav.platformProperties, href: '/admin/platform-properties', icon: BuildingIcon, permission: Permission.MANAGE_PLATFORM_PROPERTIES, group: 'Platform Operations' },
@@ -38,7 +36,6 @@ export const adminNavLinks: NavLinkItem[] = [
   
   // --- Group: Partner Relations ---
   { name: t => t.adminDashboard.nav.partners, href: '/admin/partners', icon: UsersIcon, permission: Permission.MANAGE_ALL_PARTNERS, group: 'Partner Relations' },
-  { name: t => t.adminDashboard.nav.partnerRequests, href: '/admin/partner-requests', icon: UserPlusIcon, permission: Permission.MANAGE_PARTNER_REQUESTS, group: 'Partner Relations' },
   
   // --- Group: Content & Listings ---
   { name: t => t.adminDashboard.nav.properties, href: '/admin/properties', icon: BuildingIcon, permission: Permission.MANAGE_ALL_PROPERTIES, group: 'Content & Listings' },
@@ -53,9 +50,6 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.adminDashboard.nav.rolesAndPermissions, href: '/admin/roles', icon: ShieldCheckIcon, permission: Permission.MANAGE_ROLES_PERMISSIONS, group: 'System' },
   { name: t => t.adminDashboard.nav.settings, href: '/admin/settings', icon: CogIcon, permission: Permission.MANAGE_SETTINGS, group: 'System' },
   { name: t => t.dashboard.nav.profile, href: '/admin/profile', icon: UserPlusIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'System' },
-  
-  // AI Estimator - Temporarily Disabled
-  // { name: t => "AI Estimator Config", href: '/admin/ai-estimator', icon: CalculatorIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_PACKAGES, group: 'System' },
 ];
 
 export const partnerNavLinks: NavLinkItem[] = [

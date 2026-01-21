@@ -47,7 +47,9 @@ const AdminPartnersDashboard: React.FC = () => {
     const dashboardData = useMemo(() => {
         if (!partners || !projects) return null;
 
+        // Filter explicitly for Business Partners only
         const businessPartners = partners.filter(p => ['developer', 'finishing', 'agency'].includes(p.type));
+        
         const partnerDistribution = businessPartners.reduce((acc, partner) => {
             const type = t_admin.partnerTypes[partner.type as keyof typeof t_admin.partnerTypes] || partner.type;
             acc[type] = (acc[type] || 0) + 1;
@@ -65,7 +67,7 @@ const AdminPartnersDashboard: React.FC = () => {
         };
 
         return {
-            totalPartners: businessPartners.length,
+            totalPartners: businessPartners.length, // Uses filtered count
             totalProjects: projects.length,
             pendingRequests: (partnerRequests || []).filter(r => r.status === 'pending').length,
             chartData
@@ -92,7 +94,7 @@ const AdminPartnersDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard title={t_admin.partnersManagement.totalPartners} value={dashboardData.totalPartners} icon={UsersIcon} linkTo="/admin/partners/list" />
                 <StatCard title={t_admin.listingsManagerHome.totalProjects} value={dashboardData.totalProjects} icon={CubeIcon} linkTo="/admin/projects" />
-                <StatCard title={t_admin.home.pendingPartnerRequests} value={dashboardData.pendingRequests} icon={UserPlusIcon} linkTo="/admin/partner-requests" />
+                <StatCard title={t_admin.home.pendingPartnerRequests} value={dashboardData.pendingRequests} icon={UserPlusIcon} linkTo="/admin/partners/requests" />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -106,10 +108,10 @@ const AdminPartnersDashboard: React.FC = () => {
                 <RequestList<PartnerRequest>
                     title={t_admin.partnersManagement.recentPartnerRequests}
                     requests={partnerRequests}
-                    linkTo="/admin/requests?type=PARTNER_APPLICATION"
+                    linkTo="/admin/partners/requests"
                     itemRenderer={(item) => (
                         <li key={item.id} className="py-3">
-                            <Link to={`/admin/requests/${item.id}`} className="flex justify-between items-center group">
+                            <Link to={`/admin/partners/requests/${item.id}`} className="flex justify-between items-center group">
                                 <div>
                                     <p className="font-medium group-hover:text-amber-600">{item.companyName}</p>
                                     <p className="text-sm text-gray-500">{item.contactName}</p>

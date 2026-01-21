@@ -34,7 +34,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
             if (status === 'approved' && request) {
                 const pd = request.propertyDetails || {};
 
-                // Basic validation before approval
                 if (!pd.title || !pd.price) {
                     showToast('Cannot approve: Missing basic property details (Price/Title).', 'error');
                     return;
@@ -44,24 +43,20 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 const area = Number(pd.area) || 0;
                 const pricePerMeter = area > 0 ? Math.round(priceNumeric / area) : 0;
 
-                // Safe access helpers
                 const getEn = (obj: any) => obj?.en || (typeof obj === 'string' ? obj : '');
                 const getAr = (obj: any) => obj?.ar || (typeof obj === 'string' ? obj : '');
 
-                // Safely handle location
                 const locLat = pd.location?.lat ? Number(pd.location.lat) : 30.107;
                 const locLng = pd.location?.lng ? Number(pd.location.lng) : 31.626;
 
-                // Map Property Type safely
                 const rawType = pd.propertyType || 'Apartment';
                 const typeEn = typeof rawType === 'string' ? rawType : (rawType.en || 'Apartment');
 
-                // Map Finishing safely
                 const rawFinishing = pd.finishingStatus || 'Core & Shell';
                 const finishingEn = typeof rawFinishing === 'string' ? rawFinishing : (rawFinishing.en || 'Core & Shell');
 
                 const newProperty: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl' | 'projectName'> = {
-                    partnerId: 'individual-listings', // This ID MUST exist in User table
+                    partnerId: 'individual-listings', 
                     title: { 
                         en: getEn(pd.title) || `Property: ${typeEn}`, 
                         ar: getAr(pd.title) || `عقار: ${typeEn === 'Apartment' ? 'شقة' : typeEn}` 
@@ -109,7 +104,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                     realEstateFinanceAvailable: pd.realEstateFinanceAvailable === 'yes' || pd.realEstateFinanceAvailable === true,
                     imageUrl: request.images && request.images[0] ? request.images[0] : 'https://via.placeholder.com/800x600?text=No+Image',
                     gallery: request.images ? request.images.slice(1) : [],
-                    // Changed from 'active' to 'draft' as requested
                     listingStatus: 'draft', 
                     contactMethod: pd.contactMethod || 'platform',
                     ownerPhone: pd.ownerPhone,
@@ -119,18 +113,13 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 try {
                     await addPropertyMutation.mutateAsync(newProperty);
                     showToast(language === 'ar' ? 'تمت الموافقة. تم إنشاء العقار كمسودة للمراجعة.' : 'Approved. Property created as Draft for review.', 'success');
-                    // Redirect to the Drafts list directly
                     navigate('/admin/properties/list?status=draft');
                 } catch (err: any) {
                     console.error("Failed to create property:", err);
                     
-                    // SELF-HEALING LOGIC
-                    // Check if error is related to missing partner ID (Foreign Key Constraint)
                     if (supabase && (err.message?.includes('foreign key constraint') || err.code === '23503')) {
                         try {
                             showToast('System: "Individual Listings" account missing. Attempting auto-fix...', 'success');
-                            
-                            // 1. Create the missing system user
                             const { error: fixError } = await supabase.from('User').upsert({
                                 id: 'individual-listings',
                                 name_en: 'Individual Listings',
@@ -145,13 +134,11 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                             });
 
                             if (fixError) throw fixError;
-
-                            // 2. Retry creating the property
                             await addPropertyMutation.mutateAsync(newProperty);
                             
                             showToast('Auto-fix successful! Property created as draft.', 'success');
                             navigate('/admin/properties/list?status=draft');
-                            return; // Exit successfully
+                            return; 
 
                         } catch (retryError: any) {
                              console.error("Auto-fix failed:", retryError);
@@ -159,7 +146,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                         }
                     }
 
-                    // If auto-fix failed or wasn't applicable, revert the request status
                     try {
                          await updatePropertyRequestStatus(request.id, 'pending');
                          queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
@@ -175,7 +161,8 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
             } else {
                 showToast(`Request has been ${status}.`, 'success');
                 queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
-                navigate('/admin/property-requests');
+                // Correct redirect to nested list
+                navigate('/admin/properties/listing-requests');
             }
         },
         onError: (error: any) => {
@@ -189,28 +176,22 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     if (!request) return (
         <div className="p-8 text-center bg-white rounded-lg shadow dark:bg-gray-800 dark:text-white">
             <h3 className="text-lg font-bold text-red-500">Request not found</h3>
-            <Link to="/admin/property-requests" className="text-amber-500 hover:underline mt-4 block">Return to list</Link>
+            <Link to="/admin/properties/listing-requests" className="text-amber-500 hover:underline mt-4 block">Return to list</Link>
         </div>
     );
     
-    // SAFEGUARD: Ensure propertyDetails exists
     const pd = request.propertyDetails || {};
-
-    // Helper for safe nested access to prevent React Error #31
     const safeLang = (obj: any) => {
         if (!obj) return 'N/A';
         if (typeof obj === 'string') return obj;
         return obj[language] || obj.en || obj.ar || 'N/A';
     };
-
-    // Verify location data for Map
-    const hasValidLocation = pd.location && 
-                             !isNaN(Number(pd.location.lat)) && 
-                             !isNaN(Number(pd.location.lng));
+    const hasValidLocation = pd.location && !isNaN(Number(pd.location.lat)) && !isNaN(Number(pd.location.lng));
 
     return (
         <div className="max-w-4xl mx-auto animate-fadeIn">
-             <Link to="/admin/property-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+             {/* Updated back link */}
+             <Link to="/admin/properties/listing-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>

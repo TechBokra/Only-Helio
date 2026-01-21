@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BedIcon, BathIcon, AreaIcon, CheckBadgeIcon, ShareIcon, HeartIcon, HeartIconSolid, FloorIcon, CalendarIcon, WalletIcon, BuildingIcon, WrenchScrewdriverIcon, CompoundIcon, BanknotesIcon, SwimmingPoolIcon, ParkIcon, ShieldCheckIcon, ShoppingCartIcon, BuildingStorefrontIcon, ElevatorIcon, WhatsAppIcon } from '../ui/Icons';
@@ -60,14 +61,17 @@ const ProjectDetailsPage: React.FC = () => {
 
     const unitTypes: string[] = useMemo(() => {
         if (!projectProperties) return [];
-        const types = new Set(projectProperties.map(p => p.type.en));
+        // Ensure proper typing to avoid undefined errors
+        const props = projectProperties as Property[];
+        const types = new Set(props.map(p => p.type.en));
         return ['all', ...Array.from(types)];
     }, [projectProperties]);
     
     const filteredProperties = useMemo(() => {
         if (!projectProperties) return [];
-        if (activeType === 'all') return projectProperties;
-        return projectProperties.filter(p => p.type.en === activeType);
+        const props = projectProperties as Property[];
+        if (activeType === 'all') return props;
+        return props.filter(p => p.type.en === activeType);
     }, [projectProperties, activeType]);
 
     const handleWhatsAppShare = () => {
@@ -200,9 +204,18 @@ const ProjectDetailsPage: React.FC = () => {
                      {unitTypes.length > 2 && ( // Show filters only if there's more than one type
                         <div className="flex justify-center flex-wrap gap-3 mb-12">
                             {unitTypes.map((type: string) => {
-                                const typeName = type === 'all' 
-                                    ? t_page.allUnits 
-                                    : (projectProperties || []).find(p => p.type.en === type)?.type[language] || type;
+                                // Find type name for translation
+                                // 'all' is special case
+                                let typeName = type;
+                                if (type === 'all') {
+                                    typeName = t_page.allUnits;
+                                } else {
+                                     // Find a property with this type to get localized name
+                                    const sampleProp = (projectProperties as Property[] | undefined)?.find(p => p.type.en === type);
+                                    if (sampleProp) {
+                                        typeName = sampleProp.type[language];
+                                    }
+                                }
 
                                 return (
                                     <button

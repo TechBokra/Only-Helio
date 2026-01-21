@@ -195,11 +195,42 @@ const AdminRequestDetailsPage: React.FC = () => {
     
     const showApprovalActions = ['new', 'pending', 'reviewed'].includes(request.status) && (request.type === RequestType.PARTNER_APPLICATION || request.type === RequestType.PROPERTY_LISTING_REQUEST);
 
+    // Determine back link based on type or context
+    let backLink = "/admin"; // Fallback
+    let backText = t.adminShared.backToList;
+    
+    if (request.type === RequestType.LEAD) {
+        // Check payload for service type to route correctly
+        const payload = request.payload as any;
+        if (payload?.serviceType === 'finishing') {
+            backLink = "/admin/platform-finishing/requests";
+            backText = t.adminDashboard.nav.finishingRequests;
+        } else if (payload?.serviceType === 'decorations') {
+            backLink = "/admin/platform-decorations/requests";
+            backText = t.adminDashboard.nav.decorationsRequests;
+        } else {
+            // General leads or other types
+            backLink = "/admin/leads"; // Or a general leads page
+        }
+    } else if (request.type === RequestType.PARTNER_APPLICATION) {
+        backLink = "/admin/partner-requests";
+        backText = t.adminDashboard.nav.partnerRequests;
+    } else if (request.type === RequestType.PROPERTY_LISTING_REQUEST) {
+        backLink = "/admin/property-requests";
+        backText = t.adminDashboard.nav.propertyRequests;
+    } else if (request.type === RequestType.PROPERTY_INQUIRY) {
+        backLink = "/admin/property-inquiries";
+        backText = t.adminDashboard.nav.propertyInquiries;
+    } else if (request.type === RequestType.CONTACT_MESSAGE) {
+        backLink = "/admin/contact-requests";
+        backText = t.adminDashboard.nav.contactRequests;
+    }
+
     return (
         <div className="max-w-6xl mx-auto animate-fadeIn">
-            <Link to="/admin/requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+            <Link to={backLink} className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                 <ArrowLeftIcon className="w-5 h-5" />
-                Back to All Requests
+                {backText}
             </Link>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

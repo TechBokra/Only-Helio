@@ -1,13 +1,11 @@
 
 import React, { useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-// FIX: Added 'PlanCategory' to the import to ensure correct type casting.
 import type { Language, PartnerRequest, PlanCategory } from '../../../types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllPartnerRequests, updatePartnerRequestStatus } from '../../../services/partnerRequests';
 import { addPartner } from '../../../services/partners';
 import { getPlans } from '../../../services/plans';
-// FIX: Corrected import path for Icons
 import { ArrowLeftIcon } from '../../ui/Icons';
 import DetailItem from '../../shared/DetailItem';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -28,28 +26,24 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
     const mutation = useMutation({
         mutationFn: async ({ status, req }: { status: 'approved' | 'rejected', req: PartnerRequest }) => {
             if (status === 'approved') {
-                // Create partner with 'pending_setup' status (Under Construction / Needs Setup)
-                // This requires DB to accept 'pending_setup' in status CHECK constraint.
                 await addPartner(req, 'pending_setup');
             }
-            // Update request status to archive it
             await updatePartnerRequestStatus(req.id, status);
         },
         onSuccess: (_, variables) => {
             if (variables.status === 'approved') {
                 showToast(language === 'ar' ? 'تمت الموافقة. الشريك الآن في حالة "تحت التجهيز".' : 'Approved. Partner created as "Pending Setup".', 'success');
-                // Redirect to Partners List filtered by pending_setup to finalize setup
                 navigate('/admin/partners/list?status=pending_setup'); 
             } else {
                 showToast(language === 'ar' ? 'تم رفض الطلب.' : 'Request rejected.', 'success');
-                navigate('/admin/partner-requests');
+                // Correct redirect to nested route
+                navigate('/admin/partners/requests');
             }
             queryClient.invalidateQueries({ queryKey: ['partnerRequests'] });
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
         },
         onError: (error: any) => {
             console.error("Partner approval failed:", error);
-            // Show detailed error if available
             const msg = error.message || 'Action failed. Please try again.';
             showToast(msg, 'error');
         }
@@ -58,14 +52,14 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
     if (isLoading) return <div>Loading...</div>;
     if (!request) return <div>Request not found.</div>;
     
-    // FIX: Cast 'companyType' to 'PlanCategory' to ensure type-safe access to the 'plans' object.
     const companyTypeForPlan = request.companyType as PlanCategory;
     const selectedPlanDetails = plans?.[companyTypeForPlan]?.[request.subscriptionPlan as keyof typeof plans[typeof companyTypeForPlan]]?.[language];
 
 
     return (
         <div className="max-w-4xl mx-auto">
-            <Link to="/admin/partner-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+            {/* Updated back link */}
+            <Link to="/admin/partners/requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>
