@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SiteContent } from '../../types';
 import { inputClasses } from '../ui/FormField';
-import { CloseIcon, PhotoIcon, MegaphoneIcon, CreditCardIcon, BanknotesIcon, WrenchScrewdriverIcon, ChartBarIcon, UsersIcon, BuildingIcon, CubeIcon, InboxIcon, SparklesIcon, ClipboardDocumentListIcon, PhoneIcon, SearchIcon } from '../ui/Icons';
+import { PhotoIcon, BanknotesIcon, CreditCardIcon, CircleStackIcon, ArrowPathIcon } from '../ui/Icons';
 import { getContent, updateContent as updateSiteContent } from '../../services/content';
 import { seedDatabase } from '../../services/seeder';
-import { supabase } from '../../supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../shared/ToastContext';
 import { useLanguage } from '../shared/LanguageContext';
@@ -34,25 +33,8 @@ const AdminSettingsPage: React.FC = () => {
     const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, isDirty } } = useForm<SiteContent>();
     
     const [activeTab, setActiveTab] = useState<'general' | 'banner' | 'contact' | 'social' | 'finance' | 'database'>('general');
-    const [seeding, setSeeding] = useState(false);
-    
-    // Comprehensive DB Stats State
-    const [dbStats, setDbStats] = useState({ 
-        // Core
-        users: 0, 
-        projects: 0, 
-        properties: 0, 
-        // Content
-        portfolio: 0, 
-        categories: 0,
-        // CRM / Requests
-        leads: 0,
-        partnerRequests: 0,
-        propertyRequests: 0,
-        contactRequests: 0,
-        inquiries: 0
-    });
-    const [loadingStats, setLoadingStats] = useState(false);
+    const [isSeeding, setIsSeeding] = useState(false);
+    const [seedLog, setSeedLog] = useState<string>('');
 
     useEffect(() => {
         if (siteContent) {
@@ -60,57 +42,6 @@ const AdminSettingsPage: React.FC = () => {
         }
     }, [siteContent, reset]);
 
-    // Fetch DB Stats Function
-    const fetchDbStats = async () => {
-        if (!supabase) return;
-        const client = supabase; // Capture non-null client for closure
-        setLoadingStats(true);
-        try {
-            // Helper to get count safely
-            const getCount = async (table: string) => {
-                try {
-                    const { count, error } = await client.from(table).select('*', { count: 'exact', head: true });
-                    if (error) return 0;
-                    return count || 0;
-                } catch (e) { return 0; }
-            };
-
-            const [
-                users, projects, properties, 
-                portfolio, categories, 
-                leads, partnerReqs, propReqs, contacts, inquiries
-            ] = await Promise.all([
-                getCount('User'),
-                getCount('Project'),
-                getCount('Property'),
-                getCount('PortfolioItem'),
-                getCount('DecorationCategory'),
-                getCount('Lead'),
-                getCount('PartnerRequest'),
-                getCount('PropertyListingRequest'),
-                getCount('ContactRequest'),
-                getCount('PropertyInquiry')
-            ]);
-            
-            setDbStats({
-                users, projects, properties,
-                portfolio, categories,
-                leads, partnerRequests: partnerReqs, propertyRequests: propReqs, 
-                contactRequests: contacts, inquiries
-            });
-        } catch (e) {
-            console.error("Error fetching stats", e);
-        } finally {
-            setLoadingStats(false);
-        }
-    };
-
-    // Fetch stats when tab changes to database
-    useEffect(() => {
-        if (activeTab === 'database') {
-            fetchDbStats();
-        }
-    }, [activeTab]);
 
     const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -125,20 +56,22 @@ const AdminSettingsPage: React.FC = () => {
             setValue('paymentConfiguration.instapay.qrCodeUrl', base64, { shouldDirty: true });
         }
     };
-    
+
     const handleSeedDatabase = async () => {
-        if (!window.confirm("This will synchronize ALL local data (Core, Content, Requests) to the database. Continue?")) return;
+        if (!window.confirm("Warning: This will attempt to insert mock data into your database. Existing records with same IDs will be updated. Continue?")) return;
         
-        setSeeding(true);
+        setIsSeeding(true);
+        setSeedLog('Starting seed process...');
         try {
-            const message = await seedDatabase();
-            showToast(message, 'success');
-            await fetchDbStats(); // Refresh stats after seeding
+            const result = await seedDatabase();
+            setSeedLog(result);
+            showToast('Database seeded successfully!', 'success');
         } catch (error: any) {
             console.error(error);
-            showToast(`Seeding Failed: ${error.message}`, 'error');
+            setSeedLog(`Error: ${error.message}`);
+            showToast('Seeding failed. Check console.', 'error');
         } finally {
-            setSeeding(false);
+            setIsSeeding(false);
         }
     };
     
@@ -147,6 +80,7 @@ const AdminSettingsPage: React.FC = () => {
     const watchQrCode = watch('paymentConfiguration.instapay.qrCodeUrl');
 
     const onSubmit = async (formData: SiteContent) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { finishingServices, ...dataToSave } = formData;
         await updateSiteContent(dataToSave as Partial<SiteContent>);
         refetch();
@@ -161,26 +95,16 @@ const AdminSettingsPage: React.FC = () => {
         <button
             type="button"
             onClick={() => setActiveTab(tabKey)}
-            className={`px-4 py-2 font-medium rounded-t-lg border-b-2 transition-colors ${activeTab === tabKey ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`px-4 py-2 font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === tabKey ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
         >
             {label}
         </button>
     );
 
-    const StatBox: React.FC<{ label: string, value: number, icon: any, color: string }> = ({ label, value, icon: Icon, color }) => (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
-                <Icon className={`w-5 h-5 ${color} opacity-70`} />
-            </div>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{loadingStats ? '...' : value}</p>
-        </div>
-    );
-
     return (
         <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t.adminDashboard.nav.settings}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">Manage global settings and database synchronization.</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-8">Manage global settings and configuration.</p>
             
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700">
@@ -311,74 +235,55 @@ const AdminSettingsPage: React.FC = () => {
                                 <div><label className="block text-sm font-medium mb-1">LinkedIn URL</label><Input {...register('footer.social.linkedin')} className={inputClasses}/></div>
                             </div>
                         )}
-                        
-                        {/* DATABASE TAB (Detailed) */}
+
+                        {/* DATABASE TAB */}
                         {activeTab === 'database' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                {/* Core Data */}
-                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Core Data</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                    <StatBox label="Users" value={dbStats.users} icon={UsersIcon} color="text-blue-500" />
-                                    <StatBox label="Projects" value={dbStats.projects} icon={CubeIcon} color="text-amber-500" />
-                                    <StatBox label="Properties" value={dbStats.properties} icon={BuildingIcon} color="text-green-500" />
-                                </div>
-
-                                {/* Content & Services */}
-                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Services & Content</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                    <StatBox label="Portfolio Items" value={dbStats.portfolio} icon={SparklesIcon} color="text-purple-500" />
-                                    <StatBox label="Decor Categories" value={dbStats.categories} icon={SparklesIcon} color="text-pink-500" />
-                                </div>
-
-                                {/* CRM & Requests */}
-                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">CRM & Requests</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                                    <StatBox label="General Leads" value={dbStats.leads} icon={InboxIcon} color="text-red-500" />
-                                    <StatBox label="Partner Apps" value={dbStats.partnerRequests} icon={UsersIcon} color="text-indigo-500" />
-                                    <StatBox label="Listing Reqs" value={dbStats.propertyRequests} icon={ClipboardDocumentListIcon} color="text-orange-500" />
-                                    <StatBox label="Search Inquiries" value={dbStats.inquiries} icon={SearchIcon} color="text-teal-500" />
-                                    <StatBox label="Contacts" value={dbStats.contactRequests} icon={PhoneIcon} color="text-cyan-500" />
-                                </div>
-
-                                <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg">
-                                    <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                                        <WrenchScrewdriverIcon className="w-5 h-5"/> Full Database Synchronization
-                                    </h3>
-                                    <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
-                                        Push all mock data (Core, Content, Requests) to Supabase. This uses "Upsert", so it is safe to run multiple times.
-                                    </p>
-                                    <div className="flex gap-3">
-                                        <Button 
-                                            type="button" 
-                                            onClick={handleSeedDatabase} 
-                                            isLoading={seeding}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        >
-                                            Sync All Mock Data
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={fetchDbStats}
-                                            disabled={loadingStats}
-                                        >
-                                            Refresh Stats
-                                        </Button>
-                                    </div>
-                                </div>
+                            <div className="space-y-8 animate-fadeIn">
+                                <Card className="border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-900/10">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                                            <CircleStackIcon className="w-5 h-5"/> 
+                                            Initial Data Seeding
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                            Click the button below to populate the database with the initial mock data (Partners, Projects, Properties, etc.) defined in the source code.
+                                            <br/>
+                                            <strong>Note:</strong> This will update existing records if IDs match, or insert new ones. It is safe to run multiple times.
+                                        </p>
+                                        
+                                        <div className="flex flex-col gap-4">
+                                            <Button 
+                                                type="button" 
+                                                onClick={handleSeedDatabase} 
+                                                isLoading={isSeeding}
+                                                className="bg-amber-600 hover:bg-amber-700 text-white w-fit"
+                                            >
+                                                <ArrowPathIcon className="w-4 h-4 mr-2" />
+                                                Seed Database Now
+                                            </Button>
+                                            
+                                            {seedLog && (
+                                                <div className="bg-black text-green-400 font-mono text-xs p-4 rounded-md h-40 overflow-y-auto whitespace-pre-wrap">
+                                                    {seedLog}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
                         )}
+                        
                     </div>
                 </div>
                 
-                {activeTab !== 'database' && (
-                    <div className="mt-8 flex justify-end items-center gap-4">
-                        {isDirty && <span className="text-sm text-yellow-600">You have unsaved changes.</span>}
-                        <Button type="submit" isLoading={isSubmitting} disabled={!isDirty}>
-                            {isSubmitting ? 'Saving...' : 'Save Settings'}
-                        </Button>
-                    </div>
-                )}
+                <div className="mt-8 flex justify-end items-center gap-4">
+                    {isDirty && <span className="text-sm text-yellow-600">You have unsaved changes.</span>}
+                    <Button type="submit" isLoading={isSubmitting} disabled={!isDirty}>
+                        {isSubmitting ? 'Saving...' : 'Save Settings'}
+                    </Button>
+                </div>
             </form>
         </div>
     );

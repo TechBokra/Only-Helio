@@ -22,10 +22,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Start seeding...');
+  console.log('🌱 Start seeding...');
 
-  // --- CLEANUP ---
-  console.log('Cleaning up existing data...');
+  // --- 1. CLEANUP (Order matters for foreign keys) ---
+  console.log('🧹 Cleaning up existing data...');
   const deleteOrder = [
       'Notification', 'LeadMessage', 'Lead', 'Request', 'AmenitiesOnProperties',
       'Property', 'Project', 'PortfolioItem', 'Transaction', 'User',
@@ -35,14 +35,18 @@ async function main() {
 
   for (const model of deleteOrder) {
       try {
-          await (prisma as any)[model.charAt(0).toLowerCase() + model.slice(1)].deleteMany();
+          // @ts-ignore
+          if (prisma[model.charAt(0).toLowerCase() + model.slice(1)]) {
+              // @ts-ignore
+              await prisma[model.charAt(0).toLowerCase() + model.slice(1)].deleteMany();
+          }
       } catch (e) {
-          console.log(`Skipping delete for ${model} (might not exist yet or error)`);
+          console.log(`⚠️  Skipping delete for ${model} (might not exist yet or error)`);
       }
   }
 
-  // --- LOOKUP TABLES ---
-  console.log('Seeding lookup tables...');
+  // --- 2. LOOKUP TABLES (Filters) ---
+  console.log('📝 Seeding lookup tables (Types, Amenities, Statuses)...');
   
   await prisma.propertyType.createMany({
     data: propertyTypesData.map((pt) => ({
@@ -57,7 +61,8 @@ async function main() {
       id: fs.id,
       name_en: fs.en,
       name_ar: fs.ar,
-      applicableTo: fs.applicableTo,
+      // Ensure applicableTo is passed as array/json
+      applicableTo: fs.applicableTo || [], 
     })),
   });
 
@@ -66,7 +71,7 @@ async function main() {
       id: a.id,
       name_en: a.en,
       name_ar: a.ar,
-      applicableTo: a.applicableTo,
+      applicableTo: a.applicableTo || [],
     })),
   });
 
@@ -80,10 +85,9 @@ async function main() {
       }))
   });
 
-  // --- USERS (Partners & Admins) ---
-  console.log('Seeding users...');
+  // --- 3. USERS (Partners & Admins) ---
+  console.log('busts in silhouette Seeding users...');
   
-  // Use a map to track roles based on type string from legacy data
   const roleMap: Record<string, string> = {
       'admin': 'SUPER_ADMIN',
       'developer': 'DEVELOPER_PARTNER',
@@ -108,18 +112,19 @@ async function main() {
   };
 
   for (const p of partnersData) {
-      const enInfo = (enTranslations.partnerInfo as any)[p.id];
-      const arInfo = (arTranslations.partnerInfo as any)[p.id];
+      // @ts-ignore
+      const enInfo = enTranslations.partnerInfo[p.id];
+      // @ts-ignore
+      const arInfo = arTranslations.partnerInfo[p.id];
+      
       const role = roleMap[p.type] || 'AGENCY_PARTNER';
       const status = statusMap[p.status] || 'PENDING';
 
-      // Note: contactMethods is not in your DB schema JSON, but we keep it here 
-      // in case you add it later. We pass the object directly for JSONB.
       await prisma.user.create({
           data: {
             id: p.id,
             email: p.email,
-            password: p.password!,
+            password: p.password || 'password123',
             imageUrl: p.imageUrl,
             role: role as any,
             status: status as any,
@@ -130,13 +135,14 @@ async function main() {
             name_ar: arInfo?.name || p.id,
             description_en: enInfo?.description || '',
             description_ar: arInfo?.description || '',
-            contactMethods: p.contactMethods, // Removed JSON.stringify
+            // Pass the object directly, Prisma/Postgres handles JSONB
+            contactMethods: p.contactMethods as any, 
           }
       });
   }
 
-  // --- PROJECTS ---
-  console.log('Seeding projects...');
+  // --- 4. PROJECTS ---
+  console.log('🏗️  Seeding projects...');
   await prisma.project.createMany({
     data: projectsData.map((p) => ({
       id: p.id,
@@ -147,70 +153,77 @@ async function main() {
       description_ar: p.description.ar,
       imageUrl: p.imageUrl,
       createdAt: new Date(p.createdAt),
-      features: p.features, // Removed JSON.stringify (features is jsonb)
+      // Pass the object/array directly
+      features: p.features as any, 
     })),
   });
 
-  // --- PROPERTIES ---
-  console.log('Seeding properties...');
+  // --- 5. PROPERTIES ---
+  console.log('🏠 Seeding properties...');
   for (const prop of propertiesData) {
-    await prisma.property.create({
-      data: {
-        id: prop.id,
-        partnerId: prop.partnerId,
-        projectId: prop.projectId,
-        imageUrl: prop.imageUrl,
-        gallery: prop.gallery, // Already Array
-        listingStatus: prop.listingStatus,
-        price: prop.priceNumeric,
-        price_en: prop.price.en,
-        price_ar: prop.price.ar,
-        area: prop.area,
-        beds: prop.beds,
-        baths: prop.baths,
-        floor: prop.floor,
-        
-        type_en: prop.type.en,
-        type_ar: prop.type.ar,
-        title_en: prop.title.en,
-        title_ar: prop.title.ar,
-        address_en: prop.address.en,
-        address_ar: prop.address.ar,
-        description_en: prop.description.en,
-        description_ar: prop.description.ar,
-        
-        finishingStatus_en: prop.finishingStatus?.en,
-        finishingStatus_ar: prop.finishingStatus?.ar,
-        
-        installmentsAvailable: prop.installmentsAvailable,
-        isInCompound: prop.isInCompound,
-        realEstateFinanceAvailable: prop.realEstateFinanceAvailable,
-        
-        deliveryImmediate: prop.delivery.isImmediate,
-        deliveryDate: prop.delivery.date ? new Date(prop.delivery.date) : null,
-        
-        installments: prop.installments, // Removed JSON.stringify (jsonb)
-        location: prop.location, // Removed JSON.stringify (jsonb)
-        
-        listingStartDate: prop.listingStartDate ? new Date(prop.listingStartDate) : null,
-        contactMethod: prop.contactMethod,
-        ownerPhone: prop.ownerPhone,
-        
-        amenities: {
-          create: (prop.amenities?.en || []).map(amenityName => {
-            const amenity = amenitiesData.find(a => a.en === amenityName);
-            if (amenity) {
-               return { amenity: { connect: { id: amenity.id } } };
+    try {
+        await prisma.property.create({
+        data: {
+            id: prop.id,
+            partnerId: prop.partnerId,
+            projectId: prop.projectId,
+            imageUrl: prop.imageUrl,
+            gallery: prop.gallery,
+            listingStatus: prop.listingStatus,
+            price: prop.priceNumeric,
+            price_en: prop.price.en,
+            price_ar: prop.price.ar,
+            area: prop.area,
+            beds: prop.beds,
+            baths: prop.baths,
+            floor: prop.floor,
+            
+            type_en: prop.type.en,
+            type_ar: prop.type.ar,
+            title_en: prop.title.en,
+            title_ar: prop.title.ar,
+            address_en: prop.address.en,
+            address_ar: prop.address.ar,
+            description_en: prop.description.en,
+            description_ar: prop.description.ar,
+            
+            finishingStatus_en: prop.finishingStatus?.en,
+            finishingStatus_ar: prop.finishingStatus?.ar,
+            
+            installmentsAvailable: prop.installmentsAvailable,
+            isInCompound: prop.isInCompound,
+            realEstateFinanceAvailable: prop.realEstateFinanceAvailable,
+            
+            deliveryImmediate: prop.delivery.isImmediate,
+            deliveryDate: prop.delivery.date ? new Date(prop.delivery.date) : null,
+            
+            // JSONB fields - passed directly
+            installments: prop.installments as any, 
+            location: prop.location as any, 
+            
+            listingStartDate: prop.listingStartDate ? new Date(prop.listingStartDate) : new Date(),
+            contactMethod: prop.contactMethod,
+            ownerPhone: prop.ownerPhone,
+            
+            // Handle Relation for Amenities
+            amenities: {
+            create: (prop.amenities?.en || []).map(amenityName => {
+                const amenity = amenitiesData.find(a => a.en === amenityName);
+                if (amenity) {
+                    return { amenity: { connect: { id: amenity.id } } };
+                }
+                return null;
+            }).filter(Boolean) as any
             }
-            return null; // Skip unknown amenities
-          }).filter(Boolean) as any
-        }
-      },
-    });
+        },
+        });
+    } catch (e) {
+        console.warn(`Failed to seed property ${prop.id}, possibly missing dependencies (Partner/Project).`);
+    }
   }
 
-  // --- PORTFOLIO ---
-  console.log('Seeding portfolio...');
+  // --- 6. PORTFOLIO ---
+  console.log('🎨 Seeding portfolio...');
   await prisma.portfolioItem.createMany({
     data: portfolioData.map(item => ({
         id: item.id,
@@ -224,13 +237,14 @@ async function main() {
         price: item.price,
         dimensions: item.dimensions,
         availability: item.availability,
-        // Try to link category relation if match found
+        // Optional: link category if ID matches
         categoryId: decorationCategoriesData.find(c => c.name.en === item.category.en)?.id
     }))
   });
 
-  // --- CMS: QUOTES ---
-  console.log('Seeding quotes...');
+  // --- 7. CMS: QUOTES & PAGES ---
+  console.log('📄 Seeding CMS content...');
+  
   if (siteContentData.quotes) {
       await prisma.quote.createMany({
           data: siteContentData.quotes.map(q => ({
@@ -242,8 +256,6 @@ async function main() {
       });
   }
 
-  // --- CMS: STATIC PAGES ---
-  console.log('Seeding static pages...');
   const pages = [
       { slug: 'privacy-policy', data: siteContentData.privacyPolicy },
       { slug: 'terms-of-use', data: siteContentData.termsOfUse }
@@ -251,14 +263,12 @@ async function main() {
   
   for (const page of pages) {
       if (page.data) {
-          // Flatten complex objects to string for simple storage or use JSON
-          // Here we assume content is markdown/html string, but data has sections.
-          // We will store the structure as JSON in a "content" field for simplicity or stringify it.
           await prisma.staticPage.create({
               data: {
                   slug: page.slug,
                   title_en: page.data.en.title,
                   title_ar: page.data.ar.title,
+                  // Store section structure as JSON
                   content_en: JSON.stringify(page.data.en.sections),
                   content_ar: JSON.stringify(page.data.ar.sections),
               }
@@ -266,18 +276,27 @@ async function main() {
       }
   }
 
-  // --- CMS: SETTINGS ---
-  console.log('Seeding system settings...');
+  // --- 8. SETTINGS ---
+  console.log('⚙️  Seeding system settings...');
+  // We store the large siteContentData blobs in SystemSettings for easy retrieval
   const settings = [
       { key: 'contact_email', value: siteContentData.footer.email, group: 'contact' },
       { key: 'contact_phone', value: siteContentData.footer.phone, group: 'contact' },
-      { key: 'social_facebook', value: siteContentData.footer.social.facebook, group: 'social' },
-      { key: 'social_instagram', value: siteContentData.footer.social.instagram, group: 'social' },
+      // Store the whole content blobs
+      { key: 'site_content_v1', value: JSON.stringify(siteContentData), group: 'cms' }
   ];
-  await prisma.systemSetting.createMany({ data: settings });
+  
+  for (const s of settings) {
+      await prisma.systemSetting.upsert({
+          where: { key: s.key },
+          update: { value: s.value, group: s.group },
+          create: { key: s.key, value: s.value, group: s.group }
+      });
+  }
 
-  // --- BANNERS ---
-  console.log('Seeding banners...');
+
+  // --- 9. BANNERS ---
+  console.log('🚩 Seeding banners...');
   await prisma.banner.createMany({
     data: bannersData.map(b => ({
       id: b.id,
@@ -291,56 +310,60 @@ async function main() {
     }))
   });
 
-  // --- CRM: LEADS ---
-  console.log('Seeding leads...');
+  // --- 10. LEADS & REQUESTS ---
+  console.log('📩 Seeding leads...');
   for (const lead of leadsData) {
-      await prisma.lead.create({
-          data: {
-              id: lead.id,
-              partnerId: lead.partnerId,
-              managerId: lead.managerId,
-              propertyId: lead.propertyId,
-              customerName: lead.customerName,
-              customerPhone: lead.customerPhone,
-              contactTime: lead.contactTime,
-              serviceTitle: lead.serviceTitle,
-              serviceType: lead.serviceType,
-              status: lead.status,
-              notes: lead.customerNotes,
-              createdAt: new Date(lead.createdAt),
-              updatedAt: new Date(lead.updatedAt),
-              messages: {
-                  create: (lead.messages || []).map(msg => ({
-                      sender: msg.sender,
-                      senderId: msg.senderId,
-                      type: msg.type,
-                      content: msg.content,
-                      timestamp: new Date(msg.timestamp)
-                  }))
-              }
-          }
-      });
+      try {
+        await prisma.lead.create({
+            data: {
+                id: lead.id,
+                partnerId: lead.partnerId,
+                managerId: lead.managerId,
+                propertyId: lead.propertyId,
+                customerName: lead.customerName,
+                customerPhone: lead.customerPhone,
+                contactTime: lead.contactTime,
+                serviceTitle: lead.serviceTitle,
+                serviceType: lead.serviceType,
+                status: lead.status,
+                notes: lead.customerNotes,
+                createdAt: new Date(lead.createdAt),
+                updatedAt: new Date(lead.updatedAt),
+                messages: {
+                    create: (lead.messages || []).map(msg => ({
+                        sender: msg.sender,
+                        senderId: msg.senderId,
+                        type: msg.type,
+                        content: msg.content,
+                        timestamp: new Date(msg.timestamp)
+                    }))
+                }
+            }
+        });
+      } catch (e) {
+          console.warn(`Skipping lead ${lead.id} due to missing parent data.`);
+      }
   }
 
-  // --- AUTOMATION ---
-  console.log('Seeding routing rules...');
+  // --- 11. AUTOMATION RULES ---
+  console.log('🤖 Seeding automation rules...');
   await prisma.routingRule.createMany({
       data: routingRulesData.map(rule => ({
           id: rule.id,
           name_en: rule.name.en,
           name_ar: rule.name.ar,
           active: rule.active,
-          conditions: rule.conditions, // Removed JSON.stringify (jsonb)
-          action: rule.action // Removed JSON.stringify (jsonb)
+          conditions: rule.conditions as any, 
+          action: rule.action as any 
       }))
   });
 
-  console.log('Seeding finished.');
+  console.log('✅ Seeding finished.');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Seeding failed:', e);
     (process as any).exit(1);
   })
   .finally(async () => {

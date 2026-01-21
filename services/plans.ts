@@ -1,59 +1,97 @@
 
+import { supabase } from '../supabaseClient';
 import type { SubscriptionPlan, SubscriptionPlanDetails, PlanCategory } from '../types';
-import { arTranslations, enTranslations } from '../data/translations';
 
-const SIMULATED_DELAY = 300;
+// Helper to construct the nested object structure from flat DB rows
+const buildPlansObject = (rows: any[]) => {
+    const plans: any = {};
 
-const getPlansFromTranslations = () => {
-    const arPlans = arTranslations.subscriptionPlans;
-    const enPlans = enTranslations.subscriptionPlans;
+    rows.forEach(row => {
+        const cat = row.category;
+        const tier = row.tier;
+        const subCat = row.subCategory;
 
-    return {
-        developer: {
-            basic: { ar: arPlans?.developer?.basic, en: enPlans?.developer?.basic },
-            professional: { ar: arPlans?.developer?.professional, en: enPlans?.developer?.professional },
-            elite: { ar: arPlans?.developer?.elite, en: enPlans?.developer?.elite },
-        },
-        agency: {
-             basic: { ar: arPlans?.agency?.basic, en: enPlans?.agency?.basic },
-            professional: { ar: arPlans?.agency?.professional, en: enPlans?.agency?.professional },
-            elite: { ar: arPlans?.agency?.elite, en: enPlans?.agency?.elite },
-        },
-        finishing: {
-            commission: { ar: arPlans?.finishing?.commission, en: enPlans?.finishing?.commission },
-            professional: { ar: arPlans?.finishing?.professional, en: enPlans?.finishing?.professional },
-            elite: { ar: arPlans?.finishing?.elite, en: enPlans?.finishing?.elite },
-        },
-        individual: {
-            sale: {
-                paid_listing: { ar: arPlans?.individual?.sale?.paid_listing, en: enPlans?.individual?.sale?.paid_listing },
-                commission: { ar: arPlans?.individual?.sale?.commission, en: enPlans?.individual?.sale?.commission },
+        if (!plans[cat]) plans[cat] = {};
+
+        const planDetails = {
+            ar: {
+                name: row.name_ar,
+                price: row.price_ar,
+                description: row.description_ar,
+                features: row.features_ar || [],
+                commissionRate: row.commissionRate
             },
-            rent: {
-                paid_listing: { ar: arPlans?.individual?.rent?.paid_listing, en: enPlans?.individual?.rent?.paid_listing },
-                commission: { ar: arPlans?.individual?.rent?.commission, en: enPlans?.individual?.rent?.commission },
+            en: {
+                name: row.name_en,
+                price: row.price_en,
+                description: row.description_en,
+                features: row.features_en || [],
+                commissionRate: row.commissionRate
             }
-        },
-    } as any; // Cast to avoid deep type checking for this mock
-};
+        };
 
+        if (subCat) {
+            if (!plans[cat][subCat]) plans[cat][subCat] = {};
+            plans[cat][subCat][tier] = planDetails;
+        } else {
+            plans[cat][tier] = planDetails;
+        }
+    });
+
+    return plans;
+};
 
 export const getPlans = async (): Promise<Record<PlanCategory, any>> => {
-    const plans = getPlansFromTranslations();
-    return new Promise((resolve) => {
-        // Return a deep copy to prevent direct mutation from outside
-        setTimeout(() => resolve(JSON.parse(JSON.stringify(plans))), SIMULATED_DELAY);
-    });
+    const { data, error } = await supabase
+        .from('PlanConfiguration')
+        .select('*')
+        .order('category')
+        .order('tier');
+
+    if (error) {
+        console.error("Error fetching plans:", error);
+        return {} as any;
+    }
+
+    return buildPlansObject(data);
 };
 
+export const updatePlan = async (
+    planType: PlanCategory, 
+    planKey: SubscriptionPlan, 
+    updates: { ar: Partial<SubscriptionPlanDetails>, en: Partial<SubscriptionPlanDetails> }, 
+    subCategory?: 'sale' | 'rent'
+): Promise<boolean> => {
+    
+    // Construct the update query based on provided fields
+    const dbUpdates: any = { updatedAt: new Date().toISOString() };
+    
+    // Arabic Updates
+    if (updates.ar.price) dbUpdates.price_ar = updates.ar.price;
+    if (updates.ar.description) dbUpdates.description_ar = updates.ar.description;
+    if (updates.ar.features) dbUpdates.features_ar = updates.ar.features;
+    
+    // English Updates
+    if (updates.en.price) dbUpdates.price_en = updates.en.price;
+    if (updates.en.description) dbUpdates.description_en = updates.en.description;
+    if (updates.en.features) dbUpdates.features_en = updates.en.features;
+    
+    // Shared
+    if (updates.en.commissionRate !== undefined) dbUpdates.commissionRate = updates.en.commissionRate;
 
-export const updatePlan = (planType: PlanCategory, planKey: SubscriptionPlan, updates: { ar: Partial<SubscriptionPlanDetails>, en: Partial<SubscriptionPlanDetails> }, subCategory?: 'sale' | 'rent'): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // This is a limitation of the mock setup. In a real app, this would be a POST/PUT request.
-            // Here we are just resolving true without actually mutating the source `translations.ts` file.
-            console.warn("Mock API: Plan updates are not persisted in this demo.", { planType, subCategory, planKey, updates });
-            resolve(true);
-        }, SIMULATED_DELAY);
-    });
+    let query = supabase.from('PlanConfiguration').update(dbUpdates).eq('category', planType).eq('tier', planKey);
+    
+    if (subCategory) {
+        query = query.eq('subCategory', subCategory);
+    } else {
+        query = query.is('subCategory', null);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+        console.error("Error updating plan:", error);
+        return false;
+    }
+    return true;
 };

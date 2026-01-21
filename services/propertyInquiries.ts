@@ -1,57 +1,54 @@
-import { propertyInquiriesData as initialPropertyInquiriesData } from '../data/propertyInquiries';
+
+import { supabase } from '../supabaseClient';
 import type { PropertyInquiryRequest, RequestStatus } from '../types';
+import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let propertyInquiriesData: PropertyInquiryRequest[] = [...initialPropertyInquiriesData];
+export const getAllPropertyInquiries = async (): Promise<PropertyInquiryRequest[]> => {
+    const { data, error } = await supabase
+        .from('PropertyInquiry')
+        .select('*')
+        .order('createdAt', { ascending: false });
 
-const SIMULATED_DELAY = 300;
-
-export const getAllPropertyInquiries = (): Promise<PropertyInquiryRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...propertyInquiriesData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+    if (error) return [];
+    return data || [];
 };
 
-export const addPropertyInquiry = (data: Omit<PropertyInquiryRequest, 'id' | 'status' | 'createdAt'>): Promise<PropertyInquiryRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: PropertyInquiryRequest = {
+export const addPropertyInquiry = async (data: Omit<PropertyInquiryRequest, 'id' | 'status' | 'createdAt'>): Promise<PropertyInquiryRequest> => {
+    const newRequest = {
         ...data,
-        id: `inquiry-${Date.now()}`,
         status: 'pending',
         createdAt: new Date().toISOString(),
-      };
-      propertyInquiriesData.unshift(newRequest);
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
+    };
+
+    const { data: inserted, error } = await supabase
+        .from('PropertyInquiry')
+        .insert(newRequest)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    await addNotification({
+        userId: 'admin-user',
+        message: {
+            ar: `طلب بحث عقاري جديد من "${inserted.customerName}".`,
+            en: `New property search request from "${inserted.customerName}".`,
+        },
+        link: '/admin/property-inquiries',
+    });
+
+    return inserted;
 };
 
-export const updatePropertyInquiryStatus = (id: string, status: RequestStatus): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = propertyInquiriesData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                propertyInquiriesData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
-    });
+export const updatePropertyInquiryStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
+    const { error } = await supabase
+        .from('PropertyInquiry')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', id);
+    return !error;
 };
 
-export const deletePropertyInquiry = (id: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = propertyInquiriesData.length;
-            propertyInquiriesData = propertyInquiriesData.filter(r => r.id !== id);
-            if (propertyInquiriesData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const deletePropertyInquiry = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('PropertyInquiry').delete().eq('id', id);
+    return !error;
 };

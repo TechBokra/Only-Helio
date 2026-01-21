@@ -1,56 +1,48 @@
-import { bannersData as initialBannersData } from '../data/banners';
+
+import { supabase } from '../supabaseClient';
 import type { Banner } from '../types';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let bannersData: Banner[] = [...initialBannersData];
+export const getAllBanners = async (): Promise<Banner[]> => {
+    const { data, error } = await supabase
+        .from('Banner')
+        .select('*')
+        .order('createdAt', { ascending: false });
 
-const SIMULATED_DELAY = 300;
-
-export const getAllBanners = (): Promise<Banner[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve([...bannersData]);
-        }, SIMULATED_DELAY);
-    });
+    if (error) {
+        console.error("Error fetching banners:", error);
+        return [];
+    }
+    return data || [];
 };
 
-export const addBanner = (banner: Omit<Banner, 'id'>): Promise<Banner> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const newBanner: Banner = {
-                ...banner,
-                id: `banner-${Date.now()}`,
-            };
-            bannersData.unshift(newBanner);
-            resolve(newBanner);
-        }, SIMULATED_DELAY);
-    });
+export const addBanner = async (banner: Omit<Banner, 'id'>): Promise<Banner> => {
+    const { data, error } = await supabase
+        .from('Banner')
+        .insert({
+            ...banner,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
 };
 
-export const updateBanner = (bannerId: string, updates: Partial<Banner>): Promise<Banner | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const bannerIndex = bannersData.findIndex(b => b.id === bannerId);
-            if (bannerIndex > -1) {
-                bannersData[bannerIndex] = { ...bannersData[bannerIndex], ...updates };
-                resolve(bannersData[bannerIndex]);
-            } else {
-                resolve(undefined);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const updateBanner = async (bannerId: string, updates: Partial<Banner>): Promise<Banner | undefined> => {
+    const { data, error } = await supabase
+        .from('Banner')
+        .update({ ...updates, updatedAt: new Date().toISOString() })
+        .eq('id', bannerId)
+        .select()
+        .single();
+
+    if (error) return undefined;
+    return data;
 };
 
-export const deleteBanner = (bannerId: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = bannersData.length;
-            bannersData = bannersData.filter(b => b.id !== bannerId);
-            if (bannersData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const deleteBanner = async (bannerId: string): Promise<boolean> => {
+    const { error } = await supabase.from('Banner').delete().eq('id', bannerId);
+    return !error;
 };

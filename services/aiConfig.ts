@@ -1,27 +1,36 @@
 
-
-import { aiEstimatorConfigData as initialConfig } from '../data/aiConfig';
+import { supabase } from '../supabaseClient';
 import type { AIEstimatorConfig } from '../types';
+import { aiEstimatorConfigData as defaultConfig } from '../data/aiConfig';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let aiEstimatorConfigData: AIEstimatorConfig = JSON.parse(JSON.stringify(initialConfig));
+const CONFIG_KEY = 'ai_estimator_config';
 
-const SIMULATED_DELAY = 200;
+export const getAIEstimatorConfig = async (): Promise<AIEstimatorConfig> => {
+    const { data, error } = await supabase
+        .from('SystemSetting')
+        .select('value')
+        .eq('key', CONFIG_KEY)
+        .single();
 
-export const getAIEstimatorConfig = (): Promise<AIEstimatorConfig> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(JSON.parse(JSON.stringify(aiEstimatorConfigData)));
-        }, SIMULATED_DELAY);
-    });
+    if (error || !data) {
+        return JSON.parse(JSON.stringify(defaultConfig));
+    }
+
+    return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
 };
 
-export const updateAIEstimatorConfig = (updates: Partial<AIEstimatorConfig>): Promise<AIEstimatorConfig> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Update the local, in-memory data store.
-            aiEstimatorConfigData = { ...aiEstimatorConfigData, ...updates };
-            resolve(JSON.parse(JSON.stringify(aiEstimatorConfigData)));
-        }, SIMULATED_DELAY);
-    });
+export const updateAIEstimatorConfig = async (updates: Partial<AIEstimatorConfig>): Promise<AIEstimatorConfig> => {
+    const currentConfig = await getAIEstimatorConfig();
+    const newConfig = { ...currentConfig, ...updates };
+
+    const { error } = await supabase
+        .from('SystemSetting')
+        .upsert({ 
+            key: CONFIG_KEY, 
+            value: JSON.stringify(newConfig),
+            group: 'ai' 
+        }, { onConflict: 'key' });
+
+    if (error) throw error;
+    return newConfig;
 };

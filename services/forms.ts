@@ -1,54 +1,99 @@
 
-import { formsData as initialData } from '../data/forms';
+import { supabase } from '../supabaseClient';
 import type { FormDefinition } from '../types';
 
-let formsData: FormDefinition[] = [...initialData];
-const SIMULATED_DELAY = 300;
+// Helper to map DB row to FormDefinition
+const mapDbToForm = (row: any): FormDefinition => ({
+    id: row.id,
+    slug: row.slug,
+    title: { ar: row.title_ar, en: row.title_en },
+    description: { ar: row.description_ar, en: row.description_en },
+    category: row.category,
+    destination: row.destination,
+    isActive: row.isActive,
+    submitButtonLabel: { ar: row.submitButtonLabel_ar, en: row.submitButtonLabel_en },
+    fields: typeof row.fields === 'string' ? JSON.parse(row.fields) : row.fields,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+});
 
-export const getAllForms = (): Promise<FormDefinition[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve([...formsData]), SIMULATED_DELAY);
-    });
+export const getAllForms = async (): Promise<FormDefinition[]> => {
+    const { data, error } = await supabase
+        .from('FormDefinition')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching forms:", error);
+        return [];
+    }
+    return data.map(mapDbToForm);
 };
 
-export const getFormById = (id: string): Promise<FormDefinition | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(formsData.find(f => f.id === id)), SIMULATED_DELAY);
-    });
+export const getFormById = async (id: string): Promise<FormDefinition | undefined> => {
+    const { data, error } = await supabase
+        .from('FormDefinition')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) return undefined;
+    return mapDbToForm(data);
 };
 
-export const getFormBySlug = (slug: string): Promise<FormDefinition | undefined> => {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(formsData.find(f => f.slug === slug)), SIMULATED_DELAY);
-    });
+export const getFormBySlug = async (slug: string): Promise<FormDefinition | undefined> => {
+    const { data, error } = await supabase
+        .from('FormDefinition')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+
+    if (error) return undefined;
+    return mapDbToForm(data);
 };
 
-export const saveForm = (form: FormDefinition): Promise<FormDefinition> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const index = formsData.findIndex(f => f.id === form.id);
-            const now = new Date().toISOString();
-            
-            if (index > -1) {
-                // Update existing
-                formsData[index] = { ...form, updatedAt: now };
-                resolve(formsData[index]);
-            } else {
-                // Create new
-                const newForm = { ...form, id: `form-${Date.now()}`, createdAt: now, updatedAt: now };
-                formsData.push(newForm);
-                resolve(newForm);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const saveForm = async (form: FormDefinition): Promise<FormDefinition> => {
+    const payload = {
+        slug: form.slug,
+        title_en: form.title.en,
+        title_ar: form.title.ar,
+        description_en: form.description?.en,
+        description_ar: form.description?.ar,
+        category: form.category,
+        destination: form.destination,
+        submitButtonLabel_en: form.submitButtonLabel?.en,
+        submitButtonLabel_ar: form.submitButtonLabel?.ar,
+        isActive: form.isActive,
+        fields: form.fields, // JSONB
+        updatedAt: new Date().toISOString()
+    };
+
+    let result;
+    
+    // Check if updating or creating (ID might be temporary 'form-timestamp' from builder)
+    if (form.id && !form.id.startsWith('form-')) {
+         const { data, error } = await supabase
+            .from('FormDefinition')
+            .update(payload)
+            .eq('id', form.id)
+            .select()
+            .single();
+         if (error) throw error;
+         result = data;
+    } else {
+        const { data, error } = await supabase
+            .from('FormDefinition')
+            .insert({ ...payload, createdAt: new Date().toISOString() })
+            .select()
+            .single();
+        if (error) throw error;
+        result = data;
+    }
+
+    return mapDbToForm(result);
 };
 
-export const deleteForm = (id: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = formsData.length;
-            formsData = formsData.filter(f => f.id !== id);
-            resolve(formsData.length < initialLength);
-        }, SIMULATED_DELAY);
-    });
+export const deleteForm = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('FormDefinition').delete().eq('id', id);
+    return !error;
 };

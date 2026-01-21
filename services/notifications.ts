@@ -1,48 +1,45 @@
 
-
-import { notificationsData as initialNotificationsData } from '../data/notifications';
+import { supabase } from '../supabaseClient';
 import type { Notification } from '../types';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let notificationsData: Notification[] = [...initialNotificationsData];
+export const getNotificationsByUserId = async (userId: string): Promise<Notification[]> => {
+    const { data, error } = await supabase
+        .from('Notification')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false });
 
-const SIMULATED_DELAY = 200;
-
-export const getNotificationsByUserId = (userId: string): Promise<Notification[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const userNotifications = notificationsData
-                .filter(n => n.userId === userId)
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            resolve(JSON.parse(JSON.stringify(userNotifications)));
-        }, SIMULATED_DELAY);
-    });
+    if (error) {
+        console.error("Error fetching notifications:", error);
+        return [];
+    }
+    return data || [];
 };
 
-export const markNotificationsAsRead = (userId: string, notificationIds: string[]): Promise<boolean> => {
-     return new Promise((resolve) => {
-        setTimeout(() => {
-            notificationsData.forEach((notification, index) => {
-                if (notification.userId === userId && notificationIds.includes(notification.id)) {
-                    notificationsData[index].isRead = true;
-                }
-            });
-            resolve(true);
-        }, SIMULATED_DELAY);
-    });
+export const markNotificationsAsRead = async (userId: string, notificationIds: string[]): Promise<boolean> => {
+    const { error } = await supabase
+        .from('Notification')
+        .update({ isRead: true })
+        .eq('userId', userId)
+        .in('id', notificationIds);
+
+    return !error;
 };
 
-export const addNotification = (notificationData: Omit<Notification, 'id' | 'isRead' | 'createdAt'>): Promise<Notification> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const newNotification: Notification = {
-                ...notificationData,
-                id: `notif-${Date.now()}`,
-                isRead: false,
-                createdAt: new Date().toISOString(),
-            };
-            notificationsData.unshift(newNotification);
-            resolve(newNotification);
-        }, 50); // a small delay
-    });
+export const addNotification = async (notificationData: Omit<Notification, 'id' | 'isRead' | 'createdAt'>): Promise<Notification> => {
+    const { data, error } = await supabase
+        .from('Notification')
+        .insert({
+            ...notificationData,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error creating notification:", error);
+        throw error;
+    }
+    return data;
 };

@@ -53,6 +53,9 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.adminDashboard.nav.rolesAndPermissions, href: '/admin/roles', icon: ShieldCheckIcon, permission: Permission.MANAGE_ROLES_PERMISSIONS, group: 'System' },
   { name: t => t.adminDashboard.nav.settings, href: '/admin/settings', icon: CogIcon, permission: Permission.MANAGE_SETTINGS, group: 'System' },
   { name: t => t.dashboard.nav.profile, href: '/admin/profile', icon: UserPlusIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'System' },
+  
+  // AI Estimator - Temporarily Disabled
+  // { name: t => "AI Estimator Config", href: '/admin/ai-estimator', icon: CalculatorIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_PACKAGES, group: 'System' },
 ];
 
 export const partnerNavLinks: NavLinkItem[] = [

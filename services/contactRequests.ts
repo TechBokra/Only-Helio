@@ -1,70 +1,57 @@
 
-import { contactRequestsData as initialContactRequestsData } from '../data/contactRequests';
+import { supabase } from '../supabaseClient';
 import type { ContactRequest, RequestStatus } from '../types';
 import { addNotification } from './notifications';
 
-// Create a mutable, in-memory copy of the data to simulate a database.
-let contactRequestsData: ContactRequest[] = [...initialContactRequestsData];
+export const getAllContactRequests = async (): Promise<ContactRequest[]> => {
+    const { data, error } = await supabase
+        .from('ContactRequest')
+        .select('*')
+        .order('createdAt', { ascending: false });
 
-const SIMULATED_DELAY = 300;
-
-export const getAllContactRequests = (): Promise<ContactRequest[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...contactRequestsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }, SIMULATED_DELAY);
-  });
+    if (error) return [];
+    return data || [];
 };
 
-export const addContactRequest = (data: Omit<ContactRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<ContactRequest> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newRequest: ContactRequest = {
+export const addContactRequest = async (data: Omit<ContactRequest, 'id' | 'status' | 'createdAt' | 'managerId'>): Promise<ContactRequest> => {
+    const newRequest = {
         ...data,
-        id: `contact-${Date.now()}`,
         status: 'pending',
         createdAt: new Date().toISOString(),
-        managerId: 'customer-relations-manager-1',
-      };
-      contactRequestsData.unshift(newRequest);
+        managerId: 'customer-relations-manager-1', // Default routing
+    };
 
-      addNotification({
-        userId: newRequest.managerId || 'admin-user', // Fallback if managerId is undefined
+    const { data: inserted, error } = await supabase
+        .from('ContactRequest')
+        .insert(newRequest)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    // Notify Admin/Manager
+    // In a real app, you'd fetch the actual manager ID. For now, defaulting to admin-user fallback if manager not found
+    await addNotification({
+        userId: 'admin-user', 
         message: {
-          ar: `رسالة تواصل جديدة من "${newRequest.name}".`,
-          en: `New contact message from "${newRequest.name}".`,
+            ar: `رسالة تواصل جديدة من "${inserted.name}".`,
+            en: `New contact message from "${inserted.name}".`,
         },
         link: '/admin/contact-requests',
-      });
+    });
 
-      resolve(newRequest);
-    }, SIMULATED_DELAY);
-  });
+    return inserted;
 };
 
-export const updateContactRequestStatus = (id: string, status: RequestStatus): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const requestIndex = contactRequestsData.findIndex(r => r.id === id);
-            if (requestIndex > -1) {
-                contactRequestsData[requestIndex].status = status;
-                resolve(true);
-            }
-            resolve(false);
-        }, SIMULATED_DELAY);
-    });
+export const updateContactRequestStatus = async (id: string, status: RequestStatus): Promise<boolean> => {
+    const { error } = await supabase
+        .from('ContactRequest')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', id);
+    return !error;
 };
 
-export const deleteContactRequest = (id: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const initialLength = contactRequestsData.length;
-            contactRequestsData = contactRequestsData.filter(r => r.id !== id);
-            if (contactRequestsData.length < initialLength) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, SIMULATED_DELAY);
-    });
+export const deleteContactRequest = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('ContactRequest').delete().eq('id', id);
+    return !error;
 };
