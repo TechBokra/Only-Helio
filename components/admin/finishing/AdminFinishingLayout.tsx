@@ -15,11 +15,7 @@ const AdminFinishingLayout: React.FC = () => {
             href: '/admin/platform-finishing', 
             exact: true 
         },
-        { 
-            name: t_tabs.requests, 
-            href: '/admin/platform-finishing/requests', 
-            exact: false 
-        },
+        // 'requests' tab removed, now a sidebar item
         { 
             name: t_tabs.services, 
             href: '/admin/platform-finishing/services', 

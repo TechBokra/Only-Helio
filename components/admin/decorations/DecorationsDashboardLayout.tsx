@@ -10,7 +10,7 @@ const DecorationsLayout: React.FC = () => {
 
     const tabs = [
         { name: t_nav.dashboard, href: '/admin/platform-decorations', exact: true },
-        { name: t_nav.decorationsRequests, href: '/admin/platform-decorations/requests', exact: false },
+        // 'decorationsRequests' tab removed, now a sidebar item
         { name: t_decor.portfolioTab, href: '/admin/platform-decorations/portfolio', exact: false },
         { name: t_decor.categoriesTab, href: '/admin/platform-decorations/categories', exact: false },
     ];

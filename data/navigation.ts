@@ -25,20 +25,25 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.adminDashboard.nav.finance, href: '/admin/finance', icon: BanknotesIcon, permission: Permission.MANAGE_PLANS, group: 'Overview' },
   { name: t => t.notifications.title, href: '/admin/notifications', icon: BellIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'Overview' },
   
-  // --- Group: Real Estate Market (General Market) ---
+  // --- Group: Real Estate Market ---
   { name: t => t.adminDashboard.nav.properties, href: '/admin/properties', icon: BuildingIcon, permission: Permission.MANAGE_ALL_PROPERTIES, group: 'Real Estate' },
+  { name: t => t.adminDashboard.nav.platformProperties, href: '/admin/platform-properties', icon: BuildingIcon, permission: Permission.MANAGE_PLATFORM_PROPERTIES, group: 'Real Estate' },
   { name: t => t.adminDashboard.nav.projects, href: '/admin/projects', icon: CubeIcon, permission: Permission.MANAGE_ALL_PROJECTS, group: 'Real Estate' },
   { name: t => t.adminDashboard.nav.propertyRequests, href: '/admin/property-requests', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_PROPERTY_REQUESTS, group: 'Real Estate' },
   { name: t => t.adminDashboard.nav.propertyInquiries, href: '/admin/property-inquiries', icon: SearchIcon, permission: Permission.MANAGE_PROPERTY_INQUIRIES, group: 'Real Estate' },
   
   // --- Group: Partner Relations ---
   { name: t => t.adminDashboard.nav.partners, href: '/admin/partners', icon: UsersIcon, permission: Permission.MANAGE_ALL_PARTNERS, group: 'Partners' },
+  { name: t => t.adminDashboard.nav.partnerRequests, href: '/admin/partner-requests', icon: UserPlusIcon, permission: Permission.MANAGE_PARTNER_REQUESTS, group: 'Partners' },
   
-  // --- Group: Platform Operations (Direct Management) ---
-  // Updated to point to the Management Layouts, not just request lists
+  // --- Group: Operations (Finishing & Decor) ---
+  // Finishing
   { name: t => t.adminDashboard.nav.finishingManagement, href: '/admin/platform-finishing', icon: WrenchScrewdriverIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_LEADS, group: 'Operations' },
+  { name: t => t.adminDashboard.nav.finishingRequests, href: '/admin/finishing-requests', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_LEADS, group: 'Operations' },
+  
+  // Decorations
   { name: t => t.adminDashboard.nav.decorationsManagement, href: '/admin/platform-decorations', icon: SparklesIcon, permission: Permission.MANAGE_DECORATIONS_LEADS, group: 'Operations' },
-  { name: t => t.adminDashboard.nav.platformProperties, href: '/admin/platform-properties', icon: BuildingIcon, permission: Permission.MANAGE_PLATFORM_PROPERTIES, group: 'Operations' },
+  { name: t => t.adminDashboard.nav.decorationsRequests, href: '/admin/decoration-requests', icon: InboxIcon, permission: Permission.MANAGE_DECORATIONS_LEADS, group: 'Operations' },
   
   // --- Group: General Communications ---
   { name: t => t.adminDashboard.nav.contactRequests, href: '/admin/contact-requests', icon: InboxIcon, permission: Permission.MANAGE_CONTACT_REQUESTS, group: 'Communications' },

@@ -10,7 +10,7 @@ const AdminPartnersLayout: React.FC = () => {
     const tabs = [
         { name: t_nav.dashboard, href: '/admin/partners', exact: true },
         { name: t_nav.partnersList, href: '/admin/partners/list', exact: false },
-        { name: t_nav.partnerRequests, href: '/admin/partners/requests', exact: false }, // New Tab
+        // 'partnerRequests' tab removed, now a sidebar item
         { name: t_nav.inquiryRouting, href: '/admin/partners/inquiry-routing', exact: false },
         { name: t_nav.subscriptionPlans, href: '/admin/partners/plans', exact: false },
     ];

@@ -10,8 +10,6 @@ const AdminPropertiesLayout: React.FC = () => {
     const tabs = [
         { name: t_nav.dashboard, href: '/admin/properties', exact: true },
         { name: t_nav.propertiesList, href: '/admin/properties/list', exact: false },
-        { name: t_nav.propertyRequests, href: '/admin/properties/listing-requests', exact: false },
-        { name: t_nav.propertyInquiries, href: '/admin/properties/search-requests', exact: false },
         { name: t_nav.propertyFilters, href: '/admin/properties/filters', exact: false },
     ];
 
