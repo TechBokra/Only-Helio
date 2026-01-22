@@ -22,58 +22,50 @@ The project has evolved from a basic listing site into a robust web application 
     *   **Zod** for schema-based validation (`utils/validation.ts`).
     *   **Custom Dynamic Form Engine** configurable via JSON/Admin Panel.
 *   **Localization:** Custom Context-based i18n system (AR/EN).
-*   **Mock Backend:** Service-repository pattern simulating API calls with realistic delays (`/services`).
+*   **Database:** PostgreSQL via Supabase, managed with Prisma ORM.
 
 ---
 
-## ✨ Key Features
+## 📂 Database Schema (27 Tables)
 
-### 1. 🏢 Public Portal (User Experience)
-*   **Advanced Property Search:** Filter by price, location, type, finishing status, and amenities.
-*   **Interactive Map View:** Browse properties visually on a map.
-*   **Service Requests:** Book finishing consultations or request custom decoration designs using dynamic forms.
-*   **Favorites System:** Persisted wishlist for properties and portfolio items.
-*   **Responsive Design:** Fully optimized for mobile, tablet, and desktop.
+The database structure is optimized for scalability and relational integrity.
 
-### 2. 🤝 Partner Dashboard (Developers & Agencies)
-*   **Project & Unit Management:** Add, edit, and manage listings with a multi-step wizard.
-*   **Lead CRM:** View incoming inquiries, update status (New -> Contacted -> Sold), and add internal notes.
-*   **Analytics:** Visual charts for listing performance and lead conversion.
-*   **Subscription Management:** View plan limits and upgrade options.
-*   **Finance Center:** Track payments, invoices, and subscription status.
+### 1. Core Entities
+*   **User:** Partners, Admins, and Internal Managers.
+*   **Project:** Real estate compounds/malls.
+*   **Property:** Individual units (Apartments, Villas).
+*   **PortfolioItem:** Gallery items for finishing/decor partners.
 
-### 3. 🛡️ Super Admin Dashboard (CMS & Control)
-*   **Dynamic Form Builder:** Create and modify forms (fields, validation rules, routing) without code changes. Includes advanced validation support (Regex, Min/Max, File Limits).
-*   **Robust Validation:** Centralized validation logic (`utils/validation.ts`) ensures data integrity across all user inputs including file uploads.
-*   **User & Partner Management:** Approve applications, manage roles/permissions, and toggle user access.
-*   **Content Management:** Edit homepage sliders, banners, testimonials, and legal pages directly.
-*   **Automation Rules:** Configure logic to automatically route leads to specific managers based on criteria.
-*   **System Health:** Monitor error logs and system alerts via Error Boundaries.
+### 2. CRM & Communications
+*   **Lead:** Main customer tracking entity.
+*   **LeadMessage:** Conversation history.
+*   **Notification:** In-app alerts for users.
+*   **ContactRequest:** General inquiries.
+*   **PropertyInquiry:** Specific buyer requests.
+*   **PartnerRequest:** Application forms for new partners.
+*   **PropertyListingRequest:** Listing submission forms.
 
----
+### 3. System Configuration
+*   **SystemSetting:** Global key-value store (e.g., AI configs, Contact info).
+*   **FormDefinition:** Dynamic form schemas.
+*   **RoutingRule:** Automation rules for lead assignment.
+*   **PlanConfiguration:** Subscription tiers and pricing.
+*   **Banner:** Promotional sliders and ads.
 
-## 📂 Project Structure
+### 4. Lookups & Relations
+*   **PropertyType:** (Apartment, Villa, etc.)
+*   **FinishingStatus:** (Core & Shell, Finished, etc.)
+*   **Amenity:** Property features.
+*   **DecorationCategory:** Portfolio categorization.
+*   **AmenitiesOnProperties:** Many-to-many relation table.
 
-The codebase follows a clean, feature-first architecture:
-
-```
-src/
-├── components/
-│   ├── admin/          # Super Admin dashboard features (Forms, Users, Content)
-│   ├── auth/           # Authentication logic & Protected Routes
-│   ├── forms/          # Reusable form steps & wizards
-│   ├── partner-dashboard/ # Partner-specific views
-│   ├── properties/     # Property listing & detail components
-│   ├── shared/         # Shared utilities (Header, Footer, ErrorBoundary, Loaders)
-│   └── ui/             # Atomic UI components (Button, Card, Input, Modal)
-├── services/           # Mock API layer (simulating DB calls)
-├── hooks/              # Custom React Hooks (Data fetching, Logic)
-├── store/              # Zustand stores (Auth, Favorites)
-├── utils/              # Validation schemas, formatters, and constants
-├── data/               # Static mock data
-├── locales/            # Translation files (AR/EN)
-└── types.ts            # TypeScript definitions
-```
+### 5. Finance & Content
+*   **Transaction:** Payment records.
+*   **Quote:** Wisdom quotes for the Quiet Zone.
+*   **StaticPage:** CMS for pages like Privacy Policy.
+*   **NewsletterSubscriber:** Email subscriptions.
+*   **AuditLog:** System activity tracking.
+*   **SavedSearch:** User preferences.
 
 ---
 
@@ -98,10 +90,9 @@ src/
 
 ## 🧪 Key Implementation Details
 
-*   **Dynamic Form Engine:** Located in `components/shared/DynamicForm.tsx`. It renders forms based on JSON configurations managed in the Admin Panel, allowing for flexible data collection strategies with Zod validation integrated via `utils/validation.ts`.
-*   **Centralized Validation:**  `utils/validation.ts` holds regex patterns (e.g., Egyptian phone numbers), Zod schemas, error messages, and file validation logic, ensuring consistent validation logic across the app.
-*   **Error Handling:** A global `ErrorBoundary` wraps the app to catch runtime errors, while `ErrorState` components handle granular API failures within widgets.
-*   **Performance:** Heavy components and routes are lazy-loaded using `React.lazy` and `Suspense` to ensure fast initial load times (`LoadingFallback`).
+*   **Dynamic Form Engine:** Located in `components/shared/DynamicForm.tsx`. It renders forms based on JSON configurations managed in the Admin Panel (`FormDefinition` table).
+*   **Database Health:** Admin Settings includes a "Database Monitor" tracking all 27 tables.
+*   **Error Handling:** A global `ErrorBoundary` wraps the app to catch runtime errors.
 
 ---
 

@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SiteContent } from '../../types';
 import { inputClasses } from '../ui/FormField';
-import { PhotoIcon, BanknotesIcon, CreditCardIcon, CircleStackIcon, ArrowPathIcon } from '../ui/Icons';
+import { PhotoIcon, BanknotesIcon, CreditCardIcon, CircleStackIcon, ArrowPathIcon, CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from '../ui/Icons';
 import { getContent, updateContent as updateSiteContent } from '../../services/content';
-import { seedDatabase } from '../../services/seeder';
+import { getDatabaseStats, TableStat } from '../../services/systemStats';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../shared/ToastContext';
 import { useLanguage } from '../shared/LanguageContext';
@@ -33,8 +33,18 @@ const AdminSettingsPage: React.FC = () => {
     const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, isDirty } } = useForm<SiteContent>();
     
     const [activeTab, setActiveTab] = useState<'general' | 'banner' | 'contact' | 'social' | 'finance' | 'database'>('general');
-    const [isSeeding, setIsSeeding] = useState(false);
-    const [seedLog, setSeedLog] = useState<string>('');
+    
+    // Database Stats State
+    const { 
+        data: dbStats, 
+        isLoading: statsLoading, 
+        refetch: refetchStats,
+        isRefetching: isRefetchingStats 
+    } = useQuery({ 
+        queryKey: ['dbStats'], 
+        queryFn: getDatabaseStats,
+        enabled: activeTab === 'database' // Only fetch when tab is active
+    });
 
     useEffect(() => {
         if (siteContent) {
@@ -54,24 +64,6 @@ const AdminSettingsPage: React.FC = () => {
         if (e.target.files && e.target.files[0]) {
             const base64 = await fileToBase64(e.target.files[0]);
             setValue('paymentConfiguration.instapay.qrCodeUrl', base64, { shouldDirty: true });
-        }
-    };
-
-    const handleSeedDatabase = async () => {
-        if (!window.confirm("Warning: This will attempt to insert mock data into your database. Existing records with same IDs will be updated. Continue?")) return;
-        
-        setIsSeeding(true);
-        setSeedLog('Starting seed process...');
-        try {
-            const result = await seedDatabase();
-            setSeedLog(result);
-            showToast('Database seeded successfully!', 'success');
-        } catch (error: any) {
-            console.error(error);
-            setSeedLog(`Error: ${error.message}`);
-            showToast('Seeding failed. Check console.', 'error');
-        } finally {
-            setIsSeeding(false);
         }
     };
     
@@ -115,7 +107,7 @@ const AdminSettingsPage: React.FC = () => {
                             <TabButton tabKey="contact" label="Contact" />
                             <TabButton tabKey="finance" label="Finance" />
                             <TabButton tabKey="social" label="Social" />
-                            <TabButton tabKey="database" label="Database" />
+                            <TabButton tabKey="database" label="Database Health" />
                          </div>
                     </div>
 
@@ -236,40 +228,50 @@ const AdminSettingsPage: React.FC = () => {
                             </div>
                         )}
 
-                        {/* DATABASE TAB */}
+                        {/* DATABASE TAB (Replaced Seeder with Monitor) */}
                         {activeTab === 'database' && (
                             <div className="space-y-8 animate-fadeIn">
                                 <Card className="border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-900/10">
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                                            <CircleStackIcon className="w-5 h-5"/> 
-                                            Initial Data Seeding
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                                            Click the button below to populate the database with the initial mock data (Partners, Projects, Properties, etc.) defined in the source code.
-                                            <br/>
-                                            <strong>Note:</strong> This will update existing records if IDs match, or insert new ones. It is safe to run multiple times.
-                                        </p>
-                                        
-                                        <div className="flex flex-col gap-4">
-                                            <Button 
-                                                type="button" 
-                                                onClick={handleSeedDatabase} 
-                                                isLoading={isSeeding}
-                                                className="bg-amber-600 hover:bg-amber-700 text-white w-fit"
-                                            >
-                                                <ArrowPathIcon className="w-4 h-4 mr-2" />
-                                                Seed Database Now
+                                        <div className="flex justify-between items-center">
+                                            <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                                                <CircleStackIcon className="w-5 h-5"/> 
+                                                Database Status Monitor
+                                            </CardTitle>
+                                            <Button variant="ghost" size="sm" onClick={() => refetchStats()} isLoading={isRefetchingStats}>
+                                                <ArrowPathIcon className={`w-4 h-4 ${isRefetchingStats ? 'animate-spin' : ''}`} />
                                             </Button>
-                                            
-                                            {seedLog && (
-                                                <div className="bg-black text-green-400 font-mono text-xs p-4 rounded-md h-40 overflow-y-auto whitespace-pre-wrap">
-                                                    {seedLog}
-                                                </div>
-                                            )}
                                         </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {statsLoading ? (
+                                            <div className="p-8 text-center text-gray-500">Checking database status...</div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {dbStats?.map((stat) => (
+                                                    <div key={stat.name} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-800 dark:text-white">{stat.name}</p>
+                                                            {stat.lastError ? (
+                                                                <p className="text-xs text-red-500 truncate w-32" title={stat.lastError}>Error: {stat.lastError}</p>
+                                                            ) : (
+                                                                <p className="text-xs text-gray-500">{stat.count} Rows</p>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            {stat.status === 'healthy' && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
+                                                            {stat.status === 'empty' && <ExclamationCircleIcon className="w-5 h-5 text-yellow-500" />}
+                                                            {stat.status === 'error' && <XCircleIcon className="w-5 h-5 text-red-500" />}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {!statsLoading && (
+                                            <div className="mt-4 text-xs text-gray-500 text-center">
+                                                Total Tables Monitored: {dbStats?.length || 0}
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
