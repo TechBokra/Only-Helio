@@ -72,27 +72,39 @@ const AdminAllRequestsPage: React.FC = () => {
     const { t, language } = useLanguage();
     const t_nav = t.adminDashboard.nav;
     
-    // Parallel Data Fetching for Counts
-    const { data: partnerReqs, isLoading: loadPartners } = useQuery({ queryKey: ['partnerRequests'], queryFn: getAllPartnerRequests });
-    const { data: propertyReqs, isLoading: loadProps } = useQuery({ queryKey: ['propertyRequests'], queryFn: getAllPropertyRequests });
-    const { data: propInquiries, isLoading: loadInquiries } = useQuery({ queryKey: ['propertyInquiries'], queryFn: getAllPropertyInquiries });
-    const { data: contactReqs, isLoading: loadContacts } = useQuery({ queryKey: ['contactRequests'], queryFn: getAllContactRequests });
-    const { data: allLeads, isLoading: loadLeads } = useQuery({ queryKey: ['allLeadsAdmin'], queryFn: getAllLeads });
+    // Fetch all requests in parallel
+    const queries = [
+        { key: 'partnerRequests', fn: getAllPartnerRequests },
+        { key: 'propertyRequests', fn: getAllPropertyRequests },
+        { key: 'propertyInquiries', fn: getAllPropertyInquiries },
+        { key: 'contactRequests', fn: getAllContactRequests },
+        { key: 'allLeadsAdmin', fn: getAllLeads },
+    ];
 
-    const isLoading = loadPartners || loadProps || loadInquiries || loadContacts || loadLeads;
+    const results = useQuery({
+        queryKey: ['adminDashboardCounts'],
+        queryFn: async () => {
+            const [partners, props, inquiries, contacts, leads] = await Promise.all(
+                queries.map(q => q.fn())
+            );
+            return { partners, props, inquiries, contacts, leads };
+        }
+    });
+
+    const { data, isLoading } = results;
 
     const counts = useMemo(() => {
-        if (isLoading) return { partners: 0, props: 0, inquiries: 0, contacts: 0, finishing: 0, decor: 0 };
+        if (!data) return { partners: 0, props: 0, inquiries: 0, contacts: 0, finishing: 0, decor: 0 };
         
         return {
-            partners: (partnerReqs || []).filter(r => r.status === 'pending').length,
-            props: (propertyReqs || []).filter(r => r.status === 'pending').length,
-            inquiries: (propInquiries || []).filter(r => r.status === 'pending').length,
-            contacts: (contactReqs || []).filter(r => r.status === 'pending').length,
-            finishing: (allLeads || []).filter(l => l.serviceType === 'finishing' && l.status === 'new').length,
-            decor: (allLeads || []).filter(l => l.serviceType === 'decorations' && l.status === 'new').length,
+            partners: data.partners.filter(r => r.status === 'pending').length,
+            props: data.props.filter(r => r.status === 'pending').length,
+            inquiries: data.inquiries.filter(r => r.status === 'pending').length,
+            contacts: data.contacts.filter(r => r.status === 'pending').length,
+            finishing: data.leads.filter(l => l.serviceType === 'finishing' && l.status === 'new').length,
+            decor: data.leads.filter(l => l.serviceType === 'decorations' && l.status === 'new').length,
         };
-    }, [partnerReqs, propertyReqs, propInquiries, contactReqs, allLeads, isLoading]);
+    }, [data]);
 
     if (isLoading) {
         return (
@@ -103,6 +115,69 @@ const AdminAllRequestsPage: React.FC = () => {
             </div>
         );
     }
+
+    const categories = [
+        {
+            id: 'partners',
+            title: t_nav.partnerRequests,
+            desc: language === 'ar' ? 'مراجعة طلبات الانضمام.' : 'Review partner applications.',
+            count: counts.partners,
+            icon: UserPlusIcon,
+            link: "/admin/partner-requests",
+            color: "text-blue-600 dark:text-blue-400",
+            bg: "bg-blue-100 dark:bg-blue-900/30"
+        },
+        {
+            id: 'listings',
+            title: t_nav.propertyRequests,
+            desc: language === 'ar' ? 'طلبات عرض العقارات.' : 'Property listing requests.',
+            count: counts.props,
+            icon: ClipboardDocumentListIcon,
+            link: "/admin/property-requests",
+            color: "text-green-600 dark:text-green-400",
+            bg: "bg-green-100 dark:bg-green-900/30"
+        },
+        {
+            id: 'inquiries',
+            title: t_nav.propertyInquiries,
+            desc: language === 'ar' ? 'طلبات البحث عن عقار.' : 'Property search inquiries.',
+            count: counts.inquiries,
+            icon: SearchIcon,
+            link: "/admin/property-inquiries",
+            color: "text-purple-600 dark:text-purple-400",
+            bg: "bg-purple-100 dark:bg-purple-900/30"
+        },
+        {
+            id: 'finishing',
+            title: t_nav.finishingRequests,
+            desc: language === 'ar' ? 'طلبات التشطيب.' : 'Finishing service requests.',
+            count: counts.finishing,
+            icon: WrenchScrewdriverIcon,
+            link: "/admin/finishing-requests",
+            color: "text-amber-600 dark:text-amber-400",
+            bg: "bg-amber-100 dark:bg-amber-900/30"
+        },
+        {
+            id: 'decor',
+            title: t_nav.decorationsRequests,
+            desc: language === 'ar' ? 'طلبات الديكور.' : 'Decoration requests.',
+            count: counts.decor,
+            icon: SparklesIcon,
+            link: "/admin/decoration-requests",
+            color: "text-pink-600 dark:text-pink-400",
+            bg: "bg-pink-100 dark:bg-pink-900/30"
+        },
+        {
+            id: 'contacts',
+            title: t_nav.contactRequests,
+            desc: language === 'ar' ? 'رسائل اتصل بنا.' : 'Contact us messages.',
+            count: counts.contacts,
+            icon: InboxIcon,
+            link: "/admin/contact-requests",
+            color: "text-gray-600 dark:text-gray-400",
+            bg: "bg-gray-200 dark:bg-gray-800"
+        }
+    ];
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -118,72 +193,18 @@ const AdminAllRequestsPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                
-                {/* 1. Partner Applications */}
-                <RequestCategoryCard
-                    title={t_nav.partnerRequests}
-                    description={language === 'ar' ? 'مراجعة طلبات انضمام المطورين والشركات والمكاتب العقارية.' : 'Review applications from developers, agencies, and companies.'}
-                    count={counts.partners}
-                    icon={UserPlusIcon}
-                    linkTo="/admin/partner-requests"
-                    colorClass="text-blue-600 dark:text-blue-400"
-                    bgClass="bg-blue-100 dark:bg-blue-900/30"
-                />
-
-                {/* 2. Property Listing Requests */}
-                <RequestCategoryCard
-                    title={t_nav.propertyRequests}
-                    description={language === 'ar' ? 'طلبات الملاك الأفراد لعرض عقاراتهم للبيع أو الإيجار.' : 'Requests from individual owners to list properties for sale or rent.'}
-                    count={counts.props}
-                    icon={ClipboardDocumentListIcon}
-                    linkTo="/admin/property-requests"
-                    colorClass="text-green-600 dark:text-green-400"
-                    bgClass="bg-green-100 dark:bg-green-900/30"
-                />
-
-                {/* 3. Property Search Inquiries */}
-                <RequestCategoryCard
-                    title={t_nav.propertyInquiries}
-                    description={language === 'ar' ? 'طلبات العملاء للبحث عن عقارات بمواصفات خاصة.' : 'Client requests searching for properties with specific criteria.'}
-                    count={counts.inquiries}
-                    icon={SearchIcon}
-                    linkTo="/admin/property-inquiries"
-                    colorClass="text-purple-600 dark:text-purple-400"
-                    bgClass="bg-purple-100 dark:bg-purple-900/30"
-                />
-
-                {/* 4. Finishing Requests */}
-                <RequestCategoryCard
-                    title={t_nav.finishingRequests}
-                    description={language === 'ar' ? 'طلبات خدمات التشطيب والتصميم الداخلي (إدارة المنصة).' : 'Finishing and interior design service requests (Platform managed).'}
-                    count={counts.finishing}
-                    icon={WrenchScrewdriverIcon}
-                    linkTo="/admin/finishing-requests"
-                    colorClass="text-amber-600 dark:text-amber-400"
-                    bgClass="bg-amber-100 dark:bg-amber-900/30"
-                />
-
-                {/* 5. Decoration Requests */}
-                <RequestCategoryCard
-                    title={t_nav.decorationsRequests}
-                    description={language === 'ar' ? 'طلبات الأعمال الفنية، الديكورات، والتصاميم الخاصة.' : 'Requests for art pieces, decorations, and custom designs.'}
-                    count={counts.decor}
-                    icon={SparklesIcon}
-                    linkTo="/admin/decoration-requests"
-                    colorClass="text-pink-600 dark:text-pink-400"
-                    bgClass="bg-pink-100 dark:bg-pink-900/30"
-                />
-
-                {/* 6. Contact Messages */}
-                <RequestCategoryCard
-                    title={t_nav.contactRequests}
-                    description={language === 'ar' ? 'الرسائل العامة والاستفسارات الواردة من نموذج "اتصل بنا".' : 'General messages and inquiries from the "Contact Us" form.'}
-                    count={counts.contacts}
-                    icon={InboxIcon}
-                    linkTo="/admin/contact-requests"
-                    colorClass="text-gray-600 dark:text-gray-400"
-                    bgClass="bg-gray-200 dark:bg-gray-800"
-                />
+                {categories.map(cat => (
+                    <RequestCategoryCard
+                        key={cat.id}
+                        title={cat.title}
+                        description={cat.desc}
+                        count={cat.count}
+                        icon={cat.icon}
+                        linkTo={cat.link}
+                        colorClass={cat.color}
+                        bgClass={cat.bg}
+                    />
+                ))}
             </div>
         </div>
     );

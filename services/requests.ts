@@ -9,7 +9,8 @@ import { getAllPropertyRequests, addPropertyRequest, updatePropertyRequestStatus
 import { getAllContactRequests, addContactRequest } from './contactRequests';
 import { getAllPropertyInquiries, addPropertyInquiry } from './propertyInquiries';
 
-// Helper to access nested properties of an object using a string path
+// --- Helpers ---
+
 const getNestedValue = (obj: any, path: string): any => {
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 };
@@ -23,22 +24,39 @@ const checkCondition = (request: Request, condition: any): boolean => {
         case 'not_equals': return value != conditionValue;
         case 'contains': return String(value).toLowerCase().includes(String(conditionValue).toLowerCase());
         case 'greater_than':
-        case 'less_than':
+        case 'less_than': {
              const numValue = parseFloat(value);
              const numConditionValue = parseFloat(conditionValue);
              if (isNaN(numValue) || isNaN(numConditionValue)) return false;
              return condition.operator === 'greater_than' ? numValue > numConditionValue : numValue < numConditionValue;
+        }
         default: return false;
     }
 }
 
-export const getAllRequests = async (): Promise<Request[]> => {
-    const allRequests: Request[] = [];
-
-    // 1. Leads
+// Safe fetch wrapper to avoid breaking Promise.all if one service fails
+async function safeFetch<T>(fetcher: () => Promise<T[]>, label: string): Promise<T[]> {
     try {
-        const leads = await getAllLeads();
-        allRequests.push(...leads.map(lead => ({
+        return await fetcher();
+    } catch (e) {
+        console.error(`Error fetching ${label}:`, e);
+        return [];
+    }
+}
+
+// --- Main Service Functions ---
+
+export const getAllRequests = async (): Promise<Request[]> => {
+    const [leads, partnerReqs, propReqs, contactReqs, propInquiries] = await Promise.all([
+        safeFetch(getAllLeads, 'leads'),
+        safeFetch(getAllPartnerRequests, 'partner requests'),
+        safeFetch(getAllPropertyRequests, 'property requests'),
+        safeFetch(getAllContactRequests, 'contact requests'),
+        safeFetch(getAllPropertyInquiries, 'property inquiries')
+    ]);
+
+    const mappedRequests: Request[] = [
+        ...leads.map(lead => ({
             id: lead.id,
             type: RequestType.LEAD,
             status: lead.status === 'new' ? 'new' : (['completed', 'cancelled'].includes(lead.status) ? 'closed' : 'in-progress'),
@@ -48,67 +66,51 @@ export const getAllRequests = async (): Promise<Request[]> => {
             updatedAt: lead.updatedAt,
             requesterInfo: { name: lead.customerName, phone: lead.customerPhone },
             payload: lead
-        } as Request)));
-    } catch (e) { console.error("Error fetching leads for requests", e); }
-
-    // 2. Partner Requests
-    try {
-        const partnerReqs = await getAllPartnerRequests();
-        allRequests.push(...partnerReqs.map(req => ({
+        } as Request)),
+        
+        ...partnerReqs.map(req => ({
             id: req.id,
             type: RequestType.PARTNER_APPLICATION,
-            status: req.status,
+            status: req.status as any,
             createdAt: req.createdAt,
             requesterInfo: { name: req.contactName, phone: req.contactPhone, email: req.contactEmail },
             payload: req
-        } as Request)));
-    } catch (e) { console.error("Error fetching partner requests", e); }
+        } as Request)),
 
-    // 3. Property Requests
-    try {
-        const propReqs = await getAllPropertyRequests();
-        allRequests.push(...propReqs.map(req => ({
+        ...propReqs.map(req => ({
             id: req.id,
             type: RequestType.PROPERTY_LISTING_REQUEST,
-            status: req.status,
+            status: req.status as any,
             createdAt: req.createdAt,
             requesterInfo: { name: req.customerName, phone: req.customerPhone },
             payload: req
-        } as Request)));
-    } catch (e) { console.error("Error fetching property requests", e); }
+        } as Request)),
 
-    // 4. Contact Requests
-    try {
-        const contactReqs = await getAllContactRequests();
-        allRequests.push(...contactReqs.map(req => ({
+        ...contactReqs.map(req => ({
             id: req.id,
             type: RequestType.CONTACT_MESSAGE,
-            status: req.status,
+            status: req.status as any,
             createdAt: req.createdAt,
             requesterInfo: { name: req.name, phone: req.phone },
             payload: req
-        } as Request)));
-    } catch (e) { console.error("Error fetching contact requests", e); }
+        } as Request)),
 
-    // 5. Property Inquiries
-    try {
-        const propInquiries = await getAllPropertyInquiries();
-        allRequests.push(...propInquiries.map(req => ({
+        ...propInquiries.map(req => ({
             id: req.id,
             type: RequestType.PROPERTY_INQUIRY,
-            status: req.status,
+            status: req.status as any,
             createdAt: req.createdAt,
             requesterInfo: { name: req.customerName, phone: req.customerPhone },
             payload: req
-        } as Request)));
-    } catch (e) { console.error("Error fetching property inquiries", e); }
+        } as Request))
+    ];
 
-    // Sort all by date
-    return allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Sort all by date descending
+    return mappedRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
 export const getRequestById = async (id: string): Promise<Request | undefined> => {
-    // Try finding in Leads first (common)
+    // 1. Try finding in Leads first (Most common high volume)
     try {
         const lead = await getLeadById(id);
         if (lead) {
@@ -123,9 +125,10 @@ export const getRequestById = async (id: string): Promise<Request | undefined> =
                 payload: lead
             } as Request;
         }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
 
-    // Fallback: Fetch all and find (not optimal but works for varied types in MVP)
+    // 2. Fallback: Search generic pool. 
+    // Optimization: In a real backend, we'd query by ID directly against specific tables.
     const allRequests = await getAllRequests();
     return allRequests.find(r => r.id === id);
 };
@@ -133,85 +136,90 @@ export const getRequestById = async (id: string): Promise<Request | undefined> =
 export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | 'type' | 'status' | 'createdAt' | 'updatedAt'>): Promise<Request> => {
     let newRequest: Request;
 
-    // DELEGATION: Route to specific service based on type
-    if (type === RequestType.LEAD) {
-        const payload = data.payload as any;
-        const lead = await addLead({
-            serviceType: payload.serviceType,
-            serviceTitle: payload.serviceTitle,
-            customerName: data.requesterInfo.name,
-            customerPhone: data.requesterInfo.phone,
-            customerNotes: payload.customerNotes,
-            contactTime: payload.contactTime,
-            partnerId: payload.partnerId,
-            managerId: payload.managerId,
-            propertyId: payload.propertyId,
-            referenceImage: payload.referenceImage
-        });
-        // Wrap as Request
-        newRequest = {
-            id: lead.id,
-            type: RequestType.LEAD,
-            status: 'new',
-            createdAt: lead.createdAt,
-            updatedAt: lead.updatedAt,
-            requesterInfo: data.requesterInfo,
-            payload: lead
-        };
-
-    } else if (type === RequestType.PARTNER_APPLICATION) {
-        const payload = data.payload as any;
-        const req = await addPartnerRequest({
-            companyName: payload.companyName,
-            companyType: payload.companyType,
-            contactName: data.requesterInfo.name,
-            contactEmail: data.requesterInfo.email || '',
-            contactPhone: data.requesterInfo.phone,
-            description: payload.description,
-            website: payload.website,
-            companyAddress: payload.companyAddress,
-            logo: payload.logo,
-            documents: payload.documents,
-            subscriptionPlan: payload.subscriptionPlan,
-            managementContacts: payload.managementContacts // Pass management contacts
-        });
-        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
-
-    } else if (type === RequestType.PROPERTY_LISTING_REQUEST) {
-        const payload = data.payload as any;
-        const req = await addPropertyRequest({
-            customerName: data.requesterInfo.name,
-            customerPhone: data.requesterInfo.phone,
-            propertyDetails: payload.propertyDetails,
-            images: payload.images,
-            cooperationType: payload.cooperationType,
-            contactTime: payload.contactTime
-        });
-        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
-
-    } else if (type === RequestType.CONTACT_MESSAGE) {
-        const payload = data.payload as any;
-        const req = await addContactRequest({
-            name: data.requesterInfo.name,
-            phone: data.requesterInfo.phone,
-            message: payload.message,
-            inquiryType: payload.inquiryType
-        });
-        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
-
-    } else if (type === RequestType.PROPERTY_INQUIRY) {
-        const payload = data.payload as any;
-        const req = await addPropertyInquiry({
-            customerName: data.requesterInfo.name,
-            customerPhone: data.requesterInfo.phone,
-            details: payload.details
-        });
-        newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
-    } else {
-        throw new Error("Unknown request type");
+    switch (type) {
+        case RequestType.LEAD: {
+            const payload = data.payload as any;
+            const lead = await addLead({
+                serviceType: payload.serviceType,
+                serviceTitle: payload.serviceTitle,
+                customerName: data.requesterInfo.name,
+                customerPhone: data.requesterInfo.phone,
+                customerNotes: payload.customerNotes,
+                contactTime: payload.contactTime,
+                partnerId: payload.partnerId,
+                managerId: payload.managerId,
+                propertyId: payload.propertyId,
+                referenceImage: payload.referenceImage
+            });
+            newRequest = {
+                id: lead.id,
+                type: RequestType.LEAD,
+                status: 'new',
+                createdAt: lead.createdAt,
+                updatedAt: lead.updatedAt,
+                requesterInfo: data.requesterInfo,
+                payload: lead
+            };
+            break;
+        }
+        case RequestType.PARTNER_APPLICATION: {
+            const payload = data.payload as any;
+            const req = await addPartnerRequest({
+                companyName: payload.companyName,
+                companyType: payload.companyType,
+                contactName: data.requesterInfo.name,
+                contactEmail: data.requesterInfo.email || '',
+                contactPhone: data.requesterInfo.phone,
+                description: payload.description,
+                website: payload.website,
+                companyAddress: payload.companyAddress,
+                logo: payload.logo,
+                documents: payload.documents,
+                subscriptionPlan: payload.subscriptionPlan,
+                managementContacts: payload.managementContacts
+            });
+            newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+            break;
+        }
+        case RequestType.PROPERTY_LISTING_REQUEST: {
+            const payload = data.payload as any;
+            const req = await addPropertyRequest({
+                customerName: data.requesterInfo.name,
+                customerPhone: data.requesterInfo.phone,
+                propertyDetails: payload.propertyDetails,
+                images: payload.images,
+                cooperationType: payload.cooperationType,
+                contactTime: payload.contactTime
+            });
+            newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+            break;
+        }
+        case RequestType.CONTACT_MESSAGE: {
+            const payload = data.payload as any;
+            const req = await addContactRequest({
+                name: data.requesterInfo.name,
+                phone: data.requesterInfo.phone,
+                message: payload.message,
+                inquiryType: payload.inquiryType
+            });
+            newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+            break;
+        }
+        case RequestType.PROPERTY_INQUIRY: {
+            const payload = data.payload as any;
+            const req = await addPropertyInquiry({
+                customerName: data.requesterInfo.name,
+                customerPhone: data.requesterInfo.phone,
+                details: payload.details
+            });
+            newRequest = { id: req.id, type, status: 'pending', createdAt: req.createdAt, requesterInfo: data.requesterInfo, payload: req } as Request;
+            break;
+        }
+        default:
+            throw new Error(`Unknown request type: ${type}`);
     }
 
-    // --- Dynamic Routing Logic ---
+    // --- Dynamic Routing Logic (Leads Only) ---
     if (type === RequestType.LEAD) {
         try {
             const rules = await getAllRoutingRules();
@@ -219,15 +227,13 @@ export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | '
             for (const rule of activeRules) {
                 const isMatch = rule.conditions.every(condition => checkCondition(newRequest, condition));
                 if (isMatch) {
-                    // Update the underlying Lead
                     await updateLead(newRequest.id, { assignedTo: rule.action.assignTo, status: 'in-progress' });
-                    // Notify the new assignee
                     addNotification({
                         userId: rule.action.assignTo,
                         message: { ar: `تم تعيين طلب جديد لك.`, en: `A new request has been assigned to you.` },
                         link: `/dashboard/leads/${newRequest.id}`
                     });
-                    break; 
+                    break; // Stop after first match
                 }
             }
         } catch (e) {
@@ -239,12 +245,11 @@ export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | '
 };
 
 export const updateRequest = async (id: string, updates: Partial<Request>): Promise<Request | undefined> => {
-    // 1. Try Leads
+    // Attempt Lead Update
     try {
         const lead = await getLeadById(id);
         if (lead) {
             const leadUpdates: any = {};
-            // Map status back to lead status
             if (updates.status === 'in-progress') leadUpdates.status = 'in-progress';
             if (updates.status === 'closed') leadUpdates.status = 'completed';
             if (updates.status === 'rejected') leadUpdates.status = 'cancelled';
@@ -261,35 +266,23 @@ export const updateRequest = async (id: string, updates: Partial<Request>): Prom
                 payload: updated
             } as Request;
         }
-    } catch(e) { /* not a lead or fetch error */ }
+    } catch { /* Not a lead */ }
 
-    // 2. Partner Requests
+    // Attempt Specific Tables
     try {
-        const partReqs = await getAllPartnerRequests();
-        if (partReqs.find(r => r.id === id)) {
-            if (updates.status === 'approved' || updates.status === 'rejected') {
-                await updatePartnerRequestStatus(id, updates.status);
-            }
-            return undefined;
+        if (updates.status) {
+            // These functions return boolean, we assume success implies update
+            await Promise.all([
+                updatePartnerRequestStatus(id, updates.status as any),
+                updatePropertyRequestStatus(id, updates.status as any)
+            ]);
         }
-    } catch (e) { /* ignore */ }
-    
-    // 3. Property Requests
-    try {
-        const propReqs = await getAllPropertyRequests();
-        if (propReqs.find(r => r.id === id)) {
-            if (['approved', 'rejected', 'pending'].includes(updates.status as string)) {
-                await updatePropertyRequestStatus(id, updates.status as any);
-            }
-            return undefined;
-        }
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.error("Error updating request status:", e); }
 
     return undefined;
 };
 
 export const addMessageToLead = async (requestId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Request | undefined> => {
-    // Re-import to be safe or use direct module reference
     const { addMessageToLead: serviceAddMessage } = await import('./leads');
     await serviceAddMessage(requestId, messageData);
     return getRequestById(requestId);
