@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { 
   LightBulbIcon, HeartIcon, HomeIcon, BuildingIcon, 
-  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon
+  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon, CalculatorIcon
 } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import type { Partner } from '../../types';
@@ -21,7 +21,7 @@ interface MobileNavProps {
   hasPermission: (permission: Permission) => boolean;
 }
 
-const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; label: string; onClick: () => void; isEnd?: boolean }> = ({ to, icon: Icon, label, onClick, isEnd = false }) => {
+const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; label: string; onClick: () => void; isEnd?: boolean; highlight?: boolean }> = ({ to, icon: Icon, label, onClick, isEnd = false, highlight }) => {
     const baseClasses = "flex items-center w-full p-3 rounded-lg transition-colors duration-200 text-lg";
     const activeClasses = "bg-amber-100 text-amber-600 font-semibold";
     const inactiveClasses = "text-gray-600 hover:bg-gray-100";
@@ -32,10 +32,11 @@ const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; labe
                 to={to}
                 end={isEnd}
                 onClick={onClick}
-                className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+                className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses} ${highlight ? 'text-amber-600' : ''}`}
             >
                 <Icon className="w-6 h-6 flex-shrink-0"/>
                 <span className="mx-4">{label}</span>
+                {highlight && <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">New</span>}
             </NavLink>
         </li>
     );
@@ -67,6 +68,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
         { name: t.nav.properties, href: "/properties", icon: BuildingIcon },
         { name: t.nav.projects, href: "/projects", icon: CubeIcon },
         { name: t.nav.finishing, href: "/finishing", icon: WrenchScrewdriverIcon },
+        { name: language === 'ar' ? 'حاسبة التكلفة' : 'AI Estimator', href: "/estimator", icon: CalculatorIcon, highlight: true },
         { name: t.nav.decorations, href: "/decorations", icon: SparklesIcon },
         { name: t.nav.contact, href: "/contact", icon: PhoneIcon },
     ];
@@ -101,7 +103,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
                 
                 <div className="flex-grow overflow-y-auto p-4">
                     <ul className="space-y-1">
-                        {navLinks.map(link => <NavItem key={link.href} to={link.href} icon={link.icon} label={link.name} onClick={onClose} isEnd={link.isEnd} />)}
+                        {navLinks.map(link => <NavItem key={link.href} to={link.href} icon={link.icon} label={link.name} onClick={onClose} isEnd={link.isEnd} highlight={link.highlight} />)}
                     </ul>
                     <hr className="my-4 border-gray-200" />
                     <ul className="space-y-1">

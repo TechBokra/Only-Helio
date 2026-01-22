@@ -11,7 +11,7 @@ import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useFavorites } from '../shared/FavoritesContext';
 import { useToast } from '../shared/ToastContext';
-import { HeartIcon, HeartIconSolid, ShareIcon } from '../ui/Icons';
+import { HeartIcon, HeartIconSolid, ShareIcon, CalculatorIcon, SparklesIcon } from '../ui/Icons';
 
 interface PricingTier {
     unitType: { ar: string; en: string };
@@ -240,6 +240,35 @@ const FinishingPage: React.FC = () => {
                             <ShareIcon className="w-5 h-5 mr-2" />
                             {t.sharing.share}
                         </Button>
+                    </div>
+                </div>
+            </section>
+
+             {/* AI Estimator Teaser */}
+             <section className="bg-amber-50 dark:bg-amber-900/20 py-8 border-y border-amber-100 dark:border-amber-800/30">
+                <div className="container mx-auto px-6">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-amber-500 rounded-full text-white shadow-lg shadow-amber-500/30">
+                                <CalculatorIcon className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-amber-900 dark:text-amber-100">
+                                    {language === 'ar' ? 'محتار في التكلفة؟' : 'Not sure about the cost?'}
+                                </h3>
+                                <p className="text-amber-800 dark:text-amber-200/80 text-sm">
+                                    {language === 'ar' 
+                                        ? 'استخدم حاسبة التكلفة المدعومة بالذكاء الاصطناعي للحصول على تقدير دقيق وفوري.' 
+                                        : 'Use our AI-powered estimator to get an instant, accurate cost analysis.'}
+                                </p>
+                            </div>
+                        </div>
+                        <Link to="/estimator">
+                            <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white shadow-md">
+                                <SparklesIcon className="w-5 h-5 mr-2" />
+                                {language === 'ar' ? 'احسب تكلفتك الآن' : 'Calculate Your Cost'}
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </section>

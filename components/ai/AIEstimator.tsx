@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getAIEstimatorConfig } from '../../services/aiConfig';
@@ -20,7 +20,8 @@ import {
     ChevronLeftIcon, 
     BanknotesIcon,
     SparklesIcon,
-    ChartBarIcon
+    ChartBarIcon,
+    UserPlusIcon
 } from '../ui/Icons';
 
 const AIEstimator: React.FC = () => {
@@ -34,6 +35,22 @@ const AIEstimator: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [selectedItems, setSelectedItems] = useState<Record<string, string[]>>({}); // stageId -> itemIds
     const [unitArea, setUnitArea] = useState<number>(100);
+    
+    // Contact State
+    const [contactForm, setContactForm] = useState({
+        name: currentUser?.name || '',
+        phone: currentUser?.phone || ''
+    });
+
+    // Sync user data if logged in
+    useEffect(() => {
+        if (currentUser) {
+            setContactForm(prev => ({
+                name: prev.name || currentUser.name,
+                phone: prev.phone || currentUser.phone || ''
+            }));
+        }
+    }, [currentUser]);
     
     // AI Analysis State
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -108,6 +125,13 @@ const AIEstimator: React.FC = () => {
     });
 
     const handleSubmit = () => {
+        if (!contactForm.name.trim() || !contactForm.phone.trim()) {
+            showToast(language === 'ar' ? 'يرجى إدخال الاسم ورقم الهاتف للمتابعة' : 'Please enter your name and phone number to proceed', 'error');
+            const contactSection = document.getElementById('contact-details-section');
+            contactSection?.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+
         let details = `Detailed AI Estimate for ${unitArea}m².\n`;
         if (aiResult) {
             details += `AI Range: ${aiResult.lowEstimate.toLocaleString()} - ${aiResult.highEstimate.toLocaleString()} EGP.\n`;
@@ -132,8 +156,8 @@ const AIEstimator: React.FC = () => {
         mutation.mutate({
             partnerId: 'admin-user',
             serviceType: 'finishing',
-            customerName: currentUser?.name || 'AI Estimator Lead',
-            customerPhone: currentUser?.email || 'N/A',
+            customerName: contactForm.name,
+            customerPhone: contactForm.phone,
             contactTime: 'Any time',
             serviceTitle: `Finishing Estimate Request`,
             customerNotes: details,
@@ -316,6 +340,37 @@ const AIEstimator: React.FC = () => {
                                                     </li>
                                                 ))}
                                             </ul>
+                                        </div>
+                                        
+                                        {/* Contact Details Section */}
+                                        <div id="contact-details-section" className="bg-gray-50 dark:bg-gray-700/30 p-6 rounded-xl border border-gray-200 dark:border-gray-600 animate-fadeIn">
+                                            <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2">
+                                                <UserPlusIcon className="w-5 h-5 text-amber-500" />
+                                                {language === 'ar' ? 'بيانات التواصل (مطلوب للمتابعة)' : 'Contact Details (Required for Follow-up)'}
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                        {language === 'ar' ? 'الاسم بالكامل' : 'Full Name'} <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <Input 
+                                                        value={contactForm.name} 
+                                                        onChange={e => setContactForm({...contactForm, name: e.target.value})} 
+                                                        placeholder={language === 'ar' ? 'أدخل اسمك' : 'Enter your name'}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                        {language === 'ar' ? 'رقم الهاتف' : 'Phone Number'} <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <Input 
+                                                        value={contactForm.phone} 
+                                                        onChange={e => setContactForm({...contactForm, phone: e.target.value})} 
+                                                        placeholder="01xxxxxxxxx"
+                                                        dir="ltr"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                         
                                         <div className="flex justify-center pt-4">

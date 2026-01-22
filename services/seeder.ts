@@ -11,6 +11,8 @@ import { routingRulesData } from '../data/routingRules';
 import { transactionsData } from '../data/finance'; 
 import { enTranslations } from '../data/translations';
 import { mapPartnerTypeToRole } from '../data/permissions';
+import { siteContentData } from '../data/content';
+import { aiEstimatorConfigData } from '../data/aiConfig';
 import { Role } from '../types';
 
 // Explicitly ensure system users exist first with CORRECT ROLES
@@ -285,6 +287,26 @@ export const seedDatabase = async () => {
             logs.push("Transactions Synced");
         }
     } catch (e) { logs.push("Transactions Skipped"); }
+
+    // 10. Sync Settings (Content & AI Config)
+    try {
+        const settings = [
+            { key: 'contact_email', value: siteContentData.footer.email, group: 'contact' },
+            { key: 'contact_phone', value: siteContentData.footer.phone, group: 'contact' },
+            { key: 'site_content_v1', value: JSON.stringify(siteContentData), group: 'cms' },
+            { key: 'ai_estimator_config', value: JSON.stringify(aiEstimatorConfigData), group: 'ai' }
+        ];
+
+        for (const s of settings) {
+            await supabase.from('SystemSetting').upsert(
+                { key: s.key, value: s.value, group: s.group },
+                { onConflict: 'key' }
+            );
+        }
+        logs.push("Settings & AI Config Synced");
+    } catch (e: any) {
+        logs.push(`Settings Failed: ${e.message}`);
+    }
 
     return `Sync Complete. Details: ${logs.join(", ")}`;
 };

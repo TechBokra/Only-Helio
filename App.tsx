@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
@@ -37,6 +38,7 @@ const PaymentPage = React.lazy(() => import('./components/finance/PaymentPage'))
 const PrivacyPolicyPage = React.lazy(() => import('./components/legal/PrivacyPolicyPage'));
 const TermsOfUsePage = React.lazy(() => import('./components/legal/TermsOfUsePage'));
 const NotFoundPage = React.lazy(() => import('./components/shared/NotFoundPage'));
+const AIEstimatorPage = React.lazy(() => import('./components/tools/AIEstimatorPage'));
 
 
 const App: React.FC = () => {
@@ -85,6 +87,7 @@ const App: React.FC = () => {
                         <Route path="properties/:propertyId" element={<PropertyDetailsPage />} />
                         <Route path="projects/:projectId" element={<ProjectDetailsPage />} />
                         <Route path="finishing" element={<FinishingPage />} />
+                        <Route path="estimator" element={<AIEstimatorPage />} />
                         <Route path="decorations" element={<DecorationsPage />} />
                         <Route path="contact" element={<ContactPage />} />
                         <Route path="favorites" element={<FavoritesPage />} />

@@ -1,3 +1,4 @@
+
 {
   "name": "only-helio-vite",
   "private": true,
@@ -7,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "seed:lookups": "tsx prisma/seed-lookups.ts"
+    "seed": "tsx scripts/run-seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
