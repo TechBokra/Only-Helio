@@ -82,7 +82,7 @@ export let formsData: FormDefinition[] = [
         id: 'form-decor',
         slug: 'decoration-request',
         title: { ar: 'طلب ديكور / عمل فني', en: 'Decoration Request' },
-        description: { ar: 'نموذج طلب أعمال فنية خاصة', en: 'Form for custom art and decoration requests' },
+        description: { ar: 'نموذج للاستفسار عن الأعمال الفنية المعروضة', en: 'Inquiry form for showcased art/decor' },
         category: 'lead_gen',
         destination: 'crm_leads',
         isActive: true,
@@ -92,11 +92,28 @@ export let formsData: FormDefinition[] = [
         fields: [
             { id: 'dr1', key: 'customerName', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half' },
             { id: 'dr2', key: 'customerPhone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half', placeholder: { ar: '+20...', en: '+20...' } },
-            { id: 'dr3', key: 'itemCategory', type: 'select', label: { ar: 'نوع العمل المطلوب', en: 'Item Category' }, required: true, width: 'half', options: ['wall_sculpture', 'canvas_painting', 'custom_furniture', 'antique_decor'] },
-            { id: 'dr4', key: 'dimensions', type: 'text', label: { ar: 'الأبعاد المطلوبة (سم)', en: 'Dimensions (cm)' }, required: false, width: 'half', placeholder: { ar: 'مثال: 100x80', en: 'e.g. 100x80' } },
             { id: 'dr5', key: 'contactTime', type: 'select', label: { ar: 'وقت التواصل', en: 'Preferred Time' }, required: true, width: 'full', options: ['any_time', 'morning', 'evening'] },
-            { id: 'dr6', key: 'customerNotes', type: 'textarea', label: { ar: 'وصف الفكرة / ملاحظات', en: 'Description / Notes' }, required: true, width: 'full', placeholder: { ar: 'صف التصميم الذي تتخيله، الألوان المفضلة، أو المكان الذي سيوضع فيه العمل...', en: 'Describe your vision, preferred colors, or placement...' } },
-            { id: 'dr7', key: 'referenceImage', type: 'file', label: { ar: 'صورة مرجعية (اختياري)', en: 'Reference Image (Optional)' }, required: false, width: 'full' },
+            { id: 'dr6', key: 'customerNotes', type: 'textarea', label: { ar: 'استفسارك', en: 'Your Inquiry' }, required: true, width: 'full', placeholder: { ar: 'أكتب استفسارك هنا...', en: 'Write your inquiry here...' } },
+        ]
+    },
+    {
+        id: 'form-custom-decor',
+        slug: 'custom-design-request',
+        title: { ar: 'طلب تصميم خاص', en: 'Custom Design Request' },
+        description: { ar: 'نموذج مخصص لطلبات التصميم الفريدة وتنفيذ الأفكار الخاصة', en: 'Form for unique design requests and custom execution' },
+        category: 'lead_gen',
+        destination: 'crm_leads',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        submitButtonLabel: { ar: 'إرسال طلب التصميم', en: 'Submit Design Request' },
+        fields: [
+            { id: 'cdr1', key: 'customerName', type: 'text', label: { ar: 'الاسم بالكامل', en: 'Full Name' }, required: true, width: 'half' },
+            { id: 'cdr2', key: 'customerPhone', type: 'tel', label: { ar: 'رقم الهاتف', en: 'Phone Number' }, required: true, width: 'half', validation: { type: 'phone_eg' } },
+            { id: 'cdr3', key: 'itemCategory', type: 'select', label: { ar: 'نوع العمل المطلوب', en: 'Item Category' }, required: true, width: 'half', options: ['wall_sculpture', 'canvas_painting', 'custom_furniture', 'antique_decor'] },
+            { id: 'cdr4', key: 'dimensions', type: 'text', label: { ar: 'الأبعاد التقريبية (سم)', en: 'Approx Dimensions (cm)' }, required: false, width: 'half', placeholder: { ar: 'مثال: 150x90', en: 'e.g. 150x90' } },
+            { id: 'cdr6', key: 'customerNotes', type: 'textarea', label: { ar: 'وصف الفكرة / التصميم', en: 'Idea Description' }, required: true, width: 'full', placeholder: { ar: 'صف التصميم الذي تتخيله، الألوان، الطراز، والمكان المخصص له...', en: 'Describe the design, colors, style, and placement...' } },
+            { id: 'cdr7', key: 'referenceImage', type: 'file', label: { ar: 'صورة مرجعية / سكتش (اختياري)', en: 'Reference Image / Sketch (Optional)' }, required: false, width: 'full' },
         ]
     },
     {

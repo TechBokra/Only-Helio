@@ -48,6 +48,7 @@ export const rolePermissions: Map<Role, Permission[]> = new Map([
       Permission.VIEW_ADMIN_DASHBOARD,
       Permission.MANAGE_DECORATIONS_CONTENT,
       Permission.MANAGE_DECORATIONS_LEADS,
+      Permission.MANAGE_FORMS, // ADDED: Allows access to the Forms Management page in Sidebar
     ],
   ],
 
@@ -58,6 +59,7 @@ export const rolePermissions: Map<Role, Permission[]> = new Map([
       Permission.VIEW_ADMIN_DASHBOARD,
       Permission.MANAGE_PLATFORM_FINISHING_PACKAGES,
       Permission.MANAGE_PLATFORM_FINISHING_LEADS,
+      Permission.MANAGE_FORMS, // Granted permission to manage forms
     ],
   ],
 

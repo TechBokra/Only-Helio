@@ -224,7 +224,7 @@ export const admin = {
                 "units": "الوحدات",
                 "actions": "إجراءات"
             },
-            "confirmDelete": "هل أنت متأكد أنك تريد حذف هذا المشروع وجميع وحداته؟"
+            "confirmDelete": "هل أنت متأكد أنك تريد حذف هذا المشروع وجميع الوحدات المرتبطة به؟"
         },
         "adminRequests": {
             "table": {

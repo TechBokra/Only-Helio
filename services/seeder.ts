@@ -9,6 +9,7 @@ import { leadsData } from '../data/leads';
 import { bannersData } from '../data/banners';
 import { routingRulesData } from '../data/routingRules';
 import { transactionsData } from '../data/finance'; 
+import { formsData } from '../data/forms'; // Import forms data
 import { enTranslations } from '../data/translations';
 import { mapPartnerTypeToRole } from '../data/permissions';
 import { siteContentData } from '../data/content';
@@ -264,7 +265,32 @@ export const seedDatabase = async () => {
         logs.push("Routing Rules Synced");
     } catch (e) { logs.push("Routing Rules Skipped"); }
 
-    // 9. Sync Transactions
+    // 9. Sync Forms (Added)
+    try {
+        const formsPayload = formsData.map(f => ({
+            id: f.id,
+            slug: f.slug,
+            title_en: f.title.en,
+            title_ar: f.title.ar,
+            description_en: f.description?.en,
+            description_ar: f.description?.ar,
+            category: f.category,
+            destination: f.destination,
+            isActive: f.isActive,
+            submitButtonLabel_en: f.submitButtonLabel?.en,
+            submitButtonLabel_ar: f.submitButtonLabel?.ar,
+            fields: JSON.stringify(f.fields), // Store array as JSON
+            createdAt: f.createdAt || new Date().toISOString(),
+            updatedAt: f.updatedAt || new Date().toISOString()
+        }));
+        await supabase.from('FormDefinition').upsert(formsPayload, { onConflict: 'slug' });
+        logs.push("Forms Synced");
+    } catch (e: any) { 
+        console.error("Forms Sync Error:", e);
+        logs.push(`Forms Skipped: ${e.message}`); 
+    }
+
+    // 10. Sync Transactions
     try {
         if (transactionsData.length > 0) {
             const txnsPayload = transactionsData.map(t => ({
@@ -288,7 +314,7 @@ export const seedDatabase = async () => {
         }
     } catch (e) { logs.push("Transactions Skipped"); }
 
-    // 10. Sync Settings (Content & AI Config)
+    // 11. Sync Settings (Content & AI Config)
     try {
         const settings = [
             { key: 'contact_email', value: siteContentData.footer.email, group: 'contact' },

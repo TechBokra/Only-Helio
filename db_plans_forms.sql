@@ -1,10 +1,9 @@
 
 -- تنظيف الجداول القديمة لضمان إعادة الإنشاء بشكل صحيح
-DROP TABLE IF EXISTS "PlanConfiguration";
-DROP TABLE IF EXISTS "FormDefinition";
+-- (لا نحذف الجداول هنا لضمان عدم فقدان البيانات في بيئة الإنتاج، نستخدم ON CONFLICT في الإدخال)
 
 -- 1. جدول إعدادات الباقات (PlanConfiguration)
-CREATE TABLE "PlanConfiguration" (
+CREATE TABLE IF NOT EXISTS "PlanConfiguration" (
     "id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     "category" TEXT NOT NULL, -- developer, agency, finishing, individual
     "tier" TEXT NOT NULL, -- basic, professional, elite, commission, etc.
@@ -25,7 +24,7 @@ CREATE TABLE "PlanConfiguration" (
 CREATE INDEX IF NOT EXISTS idx_plan_cat_tier ON "PlanConfiguration" ("category", "tier");
 
 -- 2. جدول النماذج الديناميكية (FormDefinition)
-CREATE TABLE "FormDefinition" (
+CREATE TABLE IF NOT EXISTS "FormDefinition" (
     "id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     "slug" TEXT UNIQUE NOT NULL,
     "title_en" TEXT NOT NULL,
@@ -82,7 +81,7 @@ VALUES (
         {"id":"f3","key":"email","type":"email","label":{"ar":"البريد الإلكتروني","en":"Email Address"},"required":false,"width":"full"},
         {"id":"f4","key":"message","type":"textarea","label":{"ar":"الرسالة","en":"Message"},"required":true,"width":"full","placeholder":{"ar":"اكتب رسالتك هنا...","en":"Type your message here..."}}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Service Request
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -94,7 +93,7 @@ VALUES (
         {"id":"sf1","key":"contactTime","type":"select","label":{"ar":"وقت التواصل المفضل","en":"Preferred Contact Time"},"required":true,"width":"full","options":["morning","afternoon","evening"]},
         {"id":"sf4","key":"customerNotes","type":"textarea","label":{"ar":"ملاحظات إضافية","en":"Additional Notes"},"required":false,"width":"full"}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Partner Application
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -109,7 +108,7 @@ VALUES (
         {"id":"pa6","key":"contactEmail","type":"email","label":{"ar":"البريد الإلكتروني","en":"Contact Email"},"required":true,"width":"third"},
         {"id":"pa7","key":"contactPhone","type":"tel","label":{"ar":"رقم الهاتف","en":"Contact Phone"},"required":true,"width":"third"}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Add Property
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -133,7 +132,7 @@ VALUES (
         {"id":"ap11","key":"description.ar","type":"textarea","label":{"ar":"وصف العقار (عربي)","en":"Description (AR)"},"required":true,"width":"full"},
         {"id":"ap12","key":"description.en","type":"textarea","label":{"ar":"وصف العقار (إنجليزي)","en":"Description (EN)"},"required":false,"width":"full"}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Decoration Request
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -148,7 +147,21 @@ VALUES (
         {"id":"dr6","key":"customerNotes","type":"textarea","label":{"ar":"وصف الفكرة / ملاحظات","en":"Description / Notes"},"required":true,"width":"full"},
         {"id":"dr7","key":"referenceImage","type":"file","label":{"ar":"صورة مرجعية (اختياري)","en":"Reference Image (Optional)"},"required":false,"width":"full"}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
+
+-- Custom Design Request (NEW)
+INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
+VALUES (
+    'custom-design-request', 'Custom Design Request', 'طلب تصميم خاص', 'Form for unique design requests and custom execution', 'نموذج مخصص لطلبات التصميم الفريدة وتنفيذ الأفكار الخاصة', 'lead_gen', 'crm_leads', 'Submit Design Request', 'إرسال طلب التصميم',
+    '[
+        {"id":"cdr1","key":"customerName","type":"text","label":{"ar":"الاسم بالكامل","en":"Full Name"},"required":true,"width":"half"},
+        {"id":"cdr2","key":"customerPhone","type":"tel","label":{"ar":"رقم الهاتف","en":"Phone Number"},"required":true,"width":"half","validation":{"type":"phone_eg"}},
+        {"id":"cdr3","key":"itemCategory","type":"select","label":{"ar":"نوع العمل المطلوب","en":"Item Category"},"required":true,"width":"half","options":["wall_sculpture","canvas_painting","custom_furniture","antique_decor"]},
+        {"id":"cdr4","key":"dimensions","type":"text","label":{"ar":"الأبعاد التقريبية (سم)","en":"Approx Dimensions (cm)"},"required":false,"width":"half","placeholder":{"ar":"مثال: 150x90","en":"e.g. 150x90"}},
+        {"id":"cdr6","key":"customerNotes","type":"textarea","label":{"ar":"وصف الفكرة / التصميم","en":"Idea Description"},"required":true,"width":"full","placeholder":{"ar":"صف التصميم الذي تتخيله، الألوان، الطراز، والمكان المخصص له...","en":"Describe the design, colors, style, and placement..."}},
+        {"id":"cdr7","key":"referenceImage","type":"file","label":{"ar":"صورة مرجعية (اختياري)","en":"Reference Image (Optional)"},"required":false,"width":"full"}
+    ]'::jsonb
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Property Inquiry
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -160,7 +173,7 @@ VALUES (
         {"id":"pi3","key":"contactTime","type":"select","label":{"ar":"وقت التواصل","en":"Preferred Time"},"required":true,"width":"full","options":["morning","afternoon","evening"]},
         {"id":"pi4","key":"details","type":"textarea","label":{"ar":"مواصفات العقار المطلوب","en":"Property Details"},"required":true,"width":"full","placeholder":{"ar":"مثال: شقة ٣ غرف...","en":"e.g., 3 Bedroom apartment..."}}
     ]'::jsonb
-);
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;
 
 -- Finishing Request
 INSERT INTO "FormDefinition" ("slug", "title_en", "title_ar", "description_en", "description_ar", "category", "destination", "submitButtonLabel_en", "submitButtonLabel_ar", "fields")
@@ -176,5 +189,4 @@ VALUES (
         {"id":"fr7","key":"contactTime","type":"select","label":{"ar":"وقت التواصل المفضل","en":"Preferred Contact Time"},"required":true,"width":"full","options":["morning","afternoon","evening"]},
         {"id":"fr8","key":"customerNotes","type":"textarea","label":{"ar":"ملاحظات إضافية","en":"Additional Notes"},"required":false,"width":"full"}
     ]'::jsonb
-);
-
+) ON CONFLICT ("slug") DO UPDATE SET "fields" = EXCLUDED.fields;

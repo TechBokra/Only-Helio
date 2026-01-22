@@ -13,6 +13,7 @@ const DecorationsLayout: React.FC = () => {
         // 'decorationsRequests' tab removed, now a sidebar item
         { name: t_decor.portfolioTab, href: '/admin/platform-decorations/portfolio', exact: false },
         { name: t_decor.categoriesTab, href: '/admin/platform-decorations/categories', exact: false },
+        { name: t_nav.forms, href: '/admin/forms?category=lead_gen', exact: false }, // Direct link to form builder
     ];
 
     const baseClasses = "px-4 py-3 font-semibold text-md border-b-4 transition-colors duration-200 whitespace-nowrap";

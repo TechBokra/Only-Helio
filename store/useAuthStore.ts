@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Partner, Role, Permission } from '../types';
@@ -86,6 +87,7 @@ export const useAuthStore = create<AuthState>()(
                 if (state.currentUser.role === Role.SUPER_ADMIN) return true;
                 
                 // DYNAMIC CHECK: Always look up from the source of truth to ensure permissions are fresh
+                // This fixes issues where 'state.permissions' might be stale in localStorage
                 const currentPermissions = rolePermissions.get(state.currentUser.role) || [];
                 return currentPermissions.includes(permission);
             },
@@ -114,7 +116,7 @@ export const useAuthStore = create<AuthState>()(
         {
             name: 'onlyhelio-auth-storage',
             storage: createJSONStorage(() => localStorage),
-            // Only persist currentUser, derived state (permissions) will be re-calculated
+            // Only persist currentUser. Do NOT persist permissions array to force re-calculation from source
             partialize: (state) => ({ currentUser: state.currentUser }),
             onRehydrateStorage: () => (state) => {
                 // When store hydrates, ensure permissions match the user role immediately
