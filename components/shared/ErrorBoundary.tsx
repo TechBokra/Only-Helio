@@ -1,5 +1,4 @@
-
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button } from '../ui/Button';
 import { ExclamationCircleIcon, HomeIcon, ArrowRightIcon } from '../ui/Icons';
 
@@ -75,11 +74,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button onClick={this.handleRetry} variant="primary" className="w-full sm:w-auto">
+                <Button onClick={this.handleRetry} variant="secondary" className="w-full sm:w-auto">
                     <ArrowRightIcon className="w-4 h-4 mr-2" />
                     Try Again
                 </Button>
-                <Button onClick={this.handleGoHome} variant="secondary" className="w-full sm:w-auto">
+                <Button onClick={this.handleGoHome} variant="ghost" className="w-full sm:w-auto">
                     <HomeIcon className="w-4 h-4 mr-2" />
                     Go Home
                 </Button>

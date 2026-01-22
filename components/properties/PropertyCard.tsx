@@ -78,8 +78,16 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
   const displayImageMedium = getImageSrc(imageUrl, '&fm=webp&w=800');
   const displayImageLarge = getImageSrc(imageUrl, '&fm=webp&w=1200');
 
+  // Helper for feature badges
+  const FeatureBadge = ({ icon: Icon, label }: { icon: any, label: string }) => (
+      <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-[10px] font-medium border border-gray-200 dark:border-gray-600">
+          <Icon className="w-3 h-3 text-amber-500" />
+          {label}
+      </span>
+  );
+
   return (
-    <Card className="relative transform hover:-translate-y-2 transition-transform duration-300 group h-full flex flex-col overflow-hidden p-0">
+    <Card className="relative transform hover:-translate-y-1 transition-all duration-300 group h-full flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
         {/* Main Stretched Link for the entire card click */}
         <Link 
             to={`/properties/${id}`} 
@@ -89,119 +97,108 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
             <span className="sr-only">View details</span>
         </Link>
 
-        <div className="relative watermarked z-0">
-            {imageUrl && !imageUrl.startsWith('data:') ? (
-                 <picture>
-                    <source
-                        type="image/webp"
-                        srcSet={`${displayImageSmall} 480w, ${displayImageMedium} 800w, ${displayImageLarge} 1200w`}
-                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                    />
-                    <img 
-                        src={displayImage}
-                        alt={title[language]} 
-                        className="w-full h-56 object-cover disable-image-interaction"
-                        onContextMenu={(e) => e.preventDefault()}
-                        loading="lazy"
-                    />
-                </picture>
-            ) : (
+        <div className="relative watermarked z-0 bg-gray-200 aspect-[4/3]">
+            <Link to={`/properties/${id}`} className="block w-full h-full" tabIndex={-1} aria-hidden="true">
                  <img 
                     src={displayImage}
                     alt={title[language]} 
-                    className="w-full h-56 object-cover disable-image-interaction"
-                    onContextMenu={(e) => e.preventDefault()}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     loading="lazy"
                 />
-            )}
+            </Link>
            
-          <span className="absolute top-4 left-4 z-10 text-white font-semibold px-3 py-1 rounded-md text-sm shadow-sm bg-sky-600/90 backdrop-blur-sm" style={{ backgroundColor: isForSale ? '#16a34a' : '#0284c7' }}>
+          {/* Status Badge: Top Start */}
+          <span 
+            className={`absolute top-3 ${language === 'ar' ? 'right-3' : 'left-3'} z-10 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`} 
+          >
             {status[language]}
           </span>
-           {isInCompound && (
-             <span className={`absolute top-4 ${language === 'ar' ? 'left-4' : 'right-4'} p-2 rounded-full bg-black/50 z-10`} title={t.propertiesPage.inCompound}>
-                <CompoundIcon className="w-5 h-5 text-white" />
-             </span>
-           )}
-          <div className={`absolute top-14 ${language === 'ar' ? 'right-4' : 'left-4'} flex flex-col gap-2 items-center z-20`}>
+
+          {/* Favorite Button: Top End */}
+          <div className={`absolute top-3 ${language === 'ar' ? 'left-3' : 'right-3'} z-20`}>
             <button
               onClick={handleFavoriteClick}
-              className="p-2 rounded-full bg-black/50 hover:bg-black/75 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="p-2 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
               aria-label={isFav ? t.favoritesPage.removeFromFavorites : t.favoritesPage.addToFavorites}
             >
               {isFav ? (
-                <HeartIconSolid className="w-6 h-6 text-red-500" />
+                <HeartIconSolid className="w-4 h-4 text-red-500" />
               ) : (
-                <HeartIcon className="w-6 h-6 text-white" />
+                <HeartIcon className="w-4 h-4" />
               )}
             </button>
-            {installmentsAvailable && isForSale && (
-                <div className="p-2 rounded-full bg-black/50" title={t.propertiesPage.installments}>
-                    <WalletIcon className="w-6 h-6 text-white" />
-                </div>
-            )}
-             {realEstateFinanceAvailable && isForSale && (
-                <div className="p-2 rounded-full bg-black/50" title={t.propertiesPage.realEstateFinance}>
-                    <BanknotesIcon className="w-6 h-6 text-white" />
-                </div>
-            )}
           </div>
         </div>
-        <CardContent className="p-5 flex flex-col flex-grow relative z-10 pointer-events-none">
-          <p className="text-2xl font-bold text-amber-500 mb-1">{price[language]}</p>
-          {displayPricePerMeter && (
-            <p className="text-sm text-gray-500 mb-2">{displayPricePerMeter}</p>
-          )}
-          <h3 className="text-lg font-bold text-gray-900 truncate mb-1 group-hover:text-amber-500 transition-colors">{title[language]}</h3>
-          
-          <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-              {finishingStatus && (
-                <span className="bg-gray-100 px-2 py-1 rounded">{finishingStatus[language]}</span>
+
+        <CardContent className="p-4 flex flex-col flex-grow relative z-10 pointer-events-none bg-white dark:bg-gray-800">
+          {/* Price & Rate */}
+          <div className="mb-2">
+              <p className="text-xl font-bold text-amber-600 dark:text-amber-500">{price[language]}</p>
+              {displayPricePerMeter && (
+                <p className="text-xs text-gray-400">{displayPricePerMeter}</p>
               )}
           </div>
           
-          <div className="text-sm text-gray-500 mb-4 flex-grow">
+          {/* Title */}
+          <h3 className="text-base font-bold text-gray-900 dark:text-white truncate mb-2 group-hover:text-amber-600 transition-colors">{title[language]}</h3>
+          
+          {/* Feature Badges (Previously floating icons) */}
+          <div className="flex flex-wrap gap-2 mb-3">
+              {finishingStatus && <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">{finishingStatus[language]}</span>}
+              {isInCompound && <FeatureBadge icon={CompoundIcon} label={t.propertiesPage.inCompound} />}
+              {installmentsAvailable && isForSale && <FeatureBadge icon={WalletIcon} label={t.propertiesPage.installments} />}
+              {realEstateFinanceAvailable && isForSale && <FeatureBadge icon={BanknotesIcon} label={t.propertiesPage.realEstateFinance} />}
+          </div>
+          
+          {/* Partner / Project Link */}
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-4 flex-grow">
             {partnerName && partnerId !== 'individual-listings' ? (
-                <p className="pointer-events-auto">
+                <p className="pointer-events-auto truncate">
                     {t.propertyCard.by}{' '}
-                    <Link to={`/partners/${partnerId}`} className="font-semibold text-gray-700 hover:text-amber-500 hover:underline relative z-20">
+                    <Link to={`/partners/${partnerId}`} className="font-semibold text-gray-700 dark:text-gray-300 hover:text-amber-500 hover:underline relative z-20">
                         {partnerName}
                     </Link>
                 </p>
             ) : partnerName ? (
-                 <p>{t.propertyCard.by} {partnerName}</p>
+                 <p className="truncate">{t.propertyCard.by} {partnerName}</p>
             ) : null}
 
             {projectName && projectId && (
-                <p className="pointer-events-auto">
-                    <Link to={`/projects/${projectId}`} className="text-amber-600 hover:underline text-xs relative z-20">
-                        {t.propertyCard.viewProject}
+                <p className="pointer-events-auto mt-0.5 truncate">
+                    <Link to={`/projects/${projectId}`} className="text-amber-600 dark:text-amber-500 hover:underline text-[10px] relative z-20 font-medium">
+                         {projectName[language]}
                     </Link>
                 </p>
             )}
           </div>
 
-          <div className="flex justify-around items-center text-gray-500 border-t border-gray-200 pt-4 mt-auto">
-            {!isCommercialProp && (
+          {/* Stats Bar */}
+          <div className="flex items-center justify-between pt-3 mt-auto border-t border-gray-100 dark:border-gray-700">
+            {!isCommercialProp ? (
                 <>
-                    <div className="flex items-center gap-2" title={`${beds} ${t.propertyCard.beds}`}>
-                        <BedIcon className="w-5 h-5 text-gray-400" />
-                        <span className="text-sm font-medium">{beds}</span>
+                    <div className="flex items-center gap-1.5" title={t.propertyCard.beds}>
+                        <BedIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{beds}</span>
                     </div>
-                    <div className="flex items-center gap-2" title={`${baths} ${t.propertyCard.baths}`}>
-                        <BathIcon className="w-5 h-5 text-gray-400" />
-                        <span className="text-sm font-medium">{baths}</span>
+                    <div className="flex items-center gap-1.5" title={t.propertyCard.baths}>
+                        <BathIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{baths}</span>
                     </div>
                 </>
+            ) : (
+                 // Placeholder for alignment in commercial cards
+                 <div className="flex-grow"></div>
             )}
-            <div className="flex items-center gap-2" title={`${area} ${t.propertyCard.area}`}>
-                <AreaIcon className="w-5 h-5 text-gray-400" />
-                <span className="text-sm font-medium">{area} {t.propertyCard.area}</span>
+            
+            <div className="flex items-center gap-1.5" title={t.propertyCard.area}>
+                <AreaIcon className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{area} <span className="text-xs font-normal text-gray-500">{t.propertyCard.area}</span></span>
             </div>
+
             {floor !== undefined && (type.en === 'Apartment' || type.en === 'Commercial') && (
-                 <div className="flex items-center gap-2" title={`${floor} ${t.propertyCard.floor}`}>
-                    <FloorIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm font-medium">{floor}</span>
+                 <div className="flex items-center gap-1.5" title={t.propertyCard.floor}>
+                    <FloorIcon className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{floor}</span>
                 </div>
             )}
           </div>

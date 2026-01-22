@@ -1,5 +1,4 @@
 
-
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { addRequest } from '../../services/requests';
@@ -38,7 +37,8 @@ const ServiceRequestPage: React.FC = () => {
     const isPaymentFlow = isBooking || isPurchase;
     
     const formSlug = useMemo(() => {
-        if (isCustom && serviceType === 'decorations') return 'decoration-request';
+        // FIX: Correctly map custom design requests to the specific form slug
+        if (isCustom && serviceType === 'decorations') return 'custom-design-request';
         if (serviceType === 'finishing' && !isBooking) return 'finishing-request';
         if (serviceType === 'decorations' && !isPurchase) return 'decoration-request';
         return 'service-request'; // Fallback for simple/payment requests

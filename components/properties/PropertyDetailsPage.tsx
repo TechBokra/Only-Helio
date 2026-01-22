@@ -4,7 +4,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
     BedIcon, BathIcon, AreaIcon, CheckBadgeIcon, ShareIcon, HeartIcon, HeartIconSolid, 
-    FloorIcon, CalendarIcon, WalletIcon, BuildingIcon, WrenchScrewdriverIcon, CompoundIcon, BanknotesIcon, WhatsAppIcon, PhoneIcon, LocationMarkerIcon
+    FloorIcon, CalendarIcon, WalletIcon, BuildingIcon, WrenchScrewdriverIcon, CompoundIcon, BanknotesIcon, 
+    WhatsAppIcon, PhoneIcon, LocationMarkerIcon, SwimmingPoolIcon, ParkIcon, ShieldCheckIcon, ElevatorIcon,
+    ArrowLeftIcon, ArrowRightIcon
 } from '../ui/Icons';
 import type { Language } from '../../types';
 import { useFavorites } from '../shared/FavoritesContext';
@@ -94,6 +96,19 @@ const PropertyDetailsPage: React.FC = () => {
         setLightboxOpen(true);
     };
 
+    // Helper to get specific icon for amenities
+    const getAmenityIcon = (key: string) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('pool') || lowerKey.includes('سباحة')) return SwimmingPoolIcon;
+        if (lowerKey.includes('garden') || lowerKey.includes('park') || lowerKey.includes('حديقة')) return ParkIcon;
+        if (lowerKey.includes('security') || lowerKey.includes('أمن')) return ShieldCheckIcon;
+        if (lowerKey.includes('elevator') || lowerKey.includes('مصعد')) return ElevatorIcon;
+        if (lowerKey.includes('garage') || lowerKey.includes('parking') || lowerKey.includes('سيارات')) return CompoundIcon; // Fallback to Compound/Garage like icon
+        return CheckBadgeIcon;
+    }
+
+    const BackIcon = language === 'ar' ? ArrowRightIcon : ArrowLeftIcon;
+
     if (isLoading) {
         return <PropertyDetailsSkeleton />;
     }
@@ -174,11 +189,17 @@ const PropertyDetailsPage: React.FC = () => {
 
         <div className="py-12 bg-gray-50 dark:bg-gray-900">
             <div className="container mx-auto px-6">
+                
+                <Link to="/properties" className="inline-flex items-center gap-2 text-gray-500 hover:text-amber-600 transition-colors mb-6">
+                    <BackIcon className="w-4 h-4" />
+                    {t_page.backButton}
+                </Link>
+
                 <div className="lg:flex justify-between items-start mb-4">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">{property.title[language]}</h1>
                          <p className="text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
-                            <LocationMarkerIcon className="w-4 h-4" /> {property.address[language]}
+                            <LocationMarkerIcon className="w-4 h-4 text-amber-500" /> {property.address[language]}
                         </p>
                     </div>
                     <div className="flex-shrink-0 flex items-center gap-4 mt-4 lg:mt-0">
@@ -222,7 +243,19 @@ const PropertyDetailsPage: React.FC = () => {
 
                         <DetailSection title={t_page.amenities}>
                             <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {amenityKeys.map(amenityKey => <li key={amenityKey} className="flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-green-500"/>{t_page.amenitiesIncluded[amenityKey] || amenityKey}</li>)}
+                                {amenityKeys.map(amenityKey => {
+                                    const Icon = getAmenityIcon(amenityKey);
+                                    return (
+                                        <li key={amenityKey} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <div className="p-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 flex-shrink-0">
+                                                <Icon className="w-5 h-5"/>
+                                            </div>
+                                            <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                                                {t_page.amenitiesIncluded[amenityKey] || amenityKey}
+                                            </span>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </DetailSection>
 
@@ -233,57 +266,64 @@ const PropertyDetailsPage: React.FC = () => {
                         <div className="sticky top-28 space-y-6">
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                                <p className="text-3xl font-bold text-amber-500">{property.price[language]}</p>
-                               <div className="flex items-center gap-4 text-gray-500 dark:text-gray-400 mt-4">
+                               <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                     {!isCommercial(property) && <>
-                                        <div className="flex items-center gap-2"><BedIcon className="w-5 h-5"/> {property.beds}</div>
-                                        <div className="flex items-center gap-2"><BathIcon className="w-5 h-5"/> {property.baths}</div>
+                                        <div className="flex items-center gap-2"><BedIcon className="w-5 h-5 text-gray-400"/> {property.beds}</div>
+                                        <div className="flex items-center gap-2"><BathIcon className="w-5 h-5 text-gray-400"/> {property.baths}</div>
                                     </>}
-                                    <div className="flex items-center gap-2"><AreaIcon className="w-5 h-5"/> {property.area} {t.propertyCard.area}</div>
+                                    <div className="flex items-center gap-2"><AreaIcon className="w-5 h-5 text-gray-400"/> {property.area} {t.propertyCard.area}</div>
                                </div>
                             </div>
                             
                              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                                 {partner ? (
                                     <div className="flex items-center gap-4">
-                                        <img src={partner.imageUrl} alt={partner.name} className="w-16 h-16 rounded-full object-cover"/>
+                                        <img src={partner.imageUrl} alt={partner.name} className="w-14 h-14 rounded-full object-cover border border-gray-100"/>
                                         <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{t.propertyCard.by}</p>
-                                            <p className="font-bold text-lg">{partner.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-semibold">{t.propertyCard.by}</p>
+                                            <p className="font-bold text-lg text-gray-900 dark:text-white line-clamp-1">{partner.name}</p>
                                         </div>
                                     </div>
                                 ) : <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>}
-                                <button onClick={handleContact} className="w-full mt-4 bg-amber-500 text-gray-900 font-bold px-6 py-3 rounded-lg hover:bg-amber-600 transition-colors">
+                                <button onClick={handleContact} className="w-full mt-6 bg-amber-500 text-gray-900 font-bold px-6 py-3 rounded-lg hover:bg-amber-600 transition-colors shadow-sm">
                                     {t_page.contactButton}
                                 </button>
                              </div>
 
                              <DetailSection title={t_page.keyInfo}>
-                                <DetailItem label={t.propertiesPage.typeLabel} value={property.type[language]} icon={<BuildingIcon className="w-5 h-5"/>}/>
-                                {property.finishingStatus && <DetailItem label={t.propertiesPage.finishing} value={property.finishingStatus[language]} icon={<WrenchScrewdriverIcon className="w-5 h-5"/>}/>}
-                                {property.floor !== undefined && (property.type.en === 'Apartment' || property.type.en === 'Commercial') && <DetailItem label={t_page.floor} value={property.floor} icon={<FloorIcon className="w-5 h-5"/>}/>}
-                                {property.isInCompound && <DetailItem label={t_page.inCompound} value={t_page.yes} icon={<CompoundIcon className="w-5 h-5"/>}/>}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <DetailItem label={t.propertiesPage.typeLabel} value={property.type[language]} icon={<BuildingIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>
+                                    {property.finishingStatus && <DetailItem label={t.propertiesPage.finishing} value={property.finishingStatus[language]} icon={<WrenchScrewdriverIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
+                                    {property.floor !== undefined && (property.type.en === 'Apartment' || property.type.en === 'Commercial') && <DetailItem label={t_page.floor} value={property.floor} icon={<FloorIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
+                                    {property.isInCompound && <DetailItem label={t_page.inCompound} value={t_page.yes} icon={<CompoundIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
+                                </div>
                              </DetailSection>
 
                              <DetailSection title={t_page.deliveryPayment}>
-                                <DetailItem label={t_page.deliveryDate} value={property.delivery.isImmediate ? t_page.immediate : property.delivery.date} icon={<CalendarIcon className="w-5 h-5"/>}/>
+                                <DetailItem label={t_page.deliveryDate} value={property.delivery.isImmediate ? t_page.immediate : property.delivery.date} icon={<CalendarIcon className="w-5 h-5 text-gray-400"/>}/>
                                 {property.installmentsAvailable && property.status.en === 'For Sale' && (
                                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                                         <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{t_page.installmentsPlan}</h4>
-                                         <div className="space-y-2">
-                                            <DetailItem label={t_page.downPayment} value={property.installments?.downPayment.toLocaleString(language)} />
-                                            <DetailItem label={t_page.monthlyInstallment} value={property.installments?.monthlyInstallment.toLocaleString(language)} />
-                                            <DetailItem label={t_page.years} value={property.installments?.years} />
+                                         <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
+                                            <WalletIcon className="w-5 h-5 text-gray-400"/>
+                                            {t_page.installmentsPlan}
+                                         </h4>
+                                         <div className="space-y-2 pl-7">
+                                            <DetailItem label={t_page.downPayment} value={property.installments?.downPayment.toLocaleString(language)} className="text-sm" />
+                                            <DetailItem label={t_page.monthlyInstallment} value={property.installments?.monthlyInstallment.toLocaleString(language)} className="text-sm" />
+                                            <DetailItem label={t_page.years} value={property.installments?.years} className="text-sm" />
                                          </div>
                                      </div>
                                 )}
-                                {property.realEstateFinanceAvailable && property.status.en === 'For Sale' && <DetailItem label={t_page.realEstateFinanceAvailable} value={t_page.yes} icon={<BanknotesIcon className="w-5 h-5"/>} />}
+                                {property.realEstateFinanceAvailable && property.status.en === 'For Sale' && <DetailItem label={t_page.realEstateFinanceAvailable} value={t_page.yes} icon={<BanknotesIcon className="w-5 h-5 text-gray-400"/>} />}
                              </DetailSection>
 
                              {property.projectId && property.projectName && (
                                 <Link to={`/projects/${property.projectId}`} className="block group">
                                     <DetailSection title={t_page.partOfProject}>
-                                        <p className="font-bold text-lg group-hover:text-amber-500">{property.projectName[language]}</p>
-                                        <span className="text-amber-500 font-semibold hover:underline">{t_page.viewProject}</span>
+                                        <p className="font-bold text-lg group-hover:text-amber-500 transition-colors">{property.projectName[language]}</p>
+                                        <span className="text-amber-500 font-semibold hover:underline text-sm flex items-center gap-1 mt-1">
+                                            {t_page.viewProject} <BackIcon className="w-3 h-3 rotate-180" />
+                                        </span>
                                     </DetailSection>
                                 </Link>
                              )}
