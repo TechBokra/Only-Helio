@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { 
   LightBulbIcon, HeartIcon, HomeIcon, BuildingIcon, 
-  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon, CalculatorIcon
+  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon
 } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import type { Partner } from '../../types';
@@ -63,12 +63,11 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
         };
     }, [isOpen, onClose]);
     
-    const navLinks = [
+    const navLinks: { name: string; href: string; icon: React.FC<{className?: string}>; isEnd?: boolean; highlight?: boolean }[] = [
         { name: t.nav.home, href: "/", icon: HomeIcon, isEnd: true },
         { name: t.nav.properties, href: "/properties", icon: BuildingIcon },
         { name: t.nav.projects, href: "/projects", icon: CubeIcon },
         { name: t.nav.finishing, href: "/finishing", icon: WrenchScrewdriverIcon },
-        { name: language === 'ar' ? 'حاسبة التكلفة' : 'AI Estimator', href: "/estimator", icon: CalculatorIcon, highlight: true },
         { name: t.nav.decorations, href: "/decorations", icon: SparklesIcon },
         { name: t.nav.contact, href: "/contact", icon: PhoneIcon },
     ];

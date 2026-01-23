@@ -28,10 +28,8 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 }) => {
     const { language, t: translations } = useLanguage();
     const t = translations.propertiesPage;
-    // Access propertyCard translations from the root translation object
     const t_card = translations.propertyCard;
     
-    // Control advanced filter visibility
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
     const { 
@@ -44,7 +42,6 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         beds: bedsFilter, baths: bathsFilter, realEstateFinance: realEstateFinanceFilter,
     } = filters;
 
-    // Determine if any filter (basic or advanced) is active to show "Reset"
     const activeFilterCount = useMemo(() => {
         let count = 0;
         if (statusFilter !== 'all') count++;
@@ -72,7 +69,6 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         setFilter('amenities', newAmenities);
     };
 
-    // Helper to filter amenities/finishing based on Property Type
     const isApplicable = (option: FilterOption) => {
         if (typeFilter === 'all' || typeFilter === '') return true;
         if (!option.applicableTo || option.applicableTo.length === 0) return true;
@@ -82,6 +78,9 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     const availableAmenities = useMemo(() => amenities.filter(isApplicable), [amenities, typeFilter]);
     const availableFinishingStatuses = useMemo(() => finishingStatuses.filter(isApplicable), [finishingStatuses, typeFilter]);
 
+    // Logic to hide fields for Land
+    const isLand = typeFilter === 'Land';
+
     return (
         <div className="space-y-6">
             <div className="text-center mb-8">
@@ -89,11 +88,9 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                 <p className="text-lg text-gray-500 dark:text-gray-400 mt-4 max-w-2xl mx-auto">{t.subtitle}</p>
             </div>
 
-            {/* Main Filter Bar */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4 lg:p-6 transition-all duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
                     
-                    {/* Search Input (Takes 2 cols on tablet, 1 on desktop if compacted, but let's give it prominence) */}
                     <div className="relative md:col-span-2 lg:col-span-1">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <Input 
@@ -105,7 +102,6 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         />
                     </div>
 
-                    {/* Basic Dropdowns */}
                     <div className="relative">
                          <Select value={statusFilter} onChange={e => setFilter('status', e.target.value)} className="h-12">
                             <option value="all">{t.allStatuses}</option>
@@ -123,7 +119,6 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         </Select>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-2">
                         <Button 
                             variant="secondary" 
@@ -147,11 +142,9 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                     </div>
                 </div>
 
-                {/* Advanced Filters Panel */}
                 <div className={`grid transition-all duration-500 ease-in-out overflow-hidden ${isAdvancedOpen ? 'grid-rows-[1fr] opacity-100 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700' : 'grid-rows-[0fr] opacity-0 p-0 m-0 border-none'}`}>
                     <div className="min-h-0 space-y-6">
                         
-                        {/* Row 1: Price & Area & Location */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.priceRange}</label>
@@ -160,13 +153,17 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                     <Input type="number" placeholder={t.maxPricePlaceholder} value={maxPriceFilter} onChange={e => setFilter('maxPrice', e.target.value)} />
                                 </div>
                             </div>
-                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t.finishing}</label>
-                                <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
-                                    <option value="all">{t.allFinishes}</option>
-                                    {availableFinishingStatuses.map(status => <option key={status.id} value={status.en}>{status[language]}</option>)}
-                                </Select>
-                            </div>
+                            
+                            {!isLand && (
+                                 <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t.finishing}</label>
+                                    <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
+                                        <option value="all">{t.allFinishes}</option>
+                                        {availableFinishingStatuses.map(status => <option key={status.id} value={status.en}>{status[language]}</option>)}
+                                    </Select>
+                                </div>
+                            )}
+
                              <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.project}</label>
                                 <Select value={projectFilter} onChange={e => setFilter('project', e.target.value)}>
@@ -174,30 +171,36 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name[language]}</option>)}
                                 </Select>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
-                                <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)}>
-                                    <option value="all">{t.allCompound}</option>
-                                    <option value="yes">{t.compoundYes}</option>
-                                    <option value="no">{t.compoundNo}</option>
-                                </Select>
-                            </div>
+                            
+                            {!isLand && (
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
+                                    <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)}>
+                                        <option value="all">{t.allCompound}</option>
+                                        <option value="yes">{t.compoundYes}</option>
+                                        <option value="no">{t.compoundNo}</option>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
 
-                         {/* Row 2: Specs */}
                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t_card.beds}</label>
-                                <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} placeholder="0+" />
-                            </div>
-                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t_card.baths}</label>
-                                <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" />
-                            </div>
-                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
-                                <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" />
-                            </div>
+                             {!isLand && (
+                                 <>
+                                     <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">{t_card.beds}</label>
+                                        <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} placeholder="0+" />
+                                    </div>
+                                     <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">{t_card.baths}</label>
+                                        <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" />
+                                    </div>
+                                     <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
+                                        <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" />
+                                    </div>
+                                </>
+                             )}
                              <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.delivery}</label>
                                 <Select value={deliveryFilter} onChange={e => setFilter('delivery', e.target.value)}>
@@ -223,22 +226,24 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                             </div>
                          </div>
 
-                        {/* Row 3: Amenities */}
                         <div className="space-y-2">
                              <label className="text-xs font-bold text-gray-500 uppercase block">{t.amenities}</label>
-                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                                {availableAmenities.map(amenity => (
-                                    <label key={amenity.id} className="flex items-center gap-2 cursor-pointer hover:text-amber-600 transition-colors">
-                                        <Checkbox 
-                                            id={`amenity-${amenity.id}`}
-                                            checked={amenitiesFilter.includes(amenity.en)}
-                                            onCheckedChange={() => handleAmenitiesChange(amenity.en)}
-                                        />
-                                        <span className="text-sm select-none">{amenity[language]}</span>
-                                    </label>
-                                ))}
-                                {availableAmenities.length === 0 && <span className="text-xs text-gray-400 col-span-full">Select a property type to see relevant amenities.</span>}
-                             </div>
+                             {availableAmenities.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                    {availableAmenities.map(amenity => (
+                                        <label key={amenity.id} className="flex items-center gap-2 cursor-pointer hover:text-amber-600 transition-colors">
+                                            <Checkbox 
+                                                id={`amenity-${amenity.id}`}
+                                                checked={amenitiesFilter.includes(amenity.en)}
+                                                onCheckedChange={() => handleAmenitiesChange(amenity.en)}
+                                            />
+                                            <span className="text-sm select-none">{amenity[language]}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                             ) : (
+                                 <span className="text-xs text-gray-400 col-span-full">No specific amenities for this type.</span>
+                             )}
                         </div>
 
                     </div>

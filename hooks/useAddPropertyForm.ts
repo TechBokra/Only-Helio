@@ -116,9 +116,13 @@ export const useAddPropertyForm = () => {
     }
 
     const plansForPurpose = useMemo(() => {
-        if (!purpose || !plans?.individual) return {};
+        if (!purpose || !plans) return {};
+        // Access nested safe check
+        const indPlans = (plans as any).individual;
+        if (!indPlans) return {};
+
         const subCategory = purpose === 'For Sale' ? 'sale' : 'rent';
-        return (plans.individual as any)[subCategory] || {};
+        return indPlans[subCategory] || {};
     }, [purpose, plans]);
 
     // Image handling
@@ -291,7 +295,7 @@ export const useAddPropertyForm = () => {
         watch,
         setValue,
         errors,
-        formMethods: methods, // Exposed the full methods object
+        formMethods: methods, 
         
         // Exposed raw submit for external callers
         onSubmit,

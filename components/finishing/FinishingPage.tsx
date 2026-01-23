@@ -11,7 +11,7 @@ import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useFavorites } from '../shared/FavoritesContext';
 import { useToast } from '../shared/ToastContext';
-import { HeartIcon, HeartIconSolid, ShareIcon, CalculatorIcon, SparklesIcon } from '../ui/Icons';
+import { HeartIcon, HeartIconSolid, ShareIcon, CalculatorIcon, SparklesIcon, WrenchScrewdriverIcon } from '../ui/Icons';
 
 interface PricingTier {
     unitType: { ar: string; en: string };
@@ -76,8 +76,10 @@ const ServicePackageCard: React.FC<{
 const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = ({ partner, t }) => {
     const { language } = useLanguage();
     const localizedPartner = t.partnerInfo[partner.id];
-
-    if (!localizedPartner) return null;
+    
+    // Fallback if translation missing
+    const name = localizedPartner?.name || (language === 'ar' ? partner.nameAr : partner.name);
+    const description = localizedPartner?.description || (language === 'ar' ? partner.descriptionAr : partner.description);
 
     return (
         <Link to={`/partners/${partner.id}`} className="block h-full">
@@ -85,24 +87,22 @@ const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = ({ partn
                 <picture>
                      <source
                         type="image/webp"
-                        srcSet={`${partner.imageUrl_small}&fm=webp 480w, ${partner.imageUrl_medium}&fm=webp 800w, ${partner.imageUrl_large || partner.imageUrl}&fm=webp 1200w`}
+                        srcSet={`${partner.imageUrl_small || partner.imageUrl}&fm=webp 480w, ${partner.imageUrl_medium || partner.imageUrl}&fm=webp 800w`}
                         sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
                     />
                     <img
                         src={partner.imageUrl_large || partner.imageUrl}
-                        srcSet={`${partner.imageUrl_small} 480w, ${partner.imageUrl_medium} 800w, ${partner.imageUrl_large || partner.imageUrl} 1200w`}
-                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 22vw"
-                        alt={localizedPartner.name}
+                        alt={name}
                         className="w-full h-48 object-cover"
                         loading="lazy"
                     />
                 </picture>
                 <CardContent className="p-6 flex flex-col flex-grow">
                     <h3 className="text-xl font-bold text-amber-500 mb-2 group-hover:text-amber-400 transition-colors">
-                        {localizedPartner.name}
+                        {name}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 text-sm flex-grow line-clamp-3">
-                        {localizedPartner.description}
+                        {description}
                     </p>
                 </CardContent>
             </Card>
@@ -111,18 +111,19 @@ const PartnerCompanyCard: React.FC<{ partner: AdminPartner; t: any }> = ({ partn
 };
 
 const ServiceProviderCard: React.FC<{ partner: AdminPartner; onRequest: (title: string, partnerId: string) => void; t: any; buttonText: string }> = ({ partner, onRequest, t, buttonText }) => {
+    const { language } = useLanguage();
     const localizedPartner = t.partnerInfo[partner.id];
-
-    if (!localizedPartner) return null;
+    const name = localizedPartner?.name || (language === 'ar' ? partner.nameAr : partner.name);
+    const description = localizedPartner?.description || (language === 'ar' ? partner.descriptionAr : partner.description);
 
     return (
         <Card className="p-6 flex flex-col sm:flex-row justify-between items-center">
             <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{localizedPartner.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{localizedPartner.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
             </div>
             <Button 
-                onClick={() => onRequest(t.partnerProfilePage.serviceRequestFor + ' ' + localizedPartner.name, partner.id)} 
+                onClick={() => onRequest(t.partnerProfilePage.serviceRequestFor + ' ' + name, partner.id)} 
                 className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0"
             >
                 {buttonText}
@@ -210,7 +211,7 @@ const FinishingPage: React.FC = () => {
     }, [partners]);
 
     if (isLoading) {
-        return <div className="animate-pulse h-screen bg-gray-50 dark:bg-gray-800"></div>;
+        return <div className="animate-pulse h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center">Loading...</div>;
     }
 
     return (
@@ -320,15 +321,15 @@ const FinishingPage: React.FC = () => {
             </section>
 
             {/* Partner Companies Gallery */}
-            {companyPartners.length > 0 && (
-                <section className="py-20 bg-gray-50 dark:bg-gray-800">
-                    <div className="container mx-auto px-6">
-                        <div className="text-center mb-12 max-w-3xl mx-auto">
-                            <h2 className="text-3xl md:text-4xl font-bold">{content.partnerCompaniesTitle}</h2>
-                            <p className="text-lg text-gray-500 dark:text-gray-400 mt-4">
-                                {content.partnerCompaniesSubtitle}
-                            </p>
-                        </div>
+            <section className="py-20 bg-gray-50 dark:bg-gray-800">
+                <div className="container mx-auto px-6">
+                    <div className="text-center mb-12 max-w-3xl mx-auto">
+                        <h2 className="text-3xl md:text-4xl font-bold">{content.partnerCompaniesTitle}</h2>
+                        <p className="text-lg text-gray-500 dark:text-gray-400 mt-4">
+                            {content.partnerCompaniesSubtitle}
+                        </p>
+                    </div>
+                    {companyPartners.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                             {companyPartners.map((partner) => (
                                 <PartnerCompanyCard
@@ -338,20 +339,27 @@ const FinishingPage: React.FC = () => {
                                 />
                             ))}
                         </div>
-                    </div>
-                </section>
-            )}
-
-            {/* Free Tier Service Providers */}
-            {serviceProviders.length > 0 && (
-                <section className="py-20">
-                    <div className="container mx-auto px-6">
-                        <div className="text-center mb-12 max-w-3xl mx-auto">
-                            <h2 className="text-3xl md:text-4xl font-bold">{content.serviceProvidersTitle}</h2>
-                            <p className="text-lg text-gray-500 dark:text-gray-400 mt-4">
-                                {content.serviceProvidersSubtitle}
+                    ) : (
+                         <div className="text-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
+                            <WrenchScrewdriverIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">
+                                {language === 'ar' ? 'لا يوجد شركات معتمدة حالياً.' : 'No verified companies currently.'}
                             </p>
                         </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Free Tier Service Providers */}
+            <section className="py-20">
+                <div className="container mx-auto px-6">
+                    <div className="text-center mb-12 max-w-3xl mx-auto">
+                        <h2 className="text-3xl md:text-4xl font-bold">{content.serviceProvidersTitle}</h2>
+                        <p className="text-lg text-gray-500 dark:text-gray-400 mt-4">
+                            {content.serviceProvidersSubtitle}
+                        </p>
+                    </div>
+                    {serviceProviders.length > 0 ? (
                         <div className="max-w-4xl mx-auto space-y-4">
                             {serviceProviders.map((partner) => (
                                 <ServiceProviderCard
@@ -363,9 +371,16 @@ const FinishingPage: React.FC = () => {
                                 />
                             ))}
                         </div>
-                    </div>
-                </section>
-            )}
+                    ) : (
+                        <div className="text-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
+                             <WrenchScrewdriverIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">
+                                {language === 'ar' ? 'لا يوجد مقدمي خدمات مستقلين حالياً.' : 'No independent service providers currently.'}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </section>
 
             <section className="py-20 md:py-32 bg-white dark:bg-gray-900 subtle-bg">
                 <div className="container mx-auto px-6 text-center">

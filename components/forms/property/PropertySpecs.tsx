@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useLanguage } from '../../shared/LanguageContext';
 import FormField, { inputClasses, selectClasses } from '../../ui/FormField';
@@ -22,6 +22,19 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
     const watchStatus = watch('status');
     const watchFinishingStatus = watch('finishingStatus');
     const watchAmenities = watch('amenities');
+
+    const isLand = watchType?.en === 'Land';
+    const isCommercial = watchType?.en === 'Commercial';
+
+    // Reset irrelevant fields when type changes to Land
+    useEffect(() => {
+        if (isLand) {
+            setValue('beds', 0);
+            setValue('baths', 0);
+            setValue('floor', 0);
+            setValue('finishingStatus', undefined);
+        }
+    }, [isLand, setValue]);
 
     const handleComplexChange = (field: 'status' | 'type' | 'finishingStatus', valueEn: string) => {
         let valueAr = '';
@@ -57,32 +70,27 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
     // Filter Finishing Statuses based on selected Property Type
     const availableFinishingStatuses = useMemo(() => {
         if (!finishingStatuses) return [];
+        if (isLand) return []; // No finishing for Land
+
         const selectedType = watchType?.en;
-        
-        // If no type selected, show all
         if (!selectedType) return finishingStatuses;
 
         return finishingStatuses.filter(status => 
-            // Show if it has NO specific applicability (applies to all) OR if it includes the selected type
             !status.applicableTo || status.applicableTo.length === 0 || status.applicableTo.includes(selectedType)
         );
-    }, [finishingStatuses, watchType]);
+    }, [finishingStatuses, watchType, isLand]);
 
     // Filter Amenities based on selected Property Type
     const availableAmenities = useMemo(() => {
         if (!amenities) return [];
         const selectedType = watchType?.en;
         
-        if (!selectedType) return amenities;
+        if (!selectedType) return [];
 
         return amenities.filter(amenity => 
              !amenity.applicableTo || amenity.applicableTo.length === 0 || amenity.applicableTo.includes(selectedType)
         );
     }, [amenities, watchType]);
-
-    // Helper to determine if fields like Bedrooms/Bathrooms should be disabled (e.g. for Land)
-    const isLand = watchType?.en === 'Land';
-    const isCommercial = watchType?.en === 'Commercial';
 
     return (
         <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -111,31 +119,41 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                         {(propertyTypes || []).map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
                     </select>
                 </FormField>
-                <FormField label={tp.finishing} id="finishingStatus.en">
-                    <select
-                        value={watchFinishingStatus?.en || ''}
-                        onChange={e => handleComplexChange('finishingStatus', e.target.value)}
-                        className={selectClasses}
-                        disabled={isLand || availableFinishingStatuses.length === 0}
-                    >
-                         <option value="">{tp.allFinishes}</option>
-                         {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
-                    </select>
-                </FormField>
+
                 <FormField label={`${t.forms?.area || "Area"} (m²)`} id="area" required>
                     <input type="number" {...register("area", { required: true, valueAsNumber: true })} className={inputClasses} />
                 </FormField>
                 
+                {/* Finishing Status - Hidden for Land */}
+                {!isLand && (
+                    <FormField label={tp.finishing} id="finishingStatus.en">
+                        <select
+                            value={watchFinishingStatus?.en || ''}
+                            onChange={e => handleComplexChange('finishingStatus', e.target.value)}
+                            className={selectClasses}
+                        >
+                             <option value="">{tp.allFinishes}</option>
+                             {availableFinishingStatuses.map(opt => <option key={opt.id} value={opt.en}>{opt[language]}</option>)}
+                        </select>
+                    </FormField>
+                )}
+                
                 {/* Conditional Fields based on Type */}
-                <FormField label={t_prop.bedrooms} id="beds">
-                    <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} disabled={isLand || isCommercial} />
-                </FormField>
-                <FormField label={t_prop.bathrooms} id="baths">
-                    <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} disabled={isLand} />
-                </FormField>
-                <FormField label={t_prop.floor} id="floor">
-                    <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} disabled={isLand || watchType?.en === 'Villa'} />
-                </FormField>
+                {!isLand && (
+                    <>
+                        <FormField label={t_prop.bedrooms} id="beds">
+                            <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} placeholder={isCommercial ? "Optional" : "0"} />
+                        </FormField>
+                        <FormField label={t_prop.bathrooms} id="baths">
+                            <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} placeholder={isCommercial ? "Optional" : "0"} />
+                        </FormField>
+                        {watchType?.en !== 'Villa' && (
+                            <FormField label={t_prop.floor} id="floor">
+                                <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} />
+                            </FormField>
+                        )}
+                    </>
+                )}
                 
                 <FormField label="Listing Status" id="listingStatus" required>
                     <select {...register("listingStatus")} className={selectClasses} >
@@ -166,8 +184,8 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                 ) : (
                     <p className="text-sm text-gray-500 italic">
                         {watchType?.en 
-                            ? (language === 'ar' ? 'لا توجد مرافق متاحة لهذا النوع من العقارات.' : 'No amenities available for this property type.') 
-                            : (language === 'ar' ? 'يرجى اختيار نوع العقار أولاً.' : 'Please select a property type first.')
+                            ? (language === 'ar' ? 'لا توجد مرافق متاحة لهذا النوع.' : 'No amenities available for this property type.') 
+                            : (language === 'ar' ? 'يرجى اختيار نوع العقار أولاً لعرض المميزات.' : 'Please select a property type first to see amenities.')
                         }
                     </p>
                 )}

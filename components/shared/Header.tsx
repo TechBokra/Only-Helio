@@ -31,7 +31,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         { name: t.nav.properties, href: '/properties' },
         { name: t.nav.projects, href: '/projects' },
         { name: t.nav.finishing, href: '/finishing' },
-        { name: language === 'ar' ? 'احسب تكلفتك' : 'Calculator', href: '/estimator', highlight: true },
         { name: t.nav.decorations, href: '/decorations' },
         { name: t.nav.contact, href: '/contact' },
     ];
@@ -55,11 +54,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                 to={link.href}
                                 end={link.href === '/'}
                                 className={({ isActive }) =>
-                                    `${isActive ? activeLinkClass : inactiveLinkClass} transition-colors duration-200 ${link.highlight ? 'text-amber-600 font-bold' : ''}`
+                                    `${isActive ? activeLinkClass : inactiveLinkClass} transition-colors duration-200`
                                 }
                             >
                                 {link.name}
-                                {link.highlight && <span className="ml-1 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full align-top">AI</span>}
                             </NavLink>
                         ))}
                     </nav>
