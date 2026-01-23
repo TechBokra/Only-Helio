@@ -19,6 +19,7 @@ import { getAllPropertyRequests } from '../../../services/propertyRequests';
 import { getAllContactRequests } from '../../../services/contactRequests';
 import { getAllPropertyInquiries } from '../../../services/propertyInquiries';
 import { getAllLeads } from '../../../services/leads';
+import type { Lead, PartnerRequest, AddPropertyRequest, ContactRequest, PropertyInquiryRequest } from '../../../types';
 
 interface RequestCategoryCardProps {
     title: string;
@@ -72,22 +73,24 @@ const AdminAllRequestsPage: React.FC = () => {
     const { t, language } = useLanguage();
     const t_nav = t.adminDashboard.nav;
     
-    // Fetch all requests in parallel
-    const queries = [
-        { key: 'partnerRequests', fn: getAllPartnerRequests },
-        { key: 'propertyRequests', fn: getAllPropertyRequests },
-        { key: 'propertyInquiries', fn: getAllPropertyInquiries },
-        { key: 'contactRequests', fn: getAllContactRequests },
-        { key: 'allLeadsAdmin', fn: getAllLeads },
-    ];
-
+    // Explicitly fetching to preserve types in Promise.all
     const results = useQuery({
         queryKey: ['adminDashboardCounts'],
         queryFn: async () => {
-            const [partners, props, inquiries, contacts, leads] = await Promise.all(
-                queries.map(q => q.fn())
-            );
-            return { partners, props, inquiries, contacts, leads };
+            const [partners, props, inquiries, contacts, leads] = await Promise.all([
+                getAllPartnerRequests(),
+                getAllPropertyRequests(),
+                getAllPropertyInquiries(),
+                getAllContactRequests(),
+                getAllLeads()
+            ]);
+            return { 
+                partners: partners as PartnerRequest[], 
+                props: props as AddPropertyRequest[], 
+                inquiries: inquiries as PropertyInquiryRequest[], 
+                contacts: contacts as ContactRequest[], 
+                leads: leads as Lead[] 
+            };
         }
     });
 
