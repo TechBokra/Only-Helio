@@ -34,7 +34,8 @@ const mapDbToPortfolioItem = (row: PortfolioItemRow): PortfolioItem => ({
     dimensions: row.dimensions,
     availability: row.availability,
     createdAt: row.createdAt,
-    partnerName: row.partner?.name_en || row.partner?.name_ar,
+    // FIX: Ensure partnerName is string | undefined, never null
+    partnerName: row.partner?.name_en || row.partner?.name_ar || undefined,
     categoryId: row.categoryId
 });
 

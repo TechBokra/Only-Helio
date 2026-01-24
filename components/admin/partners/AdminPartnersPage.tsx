@@ -37,7 +37,8 @@ const AdminPartnersPage: React.FC = () => {
         plan: searchParams.get('plan') || 'all',
     }), [searchParams]);
 
-    const [activeFilters, setActiveFilters] = useState(initialFilters);
+    // FIX: Explicitly type state as Record<string, string> to match useAdminTable's generic constraint
+    const [activeFilters, setActiveFilters] = useState<Record<string, string>>(initialFilters);
     const [serverSearch, setServerSearch] = useState('');
 
     // Fetch Paginated Data
