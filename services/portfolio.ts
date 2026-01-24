@@ -1,9 +1,29 @@
 
 import { supabase } from '../supabaseClient';
-import { portfolioData as initialData } from '../data/portfolio';
 import type { PortfolioItem } from '../types';
 
-const mapDbToPortfolioItem = (row: any): PortfolioItem => ({
+interface PortfolioItemRow {
+    id: string;
+    partnerId: string;
+    title_en: string;
+    title_ar: string;
+    category_en: string;
+    category_ar: string;
+    imageUrl: string;
+    alt: string | null;
+    price?: number;
+    dimensions?: string;
+    availability?: 'In Stock' | 'Made to Order';
+    createdAt: string;
+    categoryId?: string;
+    // Joined partner data
+    partner?: {
+        name_en: string | null;
+        name_ar: string | null;
+    };
+}
+
+const mapDbToPortfolioItem = (row: PortfolioItemRow): PortfolioItem => ({
     id: row.id,
     partnerId: row.partnerId,
     title: { en: row.title_en, ar: row.title_ar },
@@ -15,6 +35,7 @@ const mapDbToPortfolioItem = (row: any): PortfolioItem => ({
     availability: row.availability,
     createdAt: row.createdAt,
     partnerName: row.partner?.name_en || row.partner?.name_ar,
+    categoryId: row.categoryId
 });
 
 export const getAllPortfolioItems = async (): Promise<PortfolioItem[]> => {
@@ -28,11 +49,11 @@ export const getAllPortfolioItems = async (): Promise<PortfolioItem[]> => {
         console.error("Error fetching portfolio items:", error);
         if (error.code === 'PGRST200') {
             const { data: fallback } = await supabase.from('PortfolioItem').select('*');
-            return (fallback || []).map(mapDbToPortfolioItem);
+            return (fallback || []).map((row) => mapDbToPortfolioItem(row as PortfolioItemRow));
         }
         return [];
     }
-    return data.map(mapDbToPortfolioItem);
+    return (data || []).map((row) => mapDbToPortfolioItem(row as PortfolioItemRow));
 };
 
 export const getPortfolioByPartnerId = async (partnerId: string): Promise<PortfolioItem[]> => {
@@ -43,7 +64,7 @@ export const getPortfolioByPartnerId = async (partnerId: string): Promise<Portfo
         .order('createdAt', { ascending: false });
 
     if (error) return [];
-    return data.map(mapDbToPortfolioItem);
+    return (data || []).map((row) => mapDbToPortfolioItem(row as PortfolioItemRow));
 };
 
 export const addPortfolioItem = async (item: Omit<PortfolioItem, 'id'>): Promise<PortfolioItem> => {
@@ -65,7 +86,7 @@ export const addPortfolioItem = async (item: Omit<PortfolioItem, 'id'>): Promise
 
     const { data, error } = await supabase.from('PortfolioItem').insert(dbPayload).select().single();
     if (error) throw error;
-    return mapDbToPortfolioItem(data);
+    return mapDbToPortfolioItem(data as PortfolioItemRow);
 };
 
 export const updatePortfolioItem = async (itemId: string, updates: Partial<PortfolioItem>): Promise<PortfolioItem | undefined> => {
@@ -85,7 +106,7 @@ export const updatePortfolioItem = async (itemId: string, updates: Partial<Portf
 
     const { data, error } = await supabase.from('PortfolioItem').update(dbUpdates).eq('id', itemId).select().single();
     if (error) return undefined;
-    return mapDbToPortfolioItem(data);
+    return mapDbToPortfolioItem(data as PortfolioItemRow);
 };
 
 export const deletePortfolioItem = async (itemId: string): Promise<boolean> => {

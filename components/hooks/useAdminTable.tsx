@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUpIcon, ArrowDownIcon } from '../ui/Icons';
 import { useDebounce } from './useDebounce';
@@ -28,13 +29,26 @@ export function useAdminTable<T>({
     initialFilters = {},
     searchFn,
     filterFns,
+    manualPagination = false,
+    totalItems = 0,
+    onPageChange,
+    onSearchChange,
+    onFilterChange,
+    onSortChange
 }: {
     data: T[] | undefined;
     itemsPerPage?: number;
     initialSort: SortConfig<T>;
     initialFilters?: Record<string, string>;
-    searchFn: (item: T, searchTerm: string) => boolean;
-    filterFns: Record<string, (item: T, value: string) => boolean>;
+    searchFn?: (item: T, searchTerm: string) => boolean;
+    filterFns?: Record<string, (item: T, value: string) => boolean>;
+    // New props for Server-Side Pagination
+    manualPagination?: boolean;
+    totalItems?: number;
+    onPageChange?: (page: number) => void;
+    onSearchChange?: (term: string) => void;
+    onFilterChange?: (filters: Record<string, string>) => void;
+    onSortChange?: (sort: SortConfig<T>) => void;
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(initialSort);
@@ -42,33 +56,55 @@ export function useAdminTable<T>({
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [filters, setFilters] = useState<Record<string, string>>(initialFilters);
 
+    // Sync initial filters
     useEffect(() => {
         if (Object.keys(initialFilters).length > 0) {
             setFilters(prev => ({ ...prev, ...initialFilters }));
         }
     }, [initialFilters]);
 
+    // Sync external changes for manual pagination
+    useEffect(() => {
+        if (manualPagination && onPageChange) onPageChange(currentPage);
+    }, [currentPage, onPageChange, manualPagination]);
+
+    useEffect(() => {
+        if (manualPagination && onSearchChange) {
+            onSearchChange(debouncedSearchTerm);
+            // Typically reset page on search change is handled by parent, but local state needs care
+            setCurrentPage(1);
+        }
+    }, [debouncedSearchTerm, onSearchChange, manualPagination]);
+
     const setFilter = useCallback((key: string, value: string) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
-        setCurrentPage(1); 
-    }, []);
+        const newFilters = { ...filters, [key]: value };
+        setFilters(newFilters);
+        setCurrentPage(1);
+        if (manualPagination && onFilterChange) {
+            onFilterChange(newFilters);
+        }
+    }, [filters, onFilterChange, manualPagination]);
 
     const processedData = useMemo(() => {
+        if (manualPagination) return data; // Server handles filtering/sorting
+
         if (!data) return [];
         let items = [...data];
 
         // 1. Search
-        if (debouncedSearchTerm.trim()) {
+        if (searchFn && debouncedSearchTerm.trim()) {
             const lowercasedTerm = debouncedSearchTerm.trim().toLowerCase();
             items = items.filter((item) => searchFn(item, lowercasedTerm));
         }
 
         // 2. Filter
-        for (const key in filters) {
-            if (Object.prototype.hasOwnProperty.call(filters, key)) {
-                const value = filters[key];
-                if (value && value !== 'all' && filterFns[key]) {
-                    items = items.filter((item) => filterFns[key](item, value));
+        if (filterFns) {
+            for (const key in filters) {
+                if (Object.prototype.hasOwnProperty.call(filters, key)) {
+                    const value = filters[key];
+                    if (value && value !== 'all' && filterFns[key]) {
+                        items = items.filter((item) => filterFns[key](item, value));
+                    }
                 }
             }
         }
@@ -105,23 +141,28 @@ export function useAdminTable<T>({
             });
         }
         return items;
-    }, [data, debouncedSearchTerm, filters, sortConfig, searchFn, filterFns]);
+    }, [data, debouncedSearchTerm, filters, sortConfig, searchFn, filterFns, manualPagination]);
 
-    // Reset page if data length changes significantly
+    // Client-side pagination reset check
     useEffect(() => {
-        const newTotalPages = Math.ceil(processedData.length / itemsPerPage);
-        if (currentPage > newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages);
-        } else if (currentPage === 0 && newTotalPages > 0) {
-            setCurrentPage(1);
+        if (!manualPagination) {
+            const newTotalPages = Math.ceil(processedData.length / itemsPerPage);
+            if (currentPage > newTotalPages && newTotalPages > 0) {
+                setCurrentPage(newTotalPages);
+            } else if (currentPage === 0 && newTotalPages > 0) {
+                setCurrentPage(1);
+            }
         }
-    }, [processedData.length, itemsPerPage, currentPage]);
+    }, [processedData.length, itemsPerPage, currentPage, manualPagination]);
 
-    const totalPages = Math.ceil(processedData.length / itemsPerPage);
+    const effectiveTotalItems = manualPagination ? totalItems : processedData.length;
+    const totalPages = Math.ceil(effectiveTotalItems / itemsPerPage);
+    
     const paginatedItems = useMemo(() => {
+        if (manualPagination) return data || [];
         const start = (currentPage - 1) * itemsPerPage;
         return processedData.slice(start, start + itemsPerPage);
-    }, [processedData, currentPage, itemsPerPage]);
+    }, [processedData, currentPage, itemsPerPage, manualPagination, data]);
 
     const requestSort = useCallback(
         (key: string) => {
@@ -129,9 +170,13 @@ export function useAdminTable<T>({
             if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
                 direction = 'descending';
             }
-            setSortConfig({ key, direction });
+            const newSort = { key, direction };
+            setSortConfig(newSort);
+            if (manualPagination && onSortChange) {
+                onSortChange(newSort);
+            }
         },
-        [sortConfig],
+        [sortConfig, manualPagination, onSortChange],
     );
 
     const getSortIcon = useCallback(

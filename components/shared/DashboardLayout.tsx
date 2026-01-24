@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -9,6 +10,7 @@ import { MenuIcon, GlobeAltIcon } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import { Permission } from '../../types';
 import type { NavLinkItem } from '../../data/navigation';
+import { useRealtimeInvalidator } from '../hooks/useRealtimeInvalidator';
 
 interface DashboardLayoutProps {
   navLinks: NavLinkItem[];
@@ -20,6 +22,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ navLinks, pageTitle }
     const { currentUser: user, logout: onLogout, hasPermission } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(localStorage.getItem('sidebarCollapsed') === 'true');
+    
+    // Activate Realtime Listeners
+    useRealtimeInvalidator();
 
     if (!user) return null;
     

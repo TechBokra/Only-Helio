@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllProperties, updateProperty, deleteProperty } from '../../../services/properties';
+// FIX: Import keepPreviousData
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { getPaginatedProperties, updateProperty, deleteProperty } from '../../../services/properties';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import type { Property, ListingStatus } from '../../../types';
@@ -38,29 +39,74 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
+    // -- Server Side Pagination State (Used only if propProperties is undefined) --
+    const isManualMode = !propProperties;
+    const [page, setPage] = useState(1);
+    const [serverSearch, setServerSearch] = useState('');
+    const [serverFilters, setServerFilters] = useState({ 
+        status: searchParams.get('status') || 'all'
+    });
+    const ITEMS_PER_PAGE = 10;
+
     const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
     const [actionToConfirm, setActionToConfirm] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
     const highlightedId = searchParams.get('highlight');
 
-    const { data: fetchedProperties, isLoading: fetchedIsLoading, isError, refetch } = useQuery({ 
-        queryKey: ['allPropertiesAdmin'], 
-        queryFn: getAllProperties,
-        enabled: !propProperties // Only fetch if data isn't passed via props
+    // 1. Fetch Data (Server Mode)
+    const { data: queryData, isLoading: fetchedIsLoading, isError, refetch } = useQuery({ 
+        queryKey: ['paginatedPropertiesAdmin', page, serverFilters, serverSearch], 
+        queryFn: () => getPaginatedProperties({
+            page,
+            limit: ITEMS_PER_PAGE,
+            filters: { ...serverFilters, query: serverSearch, view: 'admin' } as any,
+            disablePagination: false
+        }),
+        enabled: isManualMode,
+        placeholderData: keepPreviousData
     });
-    
-    const properties = propProperties || fetchedProperties;
-    const isLoading = propIsLoading || fetchedIsLoading;
 
-    // Initialize filters from URL
+    const properties = propProperties || queryData?.properties || [];
+    const totalItems = isManualMode ? (queryData?.total || 0) : properties.length;
+    const isLoading = propIsLoading || (isManualMode && fetchedIsLoading);
+
+    // Initialize filters from URL for Client Mode
     const initialFilters = useMemo(() => ({
         status: searchParams.get('status') || 'all',
     }), [searchParams]);
 
-    const { paginatedItems, totalPages, currentPage, setCurrentPage, searchTerm, setSearchTerm, filters, setFilter } = useAdminTable({
+    const { 
+        paginatedItems, 
+        totalPages, 
+        currentPage, 
+        setCurrentPage, 
+        searchTerm, 
+        setSearchTerm, 
+        filters, 
+        setFilter 
+    } = useAdminTable({
         data: properties,
-        itemsPerPage: 10,
+        itemsPerPage: ITEMS_PER_PAGE,
         initialSort: { key: 'listingStartDate', direction: 'descending' },
-        initialFilters,
+        initialFilters: isManualMode ? {} : initialFilters, // Manual mode handles init state separately
+        
+        // --- Server Mode Configuration ---
+        manualPagination: isManualMode,
+        totalItems: totalItems,
+        onPageChange: setPage,
+        onSearchChange: (term) => {
+            if (isManualMode) {
+                setServerSearch(term);
+                setPage(1);
+            }
+        },
+        onFilterChange: (newFilters) => {
+            if (isManualMode) {
+                 setServerFilters({ status: newFilters.status || 'all' });
+                 setPage(1);
+            }
+        },
+
+        // --- Client Mode Configuration ---
         searchFn: (item: Property, term) => 
             (item.title?.en?.toLowerCase().includes(term) || false) || 
             (item.title?.ar?.includes(term) || false) ||
@@ -72,12 +118,18 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
 
     const mutation = useMutation({
         mutationFn: ({ id, status }: { id: string, status: ListingStatus }) => updateProperty(id, { listingStatus: status }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] })
+        onSuccess: () => {
+             if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
+             else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
+        }
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteProperty(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] })
+        onSuccess: () => {
+            if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
+            else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
+        }
     });
     
     const handleSelect = (propertyId: string) => {
@@ -105,13 +157,15 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
             return Promise.resolve();
         });
         await Promise.all(promises);
-        queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
+        if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
+        else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
         setSelectedProperties([]);
         setActionToConfirm(null);
     };
 
     const handleStatusFilterChange = (value: string) => {
         setFilter('status', value);
+        // Sync URL
         setSearchParams(prev => {
             if (value === 'all') prev.delete('status');
             else prev.set('status', value);
@@ -210,7 +264,7 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
     );
     const emptyState = <div className="text-center py-8 text-gray-500">No properties found.</div>;
 
-    if (isError && !properties) {
+    if (isError) {
         return <ErrorState onRetry={refetch} />;
     }
 
@@ -239,7 +293,7 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
             <div className="mb-4 flex flex-wrap gap-4">
                 {!hideFilters.includes('search') && <Input placeholder={t_admin.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm"/>}
                 
-                <Select value={filters.status || 'all'} onChange={(e) => handleStatusFilterChange(e.target.value)} className="max-w-xs">
+                <Select value={isManualMode ? serverFilters.status : (filters.status || 'all')} onChange={(e) => handleStatusFilterChange(e.target.value)} className="max-w-xs">
                     <option value="all">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>

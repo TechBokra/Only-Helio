@@ -1,10 +1,44 @@
 
 import { supabase } from '../supabaseClient';
-import type { Lead, LeadMessage } from '../types';
+import type { Lead, LeadMessage, LeadStatus } from '../types';
 import { addNotification } from './notifications';
 
+interface LeadMessageRow {
+    id: string;
+    leadId: string;
+    sender: 'system' | 'admin' | 'partner' | 'client';
+    senderId?: string;
+    type: 'message' | 'note';
+    content: string;
+    timestamp: string;
+}
+
+interface LeadRow {
+    id: string;
+    partnerId: string;
+    managerId?: string;
+    propertyId?: string;
+    serviceType: 'finishing' | 'decorations' | 'property' | 'general';
+    customerName: string;
+    customerPhone: string;
+    serviceTitle: string;
+    status: LeadStatus;
+    contactTime?: string;
+    notes?: string;
+    assignedTo?: string;
+    referenceImage?: string;
+    createdAt: string;
+    updatedAt: string;
+    // Relations
+    partner?: {
+        name_en: string | null;
+        name_ar: string | null;
+    };
+    messages?: LeadMessageRow[];
+}
+
 // Helper to map DB row to Lead
-const mapDbToLead = (row: any): Lead => ({
+const mapDbToLead = (row: LeadRow): Lead => ({
     id: row.id,
     partnerId: row.partnerId,
     managerId: row.managerId,
@@ -21,13 +55,13 @@ const mapDbToLead = (row: any): Lead => ({
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     partnerName: row.partner?.name_en || row.partner?.name_ar || 'Unknown',
-    messages: (row.messages || []).map((msg: any) => ({
+    messages: (row.messages || []).map((msg) => ({
         id: msg.id || `msg-${Math.random()}`,
         sender: msg.sender,
         senderId: msg.senderId,
         type: msg.type,
         content: msg.content,
-        timestamp: msg.timestamp || msg.createdAt
+        timestamp: msg.timestamp
     }))
 });
 
@@ -43,7 +77,7 @@ export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> =>
         console.error("Error fetching leads:", JSON.stringify(error, null, 2));
         return [];
     }
-    return data.map(mapDbToLead);
+    return (data as unknown as LeadRow[]).map(mapDbToLead);
 };
 
 export const getLeadById = async (leadId: string): Promise<Lead | undefined> => {
@@ -54,7 +88,7 @@ export const getLeadById = async (leadId: string): Promise<Lead | undefined> => 
         .single();
 
     if (error) return undefined;
-    return mapDbToLead(data);
+    return mapDbToLead(data as unknown as LeadRow);
 };
 
 export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]> => {
@@ -67,7 +101,60 @@ export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]
          console.error("Error fetching all leads:", JSON.stringify(error, null, 2));
          return [];
     }
-    return data.map(mapDbToLead);
+    return (data as unknown as LeadRow[]).map(mapDbToLead);
+};
+
+// NEW: Server-side Pagination for Admin Dashboard
+export const getPaginatedLeads = async (
+    page: number, 
+    limit: number, 
+    filters?: { 
+        status?: string; 
+        serviceType?: string; 
+        query?: string;
+        partnerId?: string;
+        assignedTo?: string; 
+    }
+): Promise<{ leads: Lead[]; total: number }> => {
+    let query = supabase
+        .from('Lead')
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`, { count: 'exact' });
+
+    if (filters) {
+        if (filters.status && filters.status !== 'all') {
+            query = query.eq('status', filters.status);
+        }
+        if (filters.serviceType && filters.serviceType !== 'all') {
+            query = query.eq('serviceType', filters.serviceType);
+        }
+        if (filters.partnerId) {
+            query = query.eq('partnerId', filters.partnerId);
+        }
+        if (filters.assignedTo) {
+            query = query.eq('assignedTo', filters.assignedTo);
+        }
+        if (filters.query) {
+            const q = filters.query;
+            query = query.or(`customerName.ilike.%${q}%,customerPhone.ilike.%${q}%,serviceTitle.ilike.%${q}%`);
+        }
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await query
+        .order('createdAt', { ascending: false })
+        .range(from, to);
+
+    if (error) {
+        console.error("Error fetching paginated leads:", error);
+        return { leads: [], total: 0 };
+    }
+
+    return {
+        leads: (data as unknown as LeadRow[]).map(mapDbToLead),
+        total: count || 0
+    };
 };
 
 export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
@@ -100,7 +187,7 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
         : '/dashboard/leads';
 
     addNotification({
-        userId: targetUserId,
+        userId: targetUserId || 'admin-user', // Fallback
         message: {
             ar: `لديك طلب عميل جديد من "${leadData.customerName}".`,
             en: `New lead from "${leadData.customerName}".`,
@@ -108,7 +195,7 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
         link: link,
     });
 
-    return mapDbToLead(data);
+    return mapDbToLead(data as unknown as LeadRow);
 };
 
 export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead | undefined> => {
@@ -129,7 +216,7 @@ export const updateLead = async (leadId: string, updates: Partial<Omit<Lead, 'id
          });
     }
 
-    return mapDbToLead(data);
+    return mapDbToLead(data as unknown as LeadRow);
 };
 
 export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Lead | undefined> => {

@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllPartnersForAdmin, updatePartnerStatus, deletePartner } from '../../../services/partners';
+// FIX: Imported keepPreviousData for smooth pagination
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { getPaginatedPartners, updatePartnerStatus, deletePartner } from '../../../services/partners';
 import { getPlans } from '../../../services/plans';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -25,38 +26,10 @@ const AdminPartnersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Fetch ALL users first
-    const { data: allUsers, isLoading, isError, refetch } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
-    useQuery({ queryKey: ['plans'], queryFn: getPlans }); 
-
-    // STRICT FILTER: Only show Business Partners (Developer, Agency, Finishing)
-    // Exclude 'admin', 'content_manager', etc.
-    const partners = useMemo(() => {
-        return (allUsers || []).filter(u => ['developer', 'agency', 'finishing'].includes(u.type));
-    }, [allUsers]);
-
-    const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
-    const [actionToConfirm, setActionToConfirm] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
-    const highlightedId = searchParams.get('highlight');
-
-    const statusMutation = useMutation({
-        mutationFn: ({ id, status }: { id: string, status: PartnerStatus }) => updatePartnerStatus(id, status),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] })
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: string) => deletePartner(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] })
-    });
-
-    const handleStatusToggle = (id: string, currentStatus: PartnerStatus) => {
-        // Simple toggle logic for the switch: 
-        // If active -> disabled
-        // If anything else (pending, pending_setup, disabled) -> active
-        const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
-        statusMutation.mutate({ id, status: newStatus });
-    };
-
+    // -- Server Side Pagination State --
+    const [page, setPage] = useState(1);
+    const ITEMS_PER_PAGE = 15;
+    
     // Prepare initial filters from URL
     const initialFilters = useMemo(() => ({
         type: searchParams.get('type') || 'all',
@@ -64,8 +37,46 @@ const AdminPartnersPage: React.FC = () => {
         plan: searchParams.get('plan') || 'all',
     }), [searchParams]);
 
+    const [activeFilters, setActiveFilters] = useState(initialFilters);
+    const [serverSearch, setServerSearch] = useState('');
+
+    // Fetch Paginated Data
+    const { data: queryData, isLoading, isError, refetch } = useQuery({ 
+        queryKey: ['paginatedPartners', page, activeFilters, serverSearch], 
+        queryFn: () => getPaginatedPartners(page, ITEMS_PER_PAGE, {
+            ...activeFilters,
+            query: serverSearch
+        }),
+        placeholderData: keepPreviousData // Keep old data while fetching new page
+    });
+
+    useQuery({ queryKey: ['plans'], queryFn: getPlans }); 
+
+    const partners = queryData?.partners || [];
+    const totalItems = queryData?.total || 0;
+
+    const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
+    const [actionToConfirm, setActionToConfirm] = useState<'activate' | 'deactivate' | 'delete' | null>(null);
+    const highlightedId = searchParams.get('highlight');
+
+    const statusMutation = useMutation({
+        mutationFn: ({ id, status }: { id: string, status: PartnerStatus }) => updatePartnerStatus(id, status),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] })
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deletePartner(id),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] })
+    });
+
+    const handleStatusToggle = (id: string, currentStatus: PartnerStatus) => {
+        const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+        statusMutation.mutate({ id, status: newStatus });
+    };
+
+    // Use Admin Table Hook in Manual Mode
     const {
-        paginatedItems: paginatedPartners,
+        paginatedItems,
         totalPages,
         currentPage,
         setCurrentPage,
@@ -74,15 +85,20 @@ const AdminPartnersPage: React.FC = () => {
         filters,
         setFilter,
     } = useAdminTable({
-        data: partners, // Pass the filtered list here
-        itemsPerPage: 15,
-        initialSort: { key: 'name', direction: 'ascending' },
-        initialFilters,
-        searchFn: (p: AdminPartner, term: string) => p.name.toLowerCase().includes(term) || (p.nameAr && p.nameAr.toLowerCase().includes(term)) || p.email.toLowerCase().includes(term),
-        filterFns: {
-            type: (p: AdminPartner, v) => p.type === v,
-            status: (p: AdminPartner, v) => p.status === v,
-            plan: (p: AdminPartner, v) => p.subscriptionPlan === v
+        data: partners,
+        itemsPerPage: ITEMS_PER_PAGE,
+        initialSort: { key: 'createdAt', direction: 'descending' },
+        initialFilters: activeFilters,
+        manualPagination: true, // Enable Server Side Mode
+        totalItems: totalItems,
+        onPageChange: (newPage) => setPage(newPage),
+        onSearchChange: (term) => {
+             setServerSearch(term); 
+             setPage(1); // Reset to page 1 on search
+        },
+        onFilterChange: (newFilters) => {
+             setActiveFilters(newFilters);
+             setPage(1); // Reset to page 1 on filter
         }
     });
     
@@ -94,7 +110,7 @@ const AdminPartnersPage: React.FC = () => {
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            setSelectedPartners(paginatedPartners.map(p => p.id));
+            setSelectedPartners(paginatedItems.map(p => p.id));
         } else {
             setSelectedPartners([]);
         }
@@ -102,7 +118,6 @@ const AdminPartnersPage: React.FC = () => {
 
     const handleBulkAction = async () => {
         if (!actionToConfirm) return;
-
         const promises = selectedPartners.map(id => {
             switch (actionToConfirm) {
                 case 'activate': return updatePartnerStatus(id, 'active');
@@ -112,10 +127,9 @@ const AdminPartnersPage: React.FC = () => {
             }
         });
         await Promise.all(promises);
-        
         setSelectedPartners([]);
         setActionToConfirm(null);
-        queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+        queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] });
     };
     
     const updateUrlFilter = (key: string, value: string) => {
@@ -260,7 +274,7 @@ const AdminPartnersPage: React.FC = () => {
                     onClose={() => setActionToConfirm(null)}
                     onConfirm={handleBulkAction}
                     title={`${actionToConfirm.charAt(0).toUpperCase() + actionToConfirm.slice(1)} Partners`}
-                    message={`Are you sure you want to ${actionToConfirm} ${selectedPartners.length} selected partner(s)? This action cannot be undone.`}
+                    message={`Are you sure you want to ${actionToConfirm} ${selectedPartners.length} selected partner(s)?`}
                     confirmText={t_admin.bulkActions[actionToConfirm as 'activate' | 'deactivate' | 'delete']}
                 />
             )}
@@ -308,7 +322,7 @@ const AdminPartnersPage: React.FC = () => {
             
             {isLoading ? loadingSkeletons : (
                 <ResponsiveList 
-                    items={paginatedPartners}
+                    items={paginatedItems}
                     renderTable={renderTable}
                     renderCard={renderCard}
                     emptyState={emptyState}

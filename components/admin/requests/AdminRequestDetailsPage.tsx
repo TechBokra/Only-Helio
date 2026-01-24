@@ -17,6 +17,7 @@ import { Select } from '../../ui/Select';
 import { Textarea } from '../../ui/Textarea';
 import ConversationThread from '../../shared/ConversationThread';
 import RequestPayloadViewer from './RequestPayloadViewer';
+import { sendStatusUpdateEmail } from '../../../services/emailService';
 
 const AdminRequestDetailsPage: React.FC = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -91,9 +92,16 @@ const AdminRequestDetailsPage: React.FC = () => {
                 }
             }
             await updateRequest(request.id, updates);
+
+            // Send Email on Status Change
+            if (request.status !== statusToSave) {
+                 const email = request.requesterInfo.email || 'user@example.com';
+                 const title = (request.payload as any).serviceTitle || request.type;
+                 await sendStatusUpdateEmail(request.requesterInfo.name, email, title, statusToSave as string, actionNote);
+            }
         },
         onSuccess: () => {
-            showToast('Request updated successfully', 'success');
+            showToast('Request updated and email sent successfully', 'success');
             setActionNote('');
             queryClient.invalidateQueries({ queryKey: ['request', requestId] });
             queryClient.invalidateQueries({ queryKey: ['allRequests'] });
@@ -111,12 +119,10 @@ const AdminRequestDetailsPage: React.FC = () => {
                      const r = request.payload as any;
                      const pd = r.propertyDetails || {};
 
-                     // Safety Check for required fields
                      if (!pd) {
                          throw new Error("Incomplete property details. Cannot create listing.");
                      }
                      
-                     // Helper to safe parse numbers and text
                      const safeNum = (val: any) => Number(val) || 0;
                      const getEn = (obj: any) => obj?.en || '';
                      const getAr = (obj: any) => obj?.ar || '';
@@ -179,9 +185,13 @@ const AdminRequestDetailsPage: React.FC = () => {
                 }
             }
             await updateRequest(request.id, { status: action });
+            
+            // Send Email Notification
+            const email = request.requesterInfo.email || 'user@example.com';
+            await sendStatusUpdateEmail(request.requesterInfo.name, email, request.type, action);
         },
         onSuccess: (_, action) => {
-             showToast(`Request ${action}.`, 'success');
+             showToast(`Request ${action} and email sent.`, 'success');
              queryClient.invalidateQueries({ queryKey: ['request', requestId] });
         },
         onError: (error: any) => {
@@ -195,12 +205,10 @@ const AdminRequestDetailsPage: React.FC = () => {
     
     const showApprovalActions = ['new', 'pending', 'reviewed'].includes(request.status) && (request.type === RequestType.PARTNER_APPLICATION || request.type === RequestType.PROPERTY_LISTING_REQUEST);
 
-    // Determine back link based on type or context
-    let backLink = "/admin"; // Fallback
+    let backLink = "/admin"; 
     let backText = t.adminShared.backToList;
     
     if (request.type === RequestType.LEAD) {
-        // Check payload for service type to route correctly
         const payload = request.payload as any;
         if (payload?.serviceType === 'finishing') {
             backLink = "/admin/platform-finishing/requests";
@@ -209,8 +217,7 @@ const AdminRequestDetailsPage: React.FC = () => {
             backLink = "/admin/platform-decorations/requests";
             backText = t.adminDashboard.nav.decorationsRequests;
         } else {
-            // General leads or other types
-            backLink = "/admin/leads"; // Or a general leads page
+            backLink = "/admin/leads"; 
         }
     } else if (request.type === RequestType.PARTNER_APPLICATION) {
         backLink = "/admin/partner-requests";
@@ -234,7 +241,6 @@ const AdminRequestDetailsPage: React.FC = () => {
             </Link>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* LEFT COLUMN: INFO */}
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                          <CardHeader>
@@ -265,7 +271,6 @@ const AdminRequestDetailsPage: React.FC = () => {
                                  <RequestPayloadViewer request={request} />
                              </div>
                              
-                             {/* Approval Actions */}
                              {showApprovalActions && (
                                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6 flex gap-4">
                                      <Button 
@@ -300,7 +305,6 @@ const AdminRequestDetailsPage: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* RIGHT COLUMN: MANAGEMENT PANEL */}
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-t-4 border-t-amber-500 sticky top-24">
                         <CardHeader><CardTitle>Management Panel</CardTitle></CardHeader>

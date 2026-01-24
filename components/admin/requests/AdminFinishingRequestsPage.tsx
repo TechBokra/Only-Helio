@@ -1,16 +1,13 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { Language, Lead, LeadStatus } from '../../../types';
-import { useAuth } from '../../auth/AuthContext';
-import { ChevronRightIcon } from '../../ui/Icons';
+import type { Lead, LeadStatus } from '../../../types';
+// FIX: Import keepPreviousData
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { updateLead, deleteLead as apiDeleteLead, getPaginatedLeads } from '../../../services/leads';
 import { inputClasses } from '../../ui/FormField';
 import ExportDropdown from '../../shared/ExportDropdown';
-import { updateLead, deleteLead as apiDeleteLead, getAllLeads } from '../../../services/leads';
-import { useQuery } from '@tanstack/react-query';
-import { getAllPartnersForAdmin } from '../../../services/partners';
 import Pagination from '../../shared/Pagination';
-// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import ConversationThread from '../../shared/ConversationThread';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -18,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
 import { Button } from '../../ui/Button';
-import { Select } from '../../ui/Select';
+import { ChevronRightIcon } from '../../ui/Icons';
+import { useToast } from '../../shared/ToastContext';
 
 const statusColors: { [key in LeadStatus]: string } = {
     new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -36,41 +34,63 @@ const AdminFinishingRequestsPage: React.FC = () => {
     const { language, t: i18n } = useLanguage();
     const t = i18n.adminDashboard;
     const t_dash = i18n.dashboard;
+    const { showToast } = useToast();
     
-    const { data: allLeads, isLoading: isLoadingLeads, refetch: refetchLeads } = useQuery({ queryKey: ['allLeadsAdmin'], queryFn: getAllLeads });
-    const { data: partners, isLoading: isLoadingPartners, refetch: refetchPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
-    const isLoading = isLoadingLeads || isLoadingPartners;
-    const refetchAll = useCallback(() => {
-        refetchLeads();
-        refetchPartners();
-    }, [refetchLeads, refetchPartners]);
+    // -- Server Side State --
+    const [page, setPage] = useState(1);
+    const [serverSearch, setServerSearch] = useState('');
+    const [filtersState, setFiltersState] = useState<{status?: string}>({});
 
-    const finishingLeads = useMemo(() => (allLeads || []).filter(l => l.serviceType === 'finishing'), [allLeads]);
-    
+    // Fetch Paginated Leads (Finishing only)
+    const { 
+        data: queryData, 
+        isLoading, 
+        refetch 
+    } = useQuery({ 
+        queryKey: ['paginatedLeads', 'finishing', page, serverSearch, filtersState], 
+        queryFn: () => getPaginatedLeads(page, ITEMS_PER_PAGE, {
+            serviceType: 'finishing',
+            query: serverSearch,
+            status: filtersState.status
+        }),
+        placeholderData: keepPreviousData
+    });
+
+    const leads = queryData?.leads || [];
+    const totalItems = queryData?.total || 0;
+
     const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
 
     const {
-        paginatedItems: paginatedLeads,
+        paginatedItems, // In manual mode, this is just 'leads'
         totalPages,
         currentPage, setCurrentPage,
         searchTerm, setSearchTerm,
         filters, setFilter,
     } = useAdminTable({
-        data: finishingLeads,
+        data: leads,
         itemsPerPage: ITEMS_PER_PAGE,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        searchFn: (lead: Lead, term: string) => 
-            lead.customerName.toLowerCase().includes(term) ||
-            (lead.partnerName?.toLowerCase().includes(term) || false),
-        filterFns: {
-            startDate: (l: Lead, v: string) => new Date(l.createdAt) >= new Date(v),
-            endDate: (l: Lead, v: string) => new Date(l.createdAt) <= new Date(v),
+        manualPagination: true,
+        totalItems: totalItems,
+        onPageChange: setPage,
+        onSearchChange: (term) => {
+            setServerSearch(term);
+            setPage(1);
+        },
+        onFilterChange: (newFilters) => {
+            // Map table filters to API filters
+            // Note: date range filtering usually needs backend support or advanced query parsing
+            // For now, we connect status. Date range would require service update.
+            setFiltersState({ status: newFilters.status !== 'all' ? newFilters.status : undefined });
+            setPage(1);
         }
     });
 
     const handleStatusChange = async (leadId: string, status: LeadStatus) => {
         await updateLead(leadId, { status });
-        refetchAll();
+        refetch();
+        showToast('Status updated', 'success');
     };
     
     const toggleExpand = (leadId: string) => {
@@ -80,15 +100,16 @@ const AdminFinishingRequestsPage: React.FC = () => {
     const handleDelete = async (leadId: string) => {
         if (window.confirm(t_dash.leadTable.confirmDelete)) {
             await apiDeleteLead(leadId);
-            refetchAll();
+            showToast('Deleted successfully', 'success');
+            refetch();
         }
     };
     
-    const exportData = useMemo(() => paginatedLeads.map(lead => ({
+    const exportData = useMemo(() => leads.map(lead => ({
         ...lead,
         status: t_dash.leadStatus[lead.status] || lead.status,
         createdAt: new Date(lead.createdAt).toLocaleDateString(language)
-    })), [paginatedLeads, t_dash.leadStatus, language]);
+    })), [leads, t_dash.leadStatus, language]);
 
     const exportColumns = {
         customerName: t_dash.leadTable.customer,
@@ -145,7 +166,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
                                     <TableRow className="bg-gray-50 dark:bg-gray-800/50">
                                         <TableCell colSpan={6} className="p-0">
                                             <div className="p-4 animate-fadeIn">
-                                                <ConversationThread lead={lead} onMessageSent={refetchAll} requestId={lead.id} />
+                                                <ConversationThread lead={lead} onMessageSent={refetch} requestId={lead.id} />
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -208,22 +229,14 @@ const AdminFinishingRequestsPage: React.FC = () => {
 
              <div className="my-8 p-6 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-1">
-                        <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
-                    </div>
                     <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.filter.leadDateRange}</label>
-                        <div className="flex items-center gap-2">
-                            <input type="date" value={filters.startDate || ''} onChange={e => setFilter('startDate', e.target.value)} className={inputClasses} />
-                            <span className="text-gray-400 dark:text-gray-500">-</span>
-                            <input type="date" value={filters.endDate || ''} onChange={e => setFilter('endDate', e.target.value)} className={inputClasses} />
-                        </div>
+                        <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
                     </div>
                 </div>
             </div>
             
             <ResponsiveList
-                items={paginatedLeads}
+                items={paginatedItems}
                 renderTable={renderTable}
                 renderCard={renderCard}
                 emptyState={<div className="text-center p-8 text-gray-500">{t_dash.leadTable.noLeads}</div>}

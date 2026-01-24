@@ -1,8 +1,9 @@
 
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getAllLeads, deleteLead as apiDeleteLead } from '../../../services/leads';
+// FIX: KeepPreviousData import
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { deleteLead as apiDeleteLead, getPaginatedLeads } from '../../../services/leads';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Lead, LeadStatus } from '../../../types';
@@ -32,14 +33,25 @@ const AdminDecorationRequestsPage: React.FC = () => {
     const t_dash = i18n.dashboard;
     const { showToast } = useToast();
 
-    const { data: allLeads, isLoading, refetch } = useQuery({ 
-        queryKey: ['allLeads'], 
-        queryFn: getAllLeads 
+    // -- Server Side State --
+    const [page, setPage] = useState(1);
+    const [serverSearch, setServerSearch] = useState('');
+
+    const { 
+        data: queryData, 
+        isLoading, 
+        refetch 
+    } = useQuery({ 
+        queryKey: ['paginatedLeads', 'decorations', page, serverSearch], 
+        queryFn: () => getPaginatedLeads(page, ITEMS_PER_PAGE, {
+            serviceType: 'decorations',
+            query: serverSearch
+        }),
+        placeholderData: keepPreviousData
     });
 
-    const decorationLeads = useMemo(() => {
-        return (allLeads || []).filter(l => l.serviceType === 'decorations');
-    }, [allLeads]);
+    const leads = queryData?.leads || [];
+    const totalItems = queryData?.total || 0;
 
     const { 
         paginatedItems, 
@@ -48,17 +60,17 @@ const AdminDecorationRequestsPage: React.FC = () => {
         setCurrentPage,
         searchTerm,
         setSearchTerm,
-        filters,
-        setFilter
     } = useAdminTable({
-        data: decorationLeads,
+        data: leads,
         itemsPerPage: ITEMS_PER_PAGE,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        searchFn: (item: Lead, term) => item.customerName.toLowerCase().includes(term),
-        filterFns: {
-             startDate: (l: Lead, v: string) => new Date(l.createdAt) >= new Date(v),
-             endDate: (l: Lead, v: string) => new Date(l.createdAt) <= new Date(v),
-        },
+        manualPagination: true,
+        totalItems: totalItems,
+        onPageChange: setPage,
+        onSearchChange: (term) => {
+            setServerSearch(term);
+            setPage(1);
+        }
     });
 
     const handleDelete = async (id: string) => {
@@ -151,14 +163,6 @@ const AdminDecorationRequestsPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
                         <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
-                    </div>
-                    <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.filter.leadDateRange}</label>
-                        <div className="flex items-center gap-2">
-                            <input type="date" value={filters.startDate || ''} onChange={e => setFilter('startDate', e.target.value)} className={inputClasses} />
-                            <span className="text-gray-400 dark:text-gray-500">-</span>
-                            <input type="date" value={filters.endDate || ''} onChange={e => setFilter('endDate', e.target.value)} className={inputClasses} />
-                        </div>
                     </div>
                 </div>
             </div>

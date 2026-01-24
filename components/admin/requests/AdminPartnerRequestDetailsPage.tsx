@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from '../../ui/Icons';
 import DetailItem from '../../shared/DetailItem';
 import { useLanguage } from '../../shared/LanguageContext';
 import { useToast } from '../../shared/ToastContext';
+import { sendStatusUpdateEmail } from '../../../services/emailService';
 
 const AdminPartnerRequestDetailsPage: React.FC = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -29,14 +30,23 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
                 await addPartner(req, 'pending_setup');
             }
             await updatePartnerRequestStatus(req.id, status);
+            
+            // Send Email Notification
+            await sendStatusUpdateEmail(
+                req.contactName, 
+                req.contactEmail, 
+                "Partner Application", 
+                status
+            );
         },
         onSuccess: (_, variables) => {
+            showToast('Email notification sent to applicant.', 'success');
+
             if (variables.status === 'approved') {
                 showToast(language === 'ar' ? 'تمت الموافقة. الشريك الآن في حالة "تحت التجهيز".' : 'Approved. Partner created as "Pending Setup".', 'success');
                 navigate('/admin/partners/list?status=pending_setup'); 
             } else {
                 showToast(language === 'ar' ? 'تم رفض الطلب.' : 'Request rejected.', 'success');
-                // Correct redirect to nested route
                 navigate('/admin/partners/requests');
             }
             queryClient.invalidateQueries({ queryKey: ['partnerRequests'] });

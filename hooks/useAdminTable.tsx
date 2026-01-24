@@ -13,10 +13,12 @@ export type SortConfig<T> = {
 // Generic helper for safe nested property access
 function getNestedValue<T>(obj: T, path: string): unknown {
     if (!path) return obj;
-    return path.split('.').reduce((o, i) => {
-        if (o === null || o === undefined) return undefined;
-        // Cast to Record to access by string key
-        return (o as Record<string, unknown>)[i];
+    // Safe traversal without 'any'
+    return path.split('.').reduce((o: unknown, i: string) => {
+        if (o && typeof o === 'object' && i in (o as object)) {
+            return (o as Record<string, unknown>)[i];
+        }
+        return undefined;
     }, obj);
 }
 
@@ -27,48 +29,72 @@ export function useAdminTable<T>({
     initialFilters = {},
     searchFn,
     filterFns,
+    manualPagination = false,
+    totalItems = 0,
+    onPageChange,
+    onSearchChange,
+    onFilterChange,
+    onSortChange
 }: {
     data: T[] | undefined;
     itemsPerPage?: number;
     initialSort: SortConfig<T>;
     initialFilters?: Record<string, string>;
-    searchFn: (item: T, searchTerm: string) => boolean;
-    filterFns: Record<string, (item: T, value: string) => boolean>;
+    searchFn?: (item: T, searchTerm: string) => boolean;
+    filterFns?: Record<string, (item: T, value: string) => boolean>;
+    // New props for Server-Side Pagination
+    manualPagination?: boolean;
+    totalItems?: number;
+    onPageChange?: (page: number) => void;
+    onSearchChange?: (term: string) => void;
+    onFilterChange?: (filters: Record<string, string>) => void;
+    onSortChange?: (sort: SortConfig<T>) => void;
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(initialSort);
     const [searchTerm, setSearchTerm] = useState('');
-    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
     const [filters, setFilters] = useState<Record<string, string>>(initialFilters);
 
-    // Sync initial filters if they change externally
+    // Sync external changes
     useEffect(() => {
-        if (Object.keys(initialFilters).length > 0) {
-            setFilters(prev => ({ ...prev, ...initialFilters }));
-        }
-    }, [initialFilters]);
+        if (onPageChange) onPageChange(currentPage);
+    }, [currentPage, onPageChange]);
 
+    useEffect(() => {
+        if (onSearchChange) onSearchChange(debouncedSearchTerm);
+        if (!manualPagination) setCurrentPage(1); // Reset page on search in client mode
+    }, [debouncedSearchTerm, onSearchChange, manualPagination]);
+
+    // Handle filter changes
     const setFilter = useCallback((key: string, value: string) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
-        setCurrentPage(1); 
-    }, []);
+        const newFilters = { ...filters, [key]: value };
+        setFilters(newFilters);
+        setCurrentPage(1);
+        if (onFilterChange) onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
 
+    // Client-side Processing (Only if manualPagination is false)
     const processedData = useMemo(() => {
+        if (manualPagination) return data; // In manual mode, data is already processed by server
+
         if (!data) return [];
         let items = [...data];
 
         // 1. Search
-        if (debouncedSearchTerm.trim()) {
+        if (searchFn && debouncedSearchTerm.trim()) {
             const lowercasedTerm = debouncedSearchTerm.trim().toLowerCase();
             items = items.filter((item) => searchFn(item, lowercasedTerm));
         }
 
         // 2. Filter
-        for (const key in filters) {
-            if (Object.prototype.hasOwnProperty.call(filters, key)) {
-                const value = filters[key];
-                if (value && value !== 'all' && filterFns[key]) {
-                    items = items.filter((item) => filterFns[key](item, value));
+        if (filterFns) {
+            for (const key in filters) {
+                if (Object.prototype.hasOwnProperty.call(filters, key)) {
+                    const value = filters[key];
+                    if (value && value !== 'all' && filterFns[key]) {
+                        items = items.filter((item) => filterFns[key](item, value));
+                    }
                 }
             }
         }
@@ -76,71 +102,66 @@ export function useAdminTable<T>({
         // 3. Sort
         if (sortConfig) {
             items.sort((a, b) => {
-                const aVal = getNestedValue(a, sortConfig.key as string);
-                const bVal = getNestedValue(b, sortConfig.key as string);
+                const aValue = getNestedValue(a, sortConfig.key as string);
+                const bValue = getNestedValue(b, sortConfig.key as string);
                 const dir = sortConfig.direction === 'ascending' ? 1 : -1;
 
-                // Handle Null/Undefined
-                if (aVal === bVal) return 0;
-                if (aVal === null || aVal === undefined) return 1;
-                if (bVal === null || bVal === undefined) return -1;
+                if (aValue === bValue) return 0;
+                if (aValue === null || aValue === undefined) return 1;
+                if (bValue === null || bValue === undefined) return -1;
 
-                // Numeric Sort
-                if (typeof aVal === 'number' && typeof bVal === 'number') {
-                    return (aVal - bVal) * dir;
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return (aValue - bValue) * dir;
                 }
-                
-                // Boolean Sort
-                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
-                    return (aVal === bVal ? 0 : aVal ? -1 : 1) * dir;
+                if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+                    return (aValue === bValue ? 0 : aValue ? -1 : 1) * dir;
                 }
 
-                // String Sort
-                return String(aVal).localeCompare(String(bVal)) * dir;
+                const stringA = String(aValue).toLowerCase();
+                const stringB = String(bValue).toLowerCase();
+                return stringA.localeCompare(stringB) * dir;
             });
         }
         return items;
-    }, [data, debouncedSearchTerm, filters, sortConfig, searchFn, filterFns]);
+    }, [data, debouncedSearchTerm, filters, sortConfig, searchFn, filterFns, manualPagination]);
 
-    // Reset page if data length changes significantly (e.g. search filter applied)
-    useEffect(() => {
-        const newTotalPages = Math.ceil(processedData.length / itemsPerPage);
-        if (currentPage > newTotalPages) {
-            setCurrentPage(Math.max(1, newTotalPages));
-        }
-    }, [processedData.length, itemsPerPage, currentPage]);
+    // Calculate Pages
+    const effectiveTotalItems = manualPagination ? totalItems : processedData.length;
+    const totalPages = Math.ceil(effectiveTotalItems / itemsPerPage);
 
-    const totalPages = Math.ceil(processedData.length / itemsPerPage);
+    // Slice Data (Only if manualPagination is false)
     const paginatedItems = useMemo(() => {
+        if (manualPagination) return data || [];
         const start = (currentPage - 1) * itemsPerPage;
         return processedData.slice(start, start + itemsPerPage);
-    }, [processedData, currentPage, itemsPerPage]);
+    }, [processedData, currentPage, itemsPerPage, manualPagination, data]);
 
     const requestSort = useCallback(
         (key: string) => {
-            setSortConfig(current => {
-                if (current?.key === key && current.direction === 'ascending') {
-                    return { key, direction: 'descending' };
-                }
-                return { key, direction: 'ascending' };
-            });
+            let direction: SortDirection = 'ascending';
+            if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+                direction = 'descending';
+            }
+            const newSort = { key, direction };
+            setSortConfig(newSort);
+            if (onSortChange) onSortChange(newSort);
         },
-        []
+        [sortConfig, onSortChange],
     );
 
     const getSortIcon = useCallback(
         (key: string) => {
-            if (sortConfig?.key !== key) {
+            if (!sortConfig || sortConfig.key !== key) {
                 return (
-                    <span className="w-4 h-4 ml-1 inline-block opacity-0 group-hover:opacity-50 transition-opacity">
+                    <span className="w-4 h-4 ml-1 inline-block opacity-0 group-hover:opacity-50 transition-opacity" aria-hidden="true">
                         <ArrowUpIcon />
                     </span>
                 );
             }
             return sortConfig.direction === 'ascending' ? (
-                <ArrowUpIcon className="w-4 h-4 ml-1 inline-block text-amber-500" />
+                <ArrowUpIcon className="w-4 h-4 ml-1 inline-block text-amber-500" aria-label="Sorted Ascending" />
             ) : (
-                <ArrowDownIcon className="w-4 h-4 ml-1 inline-block text-amber-500" />
+                <ArrowDownIcon className="w-4 h-4 ml-1 inline-block text-amber-500" aria-label="Sorted Descending" />
             );
         },
         [sortConfig]

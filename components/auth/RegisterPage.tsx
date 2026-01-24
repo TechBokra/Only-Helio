@@ -19,6 +19,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { commonSchemas } from '../../utils/validation';
 import { fileToBase64 } from '../../utils/fileUtils';
+import { sendWelcomeEmail } from '../../services/emailService';
 
 // Validation Schema using centralized utils
 const registerSchema = z.object({
@@ -71,14 +72,19 @@ const RegisterPage: React.FC = () => {
     const [docFiles, setDocFiles] = useState<FileList | null>(null);
 
     // Initialize Hook Form with Zod Resolver
-    const { register, handleSubmit, formState: { errors, isValid }, trigger } = useForm<RegisterFormData>({
+    const { register, handleSubmit, formState: { errors, isValid }, trigger, getValues } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
         mode: 'onBlur'
     });
 
     const mutation = useMutation({
         mutationFn: (data: any) => addRequest(RequestType.PARTNER_APPLICATION, data),
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Send Email Simulation
+            const { contactName, contactEmail } = getValues();
+            await sendWelcomeEmail(contactName, contactEmail);
+            showToast("Welcome email sent!", "success");
+
             setFormSubmitted(true);
             window.scrollTo(0, 0);
         },

@@ -4,10 +4,31 @@ import type { Partner, PartnerStatus, PartnerRequest, AdminPartner, PartnerType,
 import { mapPartnerTypeToRole } from '../data/permissions';
 import { Role } from '../types';
 
+// Define the Database Shape for User
+interface UserRow {
+    id: string;
+    email: string;
+    name_en: string | null;
+    name_ar: string | null;
+    description_en: string | null;
+    description_ar: string | null;
+    type: string;
+    role: string;
+    status: string;
+    imageUrl: string | null;
+    subscriptionPlan: string | null;
+    subscriptionEndDate: string | null;
+    displayType: string | null;
+    contactMethods: any; // JSONB
+    createdAt: string;
+    // Optional password field might not be returned in select * depending on security, 
+    // but useful for typing if we deal with it manually.
+    password?: string; 
+}
+
 // Helper to map DB User to Partner (Database -> Frontend)
-// Now strictly uses DB columns, removing dependency on '../data/translations'
-const mapDbToPartner = (row: any): Partner => {
-    if (!row) return null as any; 
+const mapDbToPartner = (row: UserRow): Partner => {
+    if (!row) return null as unknown as Partner; 
 
     // 1. Handle Admin special case
     if (row.email === 'admin@onlyhelio.com' || row.email === 'tamer@onlyhelio.com') {
@@ -16,10 +37,10 @@ const mapDbToPartner = (row: any): Partner => {
     }
 
     // 2. Role Mapping
-    let mappedRole = row.role;
+    let mappedRole = row.role as Role;
     const dbType = row.type as PartnerType;
 
-    if (mappedRole === 'user' || !mappedRole) {
+    if (mappedRole === 'user' as any || !mappedRole) {
         if (dbType) {
             mappedRole = mapPartnerTypeToRole(dbType);
         } else {
@@ -27,7 +48,8 @@ const mapDbToPartner = (row: any): Partner => {
         }
     }
     
-    if (mappedRole === 'super_admin') mappedRole = Role.SUPER_ADMIN;
+    // Legacy fix
+    if (mappedRole === 'super_admin' as any) mappedRole = Role.SUPER_ADMIN;
 
     // 3. Contact Methods Parsing
     let contactMethods = row.contactMethods;
@@ -46,26 +68,26 @@ const mapDbToPartner = (row: any): Partner => {
         id: row.id,
         email: row.email || '',
         imageUrl: row.imageUrl || 'https://via.placeholder.com/150',
-        imageUrl_small: row.imageUrl,
-        imageUrl_medium: row.imageUrl,
-        imageUrl_large: row.imageUrl,
+        imageUrl_small: row.imageUrl || undefined,
+        imageUrl_medium: row.imageUrl || undefined,
+        imageUrl_large: row.imageUrl || undefined,
         
-        type: dbType || 'agency',
+        type: (dbType || 'agency') as PartnerType,
         role: mappedRole, 
-        status: row.status || 'active',
+        status: (row.status || 'active') as PartnerStatus,
         
-        subscriptionPlan: row.subscriptionPlan || 'basic',
-        displayType: row.displayType || 'standard',
+        subscriptionPlan: (row.subscriptionPlan || 'basic') as SubscriptionPlan,
+        displayType: (row.displayType || 'standard') as any,
         
         // Use localized names directly from DB
-        name: row.name_en || row.name || 'Unnamed User',
-        nameAr: row.name_ar || row.name || 'مستخدم',
+        name: row.name_en || 'Unnamed User',
+        nameAr: row.name_ar || 'مستخدم',
         
         description: row.description_en || '',
         descriptionAr: row.description_ar || '',
         
         contactMethods: contactMethods,
-        subscriptionEndDate: row.subscriptionEndDate,
+        subscriptionEndDate: row.subscriptionEndDate || undefined,
         createdAt: row.createdAt || new Date().toISOString()
     } as Partner;
 };
@@ -79,7 +101,7 @@ export const getAllPartners = async (): Promise<Partner[]> => {
         console.error('Supabase fetch failed (getAllPartners):', error);
         return [];
     }
-    return (data || []).map(mapDbToPartner);
+    return (data || []).map((row) => mapDbToPartner(row as UserRow));
 };
 
 export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
@@ -89,24 +111,90 @@ export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
         console.error('Supabase fetch failed (getAllPartnersForAdmin):', error);
         return [];
     }
-    return (data || []).map(row => mapDbToPartner(row) as AdminPartner);
+    return (data || []).map(row => mapDbToPartner(row as UserRow) as AdminPartner);
+};
+
+// NEW: Server-side Pagination for Admin
+export const getPaginatedPartners = async (
+    page: number, 
+    limit: number, 
+    filters?: { 
+        type?: string; 
+        status?: string; 
+        query?: string;
+        plan?: string;
+    }
+): Promise<{ partners: AdminPartner[]; total: number }> => {
+    let query = supabase.from('User').select('*', { count: 'exact' });
+
+    if (filters) {
+        if (filters.type && filters.type !== 'all') {
+            query = query.eq('type', filters.type);
+        }
+        if (filters.status && filters.status !== 'all') {
+            query = query.eq('status', filters.status);
+        }
+        if (filters.plan && filters.plan !== 'all') {
+            query = query.eq('subscriptionPlan', filters.plan);
+        }
+        if (filters.query) {
+            const q = filters.query;
+            query = query.or(`name_en.ilike.%${q}%,name_ar.ilike.%${q}%,email.ilike.%${q}%`);
+        }
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await query
+        .order('createdAt', { ascending: false })
+        .range(from, to);
+
+    if (error) {
+        console.error("Error fetching paginated partners:", error);
+        return { partners: [], total: 0 };
+    }
+
+    return {
+        partners: (data || []).map(row => mapDbToPartner(row as UserRow) as AdminPartner),
+        total: count || 0
+    };
 };
 
 export const getPartnerById = async (id: string): Promise<Partner | undefined> => {
     const { data, error } = await supabase.from('User').select('*').eq('id', id).single();
     if (error || !data) return undefined;
-    return mapDbToPartner(data);
+    return mapDbToPartner(data as UserRow);
 };
 
 export const getPartnerByEmail = async (email: string): Promise<Partner | undefined> => {
     const { data, error } = await supabase.from('User').select('*').eq('email', email).single();
     if (error || !data) return undefined;
-    return mapDbToPartner(data);
+    return mapDbToPartner(data as UserRow);
 };
 
 // --- WRITE OPERATIONS ---
 
-export const updatePartner = async (id: string, updates: any): Promise<boolean> => {
+interface PartnerUpdatePayload {
+    nameEn?: string;
+    nameAr?: string;
+    descriptionEn?: string;
+    descriptionAr?: string;
+    name?: string; // Fallback for nameEn
+    description?: string; // Fallback for descriptionEn
+    email?: string;
+    imageUrl?: string;
+    status?: PartnerStatus;
+    type?: PartnerType;
+    role?: Role;
+    subscriptionPlan?: SubscriptionPlan;
+    subscriptionEndDate?: string;
+    displayType?: any;
+    contactMethods?: any;
+    password?: string;
+}
+
+export const updatePartner = async (id: string, updates: PartnerUpdatePayload): Promise<boolean> => {
     const dbUpdates: any = {};
     
     // Explicitly map frontend keys to DB columns
@@ -174,7 +262,7 @@ export const addPartner = async (request: PartnerRequest, initialStatus: Partner
         throw new Error(error.message);
     }
     
-    return mapDbToPartner(data);
+    return mapDbToPartner(data as UserRow);
 };
 
 export const deletePartner = async (userId: string): Promise<boolean> => {
@@ -210,7 +298,7 @@ export const addInternalUser = async (userData: any): Promise<AdminPartner> => {
         throw new Error(error.message);
     }
     
-    return mapDbToPartner(data) as AdminPartner;
+    return mapDbToPartner(data as UserRow) as AdminPartner;
 };
 
 export const updateUser = updatePartner;

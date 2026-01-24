@@ -2,8 +2,25 @@
 import { supabase } from '../supabaseClient';
 import type { Project } from '../types';
 
+interface ProjectRow {
+    id: string;
+    partnerId: string;
+    name_en: string;
+    name_ar: string;
+    description_en: string;
+    description_ar: string;
+    imageUrl: string;
+    features: any; // JSONB
+    createdAt: string;
+    // Joined partner data
+    partner?: {
+        name_en: string | null;
+        name_ar: string | null;
+    };
+}
+
 // Helper to map DB row to Project type
-const mapDbToProject = (row: any): Project => ({
+const mapDbToProject = (row: ProjectRow): Project => ({
     id: row.id,
     partnerId: row.partnerId,
     name: { ar: row.name_ar, en: row.name_en },
@@ -28,14 +45,14 @@ export const getAllProjects = async (): Promise<Project[]> => {
 
     if (error) {
         console.error("Error fetching projects:", JSON.stringify(error, null, 2));
-        // Fallback
+        // Fallback for cases where constraint might be named differently or join fails
         if (error.code === 'PGRST200') {
              const { data: fallbackData } = await supabase.from('Project').select('*').order('createdAt', { ascending: false });
-             return (fallbackData || []).map(mapDbToProject);
+             return (fallbackData || []).map((row) => mapDbToProject(row as ProjectRow));
         }
         return [];
     }
-    return (data || []).map(mapDbToProject);
+    return (data || []).map((row) => mapDbToProject(row as ProjectRow));
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
@@ -46,7 +63,7 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
         .single();
 
     if (error) return undefined;
-    return mapDbToProject(data);
+    return mapDbToProject(data as ProjectRow);
 };
 
 export const getProjectsByPartnerId = async (partnerId: string): Promise<Project[]> => {
@@ -57,7 +74,7 @@ export const getProjectsByPartnerId = async (partnerId: string): Promise<Project
         .order('createdAt', { ascending: false });
 
     if (error) return [];
-    return (data || []).map(mapDbToProject);
+    return (data || []).map((row) => mapDbToProject(row as ProjectRow));
 };
 
 export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
@@ -78,7 +95,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
 
     const { data, error } = await supabase.from('Project').insert(dbPayload).select().single();
     if (error) throw error;
-    return mapDbToProject(data);
+    return mapDbToProject(data as ProjectRow);
 };
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
@@ -91,7 +108,7 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
 
     const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
     if (error) { console.error('Error updating project:', error); return undefined; }
-    return mapDbToProject(data);
+    return mapDbToProject(data as ProjectRow);
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
