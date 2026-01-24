@@ -13,7 +13,7 @@ export type SortConfig<T> = {
 // Generic helper for safe nested property access
 function getNestedValue<T>(obj: T, path: string): unknown {
     if (!path) return obj;
-    return path.split('.').reduce((o, i) => {
+    return path.split('.').reduce<unknown>((o, i) => {
         if (o === null || o === undefined) return undefined;
         // Cast to Record to access by string key
         return (o as Record<string, unknown>)[i];
