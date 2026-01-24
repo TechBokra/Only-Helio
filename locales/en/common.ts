@@ -117,5 +117,16 @@ export const common = {
         "canvas_painting": "Canvas Painting",
         "custom_furniture": "Custom Furniture",
         "antique_decor": "Antique / Decor"
-    }
+    },
+    "mortgageCalculator": {
+        "title": "Mortgage Calculator",
+        "propertyPrice": "Property Price",
+        "downPayment": "Down Payment",
+        "loanTerm": "Loan Term (Years)",
+        "interestRate": "Interest Rate (%)",
+        "monthlyPayment": "Est. Monthly Payment",
+        "totalPayment": "Total Payment",
+        "currency": "EGP"
+    },
+    "similarProperties": "Similar Properties You Might Like"
 };

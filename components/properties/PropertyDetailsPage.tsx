@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -8,11 +8,11 @@ import {
     WhatsAppIcon, PhoneIcon, LocationMarkerIcon, SwimmingPoolIcon, ParkIcon, ShieldCheckIcon, ElevatorIcon,
     ArrowLeftIcon, ArrowRightIcon
 } from '../ui/Icons';
-import type { Language } from '../../types';
+import type { Language, Property } from '../../types';
 import { useFavorites } from '../shared/FavoritesContext';
 import Lightbox from '../shared/Lightbox';
 import BannerDisplay from '../shared/BannerDisplay';
-import { getPropertyById } from '../../services/properties';
+import { getPropertyById, getAllProperties } from '../../services/properties';
 import DetailItem from '../shared/DetailItem';
 import ContactOptionsModal from '../shared/ContactOptionsModal';
 import { useToast } from '../shared/ToastContext';
@@ -25,6 +25,8 @@ import { isCommercial } from '../../utils/propertyUtils';
 import { Button } from '../ui/Button';
 import StackedImageGallery from './StackedImageGallery';
 import UnifiedMap from '../shared/UnifiedMap';
+import MortgageCalculator from './MortgageCalculator';
+import PropertyCard from './PropertyCard';
 
 const PropertyDetailsPage: React.FC = () => {
     const { propertyId } = useParams<{ propertyId: string }>();
@@ -37,6 +39,9 @@ const PropertyDetailsPage: React.FC = () => {
     const fetchProperty = useCallback(() => getPropertyById(propertyId!), [propertyId]);
     const { data: property, isLoading: isLoadingProp } = useQuery({ queryKey: [`property-${propertyId}`], queryFn: fetchProperty, enabled: !!propertyId });
     
+    // Fetch similar properties for the recommendation engine
+    const { data: allProperties } = useQuery({ queryKey: ['allProperties'], queryFn: getAllProperties });
+
     const { data: partner, isLoading: isLoadingPartner } = useQuery({
         queryKey: [`partner-${property?.partnerId}`],
         queryFn: () => getPartnerById(property!.partnerId),
@@ -95,6 +100,16 @@ const PropertyDetailsPage: React.FC = () => {
         setLightboxStartIndex(index);
         setLightboxOpen(true);
     };
+
+    // Calculate Similar Properties
+    const similarProperties = useMemo(() => {
+        if (!property || !allProperties) return [];
+        return allProperties.filter(p => 
+            p.id !== property.id && 
+            p.type.en === property.type.en &&
+            p.status.en === property.status.en
+        ).slice(0, 3);
+    }, [property, allProperties]);
 
     // Helper to get specific icon for amenities
     const getAmenityIcon = (key: string) => {
@@ -259,6 +274,18 @@ const PropertyDetailsPage: React.FC = () => {
                             </ul>
                         </DetailSection>
 
+                        {/* Similar Properties */}
+                        {similarProperties.length > 0 && (
+                            <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
+                                <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{t.similarProperties}</h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    {similarProperties.map(prop => (
+                                        <PropertyCard key={prop.id} {...prop} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <BannerDisplay location="details" />
 
                    </div>
@@ -293,6 +320,16 @@ const PropertyDetailsPage: React.FC = () => {
                              <DetailSection title={t_page.keyInfo}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <DetailItem label={t.propertiesPage.typeLabel} value={property.type[language]} icon={<BuildingIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>
+                                    
+                                    <DetailItem label={t_page.area} value={`${property.area} ${t.propertyCard.area}`} icon={<AreaIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2" />
+
+                                    {!isCommercial(property) && (
+                                        <>
+                                            <DetailItem label={t_page.bedrooms} value={property.beds} icon={<BedIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2" />
+                                            <DetailItem label={t_page.bathrooms} value={property.baths} icon={<BathIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2" />
+                                        </>
+                                    )}
+
                                     {property.finishingStatus && <DetailItem label={t.propertiesPage.finishing} value={property.finishingStatus[language]} icon={<WrenchScrewdriverIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
                                     {property.floor !== undefined && (property.type.en === 'Apartment' || property.type.en === 'Commercial') && <DetailItem label={t_page.floor} value={property.floor} icon={<FloorIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
                                     {property.isInCompound && <DetailItem label={t_page.inCompound} value={t_page.yes} icon={<CompoundIcon className="w-5 h-5 text-gray-400"/>} layout="grid" className="sm:col-span-2"/>}
@@ -316,6 +353,11 @@ const PropertyDetailsPage: React.FC = () => {
                                 )}
                                 {property.realEstateFinanceAvailable && property.status.en === 'For Sale' && <DetailItem label={t_page.realEstateFinanceAvailable} value={t_page.yes} icon={<BanknotesIcon className="w-5 h-5 text-gray-400"/>} />}
                              </DetailSection>
+                             
+                             {/* Mortgage Calculator */}
+                             {property.status.en === 'For Sale' && (
+                                 <MortgageCalculator propertyPrice={property.priceNumeric} />
+                             )}
 
                              {property.projectId && property.projectName && (
                                 <Link to={`/projects/${property.projectId}`} className="block group">

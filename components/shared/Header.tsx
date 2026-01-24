@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import type { Partner } from '../../types';
-import { LightBulbIcon, HeartIcon, MenuIcon } from '../ui/Icons';
+import { LightBulbIcon, HeartIcon, MenuIcon, PlusIcon, UserPlusIcon } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import { useLanguage } from './LanguageContext';
 import NotificationBell from './NotificationBell';
@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         { name: t.nav.projects, href: '/projects' },
         { name: t.nav.finishing, href: '/finishing' },
         { name: t.nav.decorations, href: '/decorations' },
-        { name: t.nav.contact, href: '/contact' },
+        // Contact removed to save space
     ];
 
     const activeLinkClass = 'text-amber-500 font-semibold';
@@ -47,7 +47,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                         <span className="text-2xl hidden sm:block">ONLY HELIO</span>
                     </Link>
 
-                    <nav className="hidden lg:flex items-center gap-8 text-lg">
+                    <nav className="hidden lg:flex items-center gap-6 text-base xl:text-lg">
                         {navLinks.map((link) => (
                             <NavLink
                                 key={link.name}
@@ -63,6 +63,29 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     </nav>
 
                     <div className="flex items-center gap-2 md:gap-4">
+                        {/* Call to Actions (Visible on Desktop) */}
+                        <div className="hidden lg:flex items-center gap-2">
+                            {/* Join as Partner (Business) */}
+                            {!currentUser && (
+                                <Link 
+                                    to="/register" 
+                                    className="flex items-center gap-2 text-amber-600 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-amber-50 transition-colors border border-amber-200"
+                                >
+                                    <UserPlusIcon className="w-4 h-4" />
+                                    {t.joinAsPartner}
+                                </Link>
+                            )}
+
+                            {/* List Property (Individual) */}
+                            <Link 
+                                to="/add-property" 
+                                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
+                            >
+                                <PlusIcon className="w-4 h-4" />
+                                {t.addProperty}
+                            </Link>
+                        </div>
+
                         {currentUser && (
                             <div className="flex items-center justify-center">
                                 <NotificationBell />
@@ -89,39 +112,34 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                         >
                             {language === 'en' ? 'ع' : 'En'}
                         </button>
-                        <div className="hidden lg:flex items-center gap-2 border-l border-gray-200 pl-4">
+                        
+                        {/* Auth Buttons / Profile */}
+                        <div className="hidden lg:flex items-center gap-2 border-s border-gray-200 ps-4">
                             {currentUser ? (
                                 <>
                                     <Link
                                         to={dashboardPath}
-                                        className="text-gray-700 font-semibold hover:text-amber-500 transition-colors"
+                                        className="text-gray-700 font-semibold hover:text-amber-500 transition-colors text-sm"
                                     >
                                         {dashboardText}
                                     </Link>
                                     <button
                                         onClick={logout}
-                                        className="text-gray-500 hover:text-red-500 transition-colors"
+                                        className="text-gray-500 hover:text-red-500 transition-colors text-sm"
                                     >
                                         {t.auth.logout}
                                     </button>
                                 </>
                             ) : (
-                                <>
-                                    <Link
-                                        to="/login"
-                                        className="text-gray-700 font-semibold hover:text-amber-500 transition-colors"
-                                    >
-                                        {t.auth.login}
-                                    </Link>
-                                    <Link
-                                        to="/register"
-                                        className="bg-amber-500 text-gray-900 font-semibold px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors"
-                                    >
-                                        {t.joinAsPartner}
-                                    </Link>
-                                </>
+                                <Link
+                                    to="/login"
+                                    className="text-gray-700 font-semibold hover:text-amber-500 transition-colors text-sm"
+                                >
+                                    {t.auth.login}
+                                </Link>
                             )}
                         </div>
+                        
                         <div className="lg:hidden">
                             <button
                                 onClick={onOpenMobileNav}

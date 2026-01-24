@@ -117,5 +117,16 @@ export const common = {
         "canvas_painting": "لوحة كانفس",
         "custom_furniture": "أثاث عمولة",
         "antique_decor": "تحف / ديكور"
-    }
+    },
+    "mortgageCalculator": {
+        "title": "حاسبة التمويل العقاري",
+        "propertyPrice": "سعر العقار",
+        "downPayment": "المقدم",
+        "loanTerm": "مدة القرض (سنوات)",
+        "interestRate": "الفائدة السنوية (%)",
+        "monthlyPayment": "القسط الشهري التقديري",
+        "totalPayment": "إجمالي المبلغ المستحق",
+        "currency": "ج.م"
+    },
+    "similarProperties": "عقارات مشابهة قد تعجبك"
 };

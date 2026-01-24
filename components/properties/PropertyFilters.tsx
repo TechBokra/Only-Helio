@@ -84,34 +84,34 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     return (
         <div className="space-y-6">
             <div className="text-center mb-8">
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">{t.title}</h1>
-                <p className="text-lg text-gray-500 dark:text-gray-400 mt-4 max-w-2xl mx-auto">{t.subtitle}</p>
+                <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white">{t.title}</h1>
+                <p className="text-base md:text-lg text-gray-500 dark:text-gray-400 mt-4 max-w-2xl mx-auto">{t.subtitle}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4 lg:p-6 transition-all duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
                     
-                    <div className="relative md:col-span-2 lg:col-span-1">
+                    <div className="relative w-full md:col-span-2 lg:col-span-1">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <Input 
                             type="text" 
                             value={queryFilter} 
                             onChange={e => setFilter('q', e.target.value)}
                             placeholder={t.searchPlaceholder}
-                            className="pl-10 h-12"
+                            className="pl-10 h-12 w-full"
                         />
                     </div>
 
-                    <div className="relative">
-                         <Select value={statusFilter} onChange={e => setFilter('status', e.target.value)} className="h-12">
+                    <div className="relative w-full">
+                         <Select value={statusFilter} onChange={e => setFilter('status', e.target.value)} className="h-12 w-full">
                             <option value="all">{t.allStatuses}</option>
                             <option value="For Sale">{t.forSale}</option>
                             <option value="For Rent">{t.forRent}</option>
                         </Select>
                     </div>
 
-                    <div className="relative">
-                        <Select value={typeFilter} onChange={e => setFilter('type', e.target.value)} className="h-12">
+                    <div className="relative w-full">
+                        <Select value={typeFilter} onChange={e => setFilter('type', e.target.value)} className="h-12 w-full">
                             <option value="all">{t.allTypes}</option>
                             {propertyTypes.map(type => (
                                 <option key={type.id} value={type.en}>{type[language]}</option>
@@ -119,7 +119,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         </Select>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full">
                         <Button 
                             variant="secondary" 
                             className={`flex-1 h-12 justify-between ${isAdvancedOpen ? 'bg-amber-100 text-amber-700 border-amber-300' : ''}`}
@@ -149,15 +149,15 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.priceRange}</label>
                                 <div className="flex gap-2">
-                                    <Input type="number" placeholder={t.minPricePlaceholder} value={minPriceFilter} onChange={e => setFilter('minPrice', e.target.value)} />
-                                    <Input type="number" placeholder={t.maxPricePlaceholder} value={maxPriceFilter} onChange={e => setFilter('maxPrice', e.target.value)} />
+                                    <Input type="number" placeholder={t.minPricePlaceholder} value={minPriceFilter} onChange={e => setFilter('minPrice', e.target.value)} className="w-full" />
+                                    <Input type="number" placeholder={t.maxPricePlaceholder} value={maxPriceFilter} onChange={e => setFilter('maxPrice', e.target.value)} className="w-full" />
                                 </div>
                             </div>
                             
                             {!isLand && (
                                  <div className="space-y-1">
                                     <label className="text-xs font-bold text-gray-500 uppercase">{t.finishing}</label>
-                                    <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0}>
+                                    <Select value={finishingFilter} onChange={e => setFilter('finishing', e.target.value)} disabled={availableFinishingStatuses.length === 0} className="w-full">
                                         <option value="all">{t.allFinishes}</option>
                                         {availableFinishingStatuses.map(status => <option key={status.id} value={status.en}>{status[language]}</option>)}
                                     </Select>
@@ -166,7 +166,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 
                              <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.project}</label>
-                                <Select value={projectFilter} onChange={e => setFilter('project', e.target.value)}>
+                                <Select value={projectFilter} onChange={e => setFilter('project', e.target.value)} className="w-full">
                                     <option value="all">{t.allProjects}</option>
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name[language]}</option>)}
                                 </Select>
@@ -175,7 +175,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                             {!isLand && (
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
-                                    <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)}>
+                                    <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)} className="w-full">
                                         <option value="all">{t.allCompound}</option>
                                         <option value="yes">{t.compoundYes}</option>
                                         <option value="no">{t.compoundNo}</option>
@@ -189,36 +189,36 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                  <>
                                      <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-500 uppercase">{t_card.beds}</label>
-                                        <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} placeholder="0+" />
+                                        <Input type="number" value={bedsFilter} onChange={e => setFilter('beds', e.target.value)} placeholder="0+" className="w-full" />
                                     </div>
                                      <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-500 uppercase">{t_card.baths}</label>
-                                        <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" />
+                                        <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" className="w-full" />
                                     </div>
                                      <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
-                                        <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" />
+                                        <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" className="w-full" />
                                     </div>
                                 </>
                              )}
-                             <div className="space-y-1">
+                             <div className="space-y-1 col-span-2 sm:col-span-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.delivery}</label>
-                                <Select value={deliveryFilter} onChange={e => setFilter('delivery', e.target.value)}>
+                                <Select value={deliveryFilter} onChange={e => setFilter('delivery', e.target.value)} className="w-full">
                                     <option value="all">{t.allDelivery}</option>
                                     <option value="immediate">{t.immediateDelivery}</option>
                                 </Select>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-1 col-span-2 sm:col-span-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.installments}</label>
-                                <Select value={installmentsFilter} onChange={e => setFilter('installments', e.target.value)}>
+                                <Select value={installmentsFilter} onChange={e => setFilter('installments', e.target.value)} className="w-full">
                                     <option value="all">{t.allInstallments}</option>
                                     <option value="yes">{t.installmentsYes}</option>
                                     <option value="no">{t.installmentsNo}</option>
                                 </Select>
                             </div>
-                             <div className="space-y-1">
+                             <div className="space-y-1 col-span-2 sm:col-span-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.realEstateFinance}</label>
-                                <Select value={realEstateFinanceFilter} onChange={e => setFilter('realEstateFinance', e.target.value)}>
+                                <Select value={realEstateFinanceFilter} onChange={e => setFilter('realEstateFinance', e.target.value)} className="w-full">
                                     <option value="all">{t.allRealEstateFinance}</option>
                                     <option value="yes">{t.realEstateFinanceYes}</option>
                                     <option value="no">{t.realEstateFinanceNo}</option>
@@ -237,7 +237,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                                 checked={amenitiesFilter.includes(amenity.en)}
                                                 onCheckedChange={() => handleAmenitiesChange(amenity.en)}
                                             />
-                                            <span className="text-sm select-none">{amenity[language]}</span>
+                                            <span className="text-sm select-none break-words">{amenity[language]}</span>
                                         </label>
                                     ))}
                                 </div>

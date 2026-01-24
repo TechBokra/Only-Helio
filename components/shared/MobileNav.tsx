@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { 
   LightBulbIcon, HeartIcon, HomeIcon, BuildingIcon, 
-  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon
+  CubeIcon, WrenchScrewdriverIcon, SparklesIcon, PhoneIcon, CloseIcon, CogIcon, PlusIcon, UserPlusIcon
 } from '../ui/Icons';
 import { SiteLogo } from './SiteLogo';
 import type { Partner } from '../../types';
@@ -21,7 +21,7 @@ interface MobileNavProps {
   hasPermission: (permission: Permission) => boolean;
 }
 
-const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; label: string; onClick: () => void; isEnd?: boolean; highlight?: boolean }> = ({ to, icon: Icon, label, onClick, isEnd = false, highlight }) => {
+const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; label: string; onClick: () => void; isEnd?: boolean; highlight?: boolean; className?: string }> = ({ to, icon: Icon, label, onClick, isEnd = false, highlight, className }) => {
     const baseClasses = "flex items-center w-full p-3 rounded-lg transition-colors duration-200 text-lg";
     const activeClasses = "bg-amber-100 text-amber-600 font-semibold";
     const inactiveClasses = "text-gray-600 hover:bg-gray-100";
@@ -32,7 +32,7 @@ const NavItem: React.FC<{ to: string; icon: React.FC<{className?: string}>; labe
                 to={to}
                 end={isEnd}
                 onClick={onClick}
-                className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses} ${highlight ? 'text-amber-600' : ''}`}
+                className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses} ${highlight ? 'text-amber-600' : ''} ${className || ''}`}
             >
                 <Icon className="w-6 h-6 flex-shrink-0"/>
                 <span className="mx-4">{label}</span>
@@ -83,7 +83,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
             <aside
                 id={id}
                 ref={navRef}
-                className={`fixed top-0 bottom-0 ${isRTL ? 'right-0' : 'left-0'} w-80 flex flex-col bg-white shadow-xl transition-transform duration-300 ease-in-out z-50 lg:hidden
+                className={`fixed top-0 bottom-0 ${isRTL ? 'right-0' : 'left-0'} w-[85vw] max-w-sm flex flex-col bg-white shadow-xl transition-transform duration-300 ease-in-out z-50 lg:hidden
                     ${isOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full' : '-translate-x-full')}`
                 }
                 role="dialog"
@@ -101,6 +101,28 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
                 </div>
                 
                 <div className="flex-grow overflow-y-auto p-4">
+                    {/* Primary Actions Grid */}
+                    <div className="grid grid-cols-1 gap-3 mb-6">
+                        <Link 
+                            to="/add-property" 
+                            onClick={onClose}
+                            className="flex items-center justify-center gap-2 bg-green-600 text-white p-3 rounded-lg font-bold shadow-sm"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            {t.addProperty}
+                        </Link>
+                        {!currentUser && (
+                            <Link 
+                                to="/register" 
+                                onClick={onClose}
+                                className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 p-3 rounded-lg font-bold"
+                            >
+                                <UserPlusIcon className="w-5 h-5" />
+                                {t.joinAsPartner}
+                            </Link>
+                        )}
+                    </div>
+
                     <ul className="space-y-1">
                         {navLinks.map(link => <NavItem key={link.href} to={link.href} icon={link.icon} label={link.name} onClick={onClose} isEnd={link.isEnd} highlight={link.highlight} />)}
                     </ul>
@@ -131,9 +153,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({ isOpen, onClose, ...pr
                         <div className="space-y-2">
                              <Link to="/login" onClick={onClose} className="w-full flex items-center justify-center p-3 rounded-lg bg-amber-500 text-gray-900 font-bold text-lg hover:bg-amber-600 transition-colors">
                                 {t.auth.login}
-                            </Link>
-                             <Link to="/register" onClick={onClose} className="w-full flex items-center justify-center p-3 rounded-lg bg-gray-200 text-gray-800 font-bold text-lg hover:bg-gray-300 transition-colors">
-                                {t.joinAsPartner}
                             </Link>
                         </div>
                     )}

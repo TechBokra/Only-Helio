@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface ResponsiveListProps<T> {
@@ -21,12 +22,12 @@ export function ResponsiveList<T>({
     return (
         <>
             {/* Mobile/Tablet View */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden w-full">
                 {items.map(renderCard)}
             </div>
             
             {/* Desktop View */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block w-full overflow-x-auto">
                 {renderTable(items)}
             </div>
         </>
