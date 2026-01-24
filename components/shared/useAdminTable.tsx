@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUpIcon, ArrowDownIcon } from '../ui/Icons';
-import { useDebounce } from './useDebounce';
+import { useDebounce } from '../../hooks/useDebounce';
 
 type SortDirection = 'ascending' | 'descending';
 
@@ -13,12 +13,10 @@ export type SortConfig<T> = {
 // Generic helper for safe nested property access
 function getNestedValue<T>(obj: T, path: string): unknown {
     if (!path) return obj;
-    // Safe traversal without 'any'
-    return path.split('.').reduce((o: unknown, i: string) => {
-        if (o && typeof o === 'object' && i in (o as object)) {
-            return (o as Record<string, unknown>)[i];
-        }
-        return undefined;
+    return path.split('.').reduce((o, i) => {
+        if (o === null || o === undefined) return undefined;
+        // Cast to Record to access by string key
+        return (o as Record<string, unknown>)[i];
     }, obj);
 }
 
@@ -43,6 +41,7 @@ export function useAdminTable<T>({
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [filters, setFilters] = useState<Record<string, string>>(initialFilters);
 
+    // Sync initial filters if they change externally
     useEffect(() => {
         if (Object.keys(initialFilters).length > 0) {
             setFilters(prev => ({ ...prev, ...initialFilters }));
@@ -77,44 +76,37 @@ export function useAdminTable<T>({
         // 3. Sort
         if (sortConfig) {
             items.sort((a, b) => {
-                const aValue = getNestedValue(a, sortConfig.key as string);
-                const bValue = getNestedValue(b, sortConfig.key as string);
+                const aVal = getNestedValue(a, sortConfig.key as string);
+                const bVal = getNestedValue(b, sortConfig.key as string);
                 const dir = sortConfig.direction === 'ascending' ? 1 : -1;
 
-                // Safe Type checking for sorting
-                if (aValue === bValue) return 0;
-                
-                // Handle nulls/undefined
-                if (aValue === null || aValue === undefined) return 1;
-                if (bValue === null || bValue === undefined) return -1;
+                // Handle Null/Undefined
+                if (aVal === bVal) return 0;
+                if (aVal === null || aVal === undefined) return 1;
+                if (bVal === null || bVal === undefined) return -1;
 
-                // Handle numbers
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return (aValue - bValue) * dir;
+                // Numeric Sort
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return (aVal - bVal) * dir;
                 }
                 
-                // Handle booleans
-                if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-                    return (aValue === bValue ? 0 : aValue ? -1 : 1) * dir;
+                // Boolean Sort
+                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                    return (aVal === bVal ? 0 : aVal ? -1 : 1) * dir;
                 }
 
-                // Default to string comparison
-                const stringA = String(aValue).toLowerCase();
-                const stringB = String(bValue).toLowerCase();
-
-                return stringA.localeCompare(stringB) * dir;
+                // String Sort
+                return String(aVal).localeCompare(String(bVal)) * dir;
             });
         }
         return items;
     }, [data, debouncedSearchTerm, filters, sortConfig, searchFn, filterFns]);
 
-    // Reset page if data length changes significantly
+    // Reset page if data length changes significantly (e.g. search filter applied)
     useEffect(() => {
         const newTotalPages = Math.ceil(processedData.length / itemsPerPage);
-        if (currentPage > newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages);
-        } else if (currentPage === 0 && newTotalPages > 0) {
-            setCurrentPage(1);
+        if (currentPage > newTotalPages) {
+            setCurrentPage(Math.max(1, newTotalPages));
         }
     }, [processedData.length, itemsPerPage, currentPage]);
 
@@ -126,28 +118,29 @@ export function useAdminTable<T>({
 
     const requestSort = useCallback(
         (key: string) => {
-            let direction: SortDirection = 'ascending';
-            if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-                direction = 'descending';
-            }
-            setSortConfig({ key, direction });
+            setSortConfig(current => {
+                if (current?.key === key && current.direction === 'ascending') {
+                    return { key, direction: 'descending' };
+                }
+                return { key, direction: 'ascending' };
+            });
         },
-        [sortConfig],
+        []
     );
 
     const getSortIcon = useCallback(
         (key: string) => {
-            if (!sortConfig || sortConfig.key !== key) {
+            if (sortConfig?.key !== key) {
                 return (
-                    <span className="w-4 h-4 ml-1 inline-block opacity-0 group-hover:opacity-50" aria-hidden="true">
+                    <span className="w-4 h-4 ml-1 inline-block opacity-0 group-hover:opacity-50 transition-opacity">
                         <ArrowUpIcon />
                     </span>
                 );
             }
             return sortConfig.direction === 'ascending' ? (
-                <ArrowUpIcon className="w-4 h-4 ml-1 inline-block text-amber-500" aria-label="Sorted Ascending" />
+                <ArrowUpIcon className="w-4 h-4 ml-1 inline-block text-amber-500" />
             ) : (
-                <ArrowDownIcon className="w-4 h-4 ml-1 inline-block text-amber-500" aria-label="Sorted Descending" />
+                <ArrowDownIcon className="w-4 h-4 ml-1 inline-block text-amber-500" />
             );
         },
         [sortConfig]
