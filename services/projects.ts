@@ -100,18 +100,35 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
 
 export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<Project | undefined> => {
     const dbUpdates: any = {};
-    if (updates.name) { dbUpdates.name_en = updates.name.en; dbUpdates.name_ar = updates.name.ar; }
-    if (updates.description) { dbUpdates.description_en = updates.description.en; dbUpdates.description_ar = updates.description.ar; }
+    
+    // Explicit Mapping for nested objects
+    if (updates.name) { 
+        dbUpdates.name_en = updates.name.en; 
+        dbUpdates.name_ar = updates.name.ar; 
+    }
+    if (updates.description) { 
+        dbUpdates.description_en = updates.description.en; 
+        dbUpdates.description_ar = updates.description.ar; 
+    }
+    
+    // Direct mapping for simple fields
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
-    // Pass array directly for JSONB
     if (updates.features) dbUpdates.features = updates.features;
 
     const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
-    if (error) { console.error('Error updating project:', error); return undefined; }
+    
+    if (error) { 
+        console.error('Error updating project:', error); 
+        throw error;
+    }
     return mapDbToProject(data as ProjectRow);
 };
 
 export const deleteProject = async (projectId: string): Promise<boolean> => {
     const { error } = await supabase.from('Project').delete().eq('id', projectId);
-    return !error;
+    if (error) {
+        console.error("Error deleting project:", error);
+        throw error;
+    }
+    return true;
 };

@@ -341,24 +341,99 @@ export const addProperty = async (property: Omit<Property, 'id' | 'partnerName' 
 };
 
 export const updateProperty = async (propertyId: string, updates: Partial<Property>): Promise<Property | undefined> => {
-    const dbUpdates: any = { ...updates };
+    // Create a new object for DB mapping
+    const dbUpdates: any = { 
+        // Direct mapping for flat fields if they exist in updates
+        listingStatus: updates.listingStatus,
+        listingStartDate: updates.listingStartDate,
+        listingEndDate: updates.listingEndDate,
+        imageUrl: updates.imageUrl,
+        gallery: updates.gallery,
+        price: updates.priceNumeric,
+        area: updates.area,
+        beds: updates.beds,
+        baths: updates.baths,
+        floor: updates.floor,
+        isInCompound: updates.isInCompound,
+        installmentsAvailable: updates.installmentsAvailable,
+        realEstateFinanceAvailable: updates.realEstateFinanceAvailable,
+        contactMethod: updates.contactMethod,
+        ownerPhone: updates.ownerPhone,
+        location: updates.location,
+        installments: updates.installments
+    };
     
-    // Map nested objects to DB columns
+    // Map Nested Objects to DB Columns explicitly
+    
     if (updates.title) {
         dbUpdates.title_en = updates.title.en;
         dbUpdates.title_ar = updates.title.ar;
-        delete dbUpdates.title;
-    }
-    if (updates.amenities) {
-        dbUpdates.amenities = updates.amenities.en;
     }
 
-    const { data, error } = await supabase.from('Property').update(dbUpdates).eq('id', propertyId).select().single();
-    if (error) return undefined;
+    if (updates.description) {
+        dbUpdates.description_en = updates.description.en;
+        dbUpdates.description_ar = updates.description.ar;
+    }
+
+    if (updates.address) {
+        dbUpdates.address_en = updates.address.en;
+        dbUpdates.address_ar = updates.address.ar;
+    }
+
+    if (updates.type) {
+        dbUpdates.type_en = updates.type.en;
+        dbUpdates.type_ar = updates.type.ar;
+    }
+
+    if (updates.status) {
+        dbUpdates.status = updates.status.en === 'For Rent' ? 'For Rent' : 'For Sale';
+    }
+
+    if (updates.finishingStatus) {
+        dbUpdates.finishingStatus_en = updates.finishingStatus.en;
+        dbUpdates.finishingStatus_ar = updates.finishingStatus.ar;
+    }
+    
+    if (updates.price) {
+        dbUpdates.price_en = updates.price.en;
+        dbUpdates.price_ar = updates.price.ar;
+    }
+
+    if (updates.delivery) {
+        dbUpdates.deliveryImmediate = updates.delivery.isImmediate;
+        dbUpdates.deliveryDate = updates.delivery.date;
+    }
+
+    if (updates.amenities) {
+        dbUpdates.amenities = updates.amenities.en; // We store the English keys in the JSONB array
+    }
+
+    // Remove undefined keys to avoid over-writing with nulls
+    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+
+    const { data, error } = await supabase
+        .from('Property')
+        .update(dbUpdates)
+        .eq('id', propertyId)
+        .select(`
+            *, 
+            partner:User!Property_partnerId_fkey(name_en, name_ar, imageUrl), 
+            project:Project!Property_projectId_fkey(name_en, name_ar)
+        `)
+        .single();
+
+    if (error) {
+        console.error("Error updating property:", error);
+        throw error; // Throw to let UI handle it
+    }
     return mapDbToProperty(data as PropertyRow);
 };
 
 export const deleteProperty = async (propertyId: string): Promise<boolean> => {
     const { error } = await supabase.from('Property').delete().eq('id', propertyId);
-    return !error;
+    if (error) {
+        console.error("Error deleting property:", error);
+        throw error;
+    }
+    return true;
 };
