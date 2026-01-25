@@ -201,6 +201,7 @@ export const updatePartner = async (id: string, updates: PartnerUpdatePayload): 
     if (updates.descriptionAr !== undefined) dbUpdates.description_ar = updates.descriptionAr;
     
     // Fallbacks if only 'name' or 'description' is passed (legacy behavior support)
+    // IMPORTANT: Check if nameEn/nameAr were explicitly provided first to avoid overwriting.
     if (updates.name !== undefined && updates.nameEn === undefined) dbUpdates.name_en = updates.name;
     if (updates.description !== undefined && updates.descriptionEn === undefined) dbUpdates.description_en = updates.description;
 
