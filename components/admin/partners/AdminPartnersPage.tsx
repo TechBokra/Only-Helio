@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-// FIX: Imported keepPreviousData for smooth pagination
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getPaginatedPartners, updatePartnerStatus, deletePartner } from '../../../services/partners';
 import { getPlans } from '../../../services/plans';
@@ -19,10 +18,12 @@ import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent } from '../../ui/Card';
 import TableSkeleton from '../../shared/TableSkeleton';
 import ErrorState from '../../shared/ErrorState';
+import { useToast } from '../../shared/ToastContext';
 
 const AdminPartnersPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard;
+    const { showToast } = useToast();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -37,7 +38,6 @@ const AdminPartnersPage: React.FC = () => {
         plan: searchParams.get('plan') || 'all',
     }), [searchParams]);
 
-    // FIX: Explicitly type state as Record<string, string> to match useAdminTable's generic constraint
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>(initialFilters);
     const [serverSearch, setServerSearch] = useState('');
 
@@ -48,7 +48,7 @@ const AdminPartnersPage: React.FC = () => {
             ...activeFilters,
             query: serverSearch
         }),
-        placeholderData: keepPreviousData // Keep old data while fetching new page
+        placeholderData: keepPreviousData
     });
 
     useQuery({ queryKey: ['plans'], queryFn: getPlans }); 
@@ -62,12 +62,22 @@ const AdminPartnersPage: React.FC = () => {
 
     const statusMutation = useMutation({
         mutationFn: ({ id, status }: { id: string, status: PartnerStatus }) => updatePartnerStatus(id, status),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] })
+        onSuccess: () => {
+            showToast('Status updated successfully', 'success');
+            queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] });
+            queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+        },
+        onError: () => showToast('Failed to update status', 'error')
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deletePartner(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] })
+        onSuccess: () => {
+            showToast('Partner deleted successfully', 'success');
+            queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] });
+            queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+        },
+        onError: () => showToast('Failed to delete partner', 'error')
     });
 
     const handleStatusToggle = (id: string, currentStatus: PartnerStatus) => {
@@ -90,16 +100,16 @@ const AdminPartnersPage: React.FC = () => {
         itemsPerPage: ITEMS_PER_PAGE,
         initialSort: { key: 'createdAt', direction: 'descending' },
         initialFilters: activeFilters,
-        manualPagination: true, // Enable Server Side Mode
+        manualPagination: true,
         totalItems: totalItems,
         onPageChange: (newPage) => setPage(newPage),
         onSearchChange: (term) => {
              setServerSearch(term); 
-             setPage(1); // Reset to page 1 on search
+             setPage(1);
         },
         onFilterChange: (newFilters) => {
              setActiveFilters(newFilters);
-             setPage(1); // Reset to page 1 on filter
+             setPage(1);
         }
     });
     
@@ -128,9 +138,12 @@ const AdminPartnersPage: React.FC = () => {
             }
         });
         await Promise.all(promises);
+        
+        showToast('Bulk action completed successfully', 'success');
         setSelectedPartners([]);
         setActionToConfirm(null);
         queryClient.invalidateQueries({ queryKey: ['paginatedPartners'] });
+        queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
     };
     
     const updateUrlFilter = (key: string, value: string) => {
@@ -307,28 +320,13 @@ const AdminPartnersPage: React.FC = () => {
                     <option value="elite">Elite</option>
                 </Select>
             </div>
-
-             <div className="lg:hidden mb-4 sticky top-16 z-20">
-                 {selectedPartners.length > 0 && (
-                    <div className="p-3 bg-white dark:bg-gray-800 flex items-center justify-between gap-2 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md animate-fadeIn">
-                        <span className="font-semibold text-sm whitespace-nowrap">{selectedPartners.length} selected</span>
-                        <div className="flex gap-2">
-                             <Button variant="secondary" size="sm" onClick={() => setActionToConfirm('activate')}>Activate</Button>
-                            <Button variant="danger" size="sm" onClick={() => setActionToConfirm('delete')}>Delete</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedPartners([])} className="text-gray-500">X</Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-            
-            {isLoading ? loadingSkeletons : (
-                <ResponsiveList 
-                    items={paginatedItems}
-                    renderTable={renderTable}
-                    renderCard={renderCard}
-                    emptyState={emptyState}
-                />
-            )}
+             
+            <ResponsiveList 
+                items={paginatedItems}
+                renderTable={renderTable}
+                renderCard={renderCard}
+                emptyState={emptyState}
+            />
 
             <div className="mt-4">
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

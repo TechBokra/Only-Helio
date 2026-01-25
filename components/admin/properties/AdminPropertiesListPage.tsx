@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-// FIX: Import keepPreviousData
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getPaginatedProperties, updateProperty, deleteProperty } from '../../../services/properties';
 import { useAdminTable } from '../../hooks/useAdminTable';
@@ -18,6 +17,7 @@ import TableSkeleton from '../../shared/TableSkeleton';
 import { LocationMarkerIcon, CalendarIcon } from '../../ui/Icons';
 import { Select } from '../../ui/Select';
 import ErrorState from '../../shared/ErrorState';
+import { useToast } from '../../shared/ToastContext';
 
 interface AdminPropertiesListPageProps {
     title?: string;
@@ -36,6 +36,7 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
 }) => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard;
+    const { showToast } = useToast();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -116,20 +117,28 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
         },
     });
 
+    const invalidate = () => {
+         if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
+         else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
+         queryClient.invalidateQueries({ queryKey: ['allProperties'] }); // Main public list
+    };
+
     const mutation = useMutation({
         mutationFn: ({ id, status }: { id: string, status: ListingStatus }) => updateProperty(id, { listingStatus: status }),
         onSuccess: () => {
-             if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
-             else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
-        }
+            showToast('Property updated successfully', 'success');
+            invalidate();
+        },
+        onError: () => showToast('Failed to update property', 'error')
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteProperty(id),
         onSuccess: () => {
-            if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
-            else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
-        }
+            showToast('Property deleted successfully', 'success');
+            invalidate();
+        },
+        onError: () => showToast('Failed to delete property', 'error')
     });
     
     const handleSelect = (propertyId: string) => {
@@ -153,12 +162,12 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
                 case 'activate': return updateProperty(id, { listingStatus: 'active' });
                 case 'deactivate': return updateProperty(id, { listingStatus: 'inactive' });
                 case 'delete': return deleteProperty(id);
+                default: return Promise.resolve();
             }
-            return Promise.resolve();
         });
         await Promise.all(promises);
-        if (isManualMode) queryClient.invalidateQueries({ queryKey: ['paginatedPropertiesAdmin'] });
-        else queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
+        invalidate();
+        showToast('Bulk action completed', 'success');
         setSelectedProperties([]);
         setActionToConfirm(null);
     };

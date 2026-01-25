@@ -43,3 +43,13 @@ export const addNotification = async (notificationData: Omit<Notification, 'id' 
     }
     return data;
 };
+
+export const deleteNotification = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('Notification').delete().eq('id', id);
+    return !error;
+};
+
+export const clearAllNotifications = async (userId: string): Promise<boolean> => {
+    const { error } = await supabase.from('Notification').delete().eq('userId', userId);
+    return !error;
+};

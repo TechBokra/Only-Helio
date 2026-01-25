@@ -80,3 +80,12 @@ export const updatePartnerRequestStatus = async (id: string, status: 'approved' 
     }
     return true;
 };
+
+export const deletePartnerRequest = async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('PartnerRequest').delete().eq('id', id);
+    if (error) {
+        console.error("Error deleting partner request:", error);
+        throw error;
+    }
+    return true;
+};

@@ -17,10 +17,12 @@ import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent } from '../../ui/Card';
 import { BuildingIcon, CubeIcon } from '../../ui/Icons';
 import ErrorState from '../../shared/ErrorState';
+import { useToast } from '../../shared/ToastContext';
 
 const AdminProjectsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard;
+    const { showToast } = useToast();
     const queryClient = useQueryClient();
     const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
@@ -42,9 +44,9 @@ const AdminProjectsPage: React.FC = () => {
         return (projects || []).map(project => {
             const partner = (partners || []).find(p => p.id === project.partnerId);
             const unitsCount = (properties || []).filter(p => p.projectId === project.id).length;
-            return { ...project, partnerName: partner?.name || 'N/A', unitsCount };
+            return { ...project, partnerName: partner ? (language === 'ar' ? partner.nameAr : partner.name) : 'N/A', unitsCount };
         });
-    }, [projects, partners, properties, isLoading]);
+    }, [projects, partners, properties, isLoading, language]);
 
     const deleteMutation = useMutation({
         mutationFn: async (projectId: string) => {
@@ -52,9 +54,15 @@ const AdminProjectsPage: React.FC = () => {
             await apiDeleteProject(projectId);
         },
         onSuccess: () => {
+            showToast('Project deleted successfully', 'success');
+            // Force refresh of projects and properties (cascade effects)
             queryClient.invalidateQueries({ queryKey: ['allProjects'] });
             queryClient.invalidateQueries({ queryKey: ['allProperties'] });
+            queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
             setProjectToDelete(null);
+        },
+        onError: () => {
+            showToast('Failed to delete project', 'error');
         }
     });
     
@@ -68,6 +76,12 @@ const AdminProjectsPage: React.FC = () => {
             (item.partnerName?.toLowerCase().includes(term) || false),
         filterFns: {},
     });
+
+    // Helper to safely render images whether they are URLs or Base64
+    const getImageSrc = (src: string) => {
+        if (!src) return 'https://via.placeholder.com/150';
+        return src;
+    };
 
     const renderTable = (items: typeof projectsWithDetails) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -87,15 +101,17 @@ const AdminProjectsPage: React.FC = () => {
                         <TableRow key={p.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <img src={p.imageUrl} alt={p.name[language]} className="w-16 h-12 object-cover rounded-md"/>
+                                    <img src={getImageSrc(p.imageUrl)} alt={p.name[language]} className="w-16 h-12 object-cover rounded-md"/>
                                     <div className="font-medium text-gray-900 dark:text-white">{p.name[language]}</div>
                                 </div>
                             </TableCell>
                             <TableCell>{p.partnerName}</TableCell>
                             <TableCell>{p.unitsCount}</TableCell>
                             <TableCell>
-                                <Link to={`/admin/projects/edit/${p.id}`}><Button variant="link">{t.adminShared.edit}</Button></Link>
-                                <Button variant="link" className="text-red-500" onClick={() => setProjectToDelete(p)}>{t.adminShared.delete}</Button>
+                                <div className="flex gap-2">
+                                    <Link to={`/admin/projects/edit/${p.id}`}><Button variant="link" size="sm">{t.adminShared.edit}</Button></Link>
+                                    <Button variant="link" size="sm" className="text-red-500" onClick={() => setProjectToDelete(p)}>{t.adminShared.delete}</Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}
@@ -107,7 +123,7 @@ const AdminProjectsPage: React.FC = () => {
     const renderCard = (p: typeof projectsWithDetails[0]) => (
         <Card key={p.id} className="overflow-hidden">
             <div className="relative h-32 bg-gray-200">
-                 <img src={p.imageUrl} alt={p.name[language]} className="w-full h-full object-cover" />
+                 <img src={getImageSrc(p.imageUrl)} alt={p.name[language]} className="w-full h-full object-cover" />
             </div>
             <CardContent className="p-4">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-1">{p.name[language]}</h3>

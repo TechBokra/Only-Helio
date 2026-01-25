@@ -5,6 +5,7 @@ import FilterItemFormModal from './FilterItemFormModal';
 import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities, deleteFilterOption as apiDeleteFilterOption } from '../../services/filters';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../shared/LanguageContext';
+import { useToast } from '../shared/ToastContext'; // Add toast for feedback
 
 type DataType = 'propertyType' | 'finishingStatus' | 'amenity';
 
@@ -42,6 +43,7 @@ const FilterManagerSection: React.FC<{
                         </div>
                     </li>
                 ))}
+                {items.length === 0 && <li className="py-4 text-center text-gray-500">No items found.</li>}
             </ul>
         </div>
     );
@@ -50,6 +52,7 @@ const FilterManagerSection: React.FC<{
 
 const AdminFilterManagementPage: React.FC = () => {
     const { t } = useLanguage();
+    const { showToast } = useToast();
     const queryClient = useQueryClient();
     const [modalState, setModalState] = useState<{ isOpen: boolean; dataType?: DataType; itemToEdit?: FilterOption }>({ isOpen: false });
 
@@ -60,6 +63,8 @@ const AdminFilterManagementPage: React.FC = () => {
     const deleteMutation = useMutation({
         mutationFn: ({ dataType, itemId }: { dataType: DataType, itemId: string }) => apiDeleteFilterOption(dataType, itemId),
         onSuccess: (_, { dataType }) => {
+            showToast('Deleted successfully', 'success');
+            // Force React Query to re-fetch the data immediately
             if (dataType === 'propertyType') {
                 queryClient.invalidateQueries({ queryKey: ['propertyTypes'] });
             } else if (dataType === 'finishingStatus') {
@@ -67,18 +72,21 @@ const AdminFilterManagementPage: React.FC = () => {
             } else if (dataType === 'amenity') {
                  queryClient.invalidateQueries({ queryKey: ['amenities'] });
             }
+        },
+        onError: () => {
+            showToast('Failed to delete item', 'error');
         }
     });
 
     const handleDelete = (dataType: DataType, itemId: string) => {
-        if (window.confirm('Are you sure?')) {
+        if (window.confirm('Are you sure you want to delete this item?')) {
             deleteMutation.mutate({ dataType, itemId });
         }
     };
 
     const handleSave = () => {
         setModalState({ isOpen: false });
-        // Invalidate all queries on save
+        // Invalidate all queries on save/update to ensure fresh data
         queryClient.invalidateQueries({ queryKey: ['propertyTypes'] });
         queryClient.invalidateQueries({ queryKey: ['finishingStatuses'] });
         queryClient.invalidateQueries({ queryKey: ['amenities'] });

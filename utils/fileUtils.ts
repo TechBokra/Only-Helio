@@ -1,7 +1,7 @@
 
 // Cloudinary Configuration
 const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; 
-const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; 
+const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; // Ensure this is created as "Unsigned" in Cloudinary Settings -> Upload
 const CLOUDINARY_API_KEY = '532568532962456'; 
 
 /**
@@ -14,6 +14,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('api_key', CLOUDINARY_API_KEY);
+    // Note: We do NOT send api_secret from the frontend for security reasons.
 
     try {
         const response = await fetch(
@@ -53,17 +54,20 @@ const convertToBase64 = (file: File): Promise<string> => {
 
 /**
  * Main file handler. Tries to upload to Cloudinary first.
- * If Cloudinary fails, falls back to Base64.
+ * If Cloudinary fails (e.g. network error or bad config), falls back to Base64 to ensure the app keeps working.
  * 
  * @param file The file to process
  * @returns A Promise that resolves with the image URL (Cloudinary or Base64)
  */
 export const fileToBase64 = async (file: File): Promise<string> => {
+    // Only attempt upload if config looks valid
     if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
         try {
-            return await uploadToCloudinary(file);
+            const url = await uploadToCloudinary(file);
+            console.log("Image uploaded to Cloudinary successfully:", url);
+            return url;
         } catch (error) {
-            console.warn('Cloudinary upload failed, falling back to Base64.', error);
+            console.warn('Cloudinary upload failed, falling back to Base64 local storage.', error);
         }
     } else {
         console.warn('Cloudinary configuration missing, falling back to Base64.');
