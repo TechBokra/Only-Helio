@@ -1,5 +1,4 @@
 
-
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Banner } from '../../types';
@@ -67,7 +66,26 @@ const BannerDisplay: React.FC<BannerDisplayProps> = ({ location }) => {
                  <div className="absolute inset-0 bg-black/30"></div>
             </div>
         );
-        return banner.link && banner.link !== '#' ? <Link to={banner.link} className="block w-full h-full">{content}</Link> : content;
+
+        if (!banner.link || banner.link === '#') return content;
+
+        // Check if the link is external (starts with http:// or https://)
+        const isExternal = banner.link.startsWith('http://') || banner.link.startsWith('https://');
+
+        if (isExternal) {
+            return (
+                <a 
+                    href={banner.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="block w-full h-full"
+                >
+                    {content}
+                </a>
+            );
+        }
+
+        return <Link to={banner.link} className="block w-full h-full">{content}</Link>;
     }
     
     const wrapperClass = location === 'details' ? "my-8" : "py-12";

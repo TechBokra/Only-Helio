@@ -50,7 +50,8 @@ export const adminNavLinks: NavLinkItem[] = [
 
   // --- Group: System & Content ---
   { name: t => t.adminDashboard.nav.siteContent, href: '/admin/content', icon: ListIcon, permission: Permission.MANAGE_SITE_CONTENT, group: 'System' },
-  { name: t => t.adminDashboard.nav.forms, href: '/admin/forms', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_FORMS, group: 'System' }, // Added Here
+  { name: t => t.adminDashboard.nav.banners, href: '/admin/banners', icon: PhotoIcon, permission: Permission.MANAGE_BANNERS, group: 'System' },
+  { name: t => t.adminDashboard.nav.forms, href: '/admin/forms', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_FORMS, group: 'System' },
   { name: t => t.adminDashboard.nav.users, href: '/admin/users', icon: UsersIcon, permission: Permission.MANAGE_USERS, group: 'System' },
   { name: t => t.adminDashboard.nav.automationRules, href: '/admin/automation', icon: AdjustmentsHorizontalIcon, permission: Permission.MANAGE_AUTOMATION, group: 'System' },
   { name: t => t.adminDashboard.nav.aiEstimator, href: '/admin/ai-estimator', icon: CalculatorIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_PACKAGES, group: 'System' },
