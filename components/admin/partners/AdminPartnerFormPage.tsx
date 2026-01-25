@@ -16,14 +16,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../ui/Card';
 import { ArrowLeftIcon, UsersIcon } from '../../ui/Icons';
 
 interface PartnerFormValues {
-    companyName: string;
+    companyName: string; // En Name
+    companyNameAr: string; // Ar Name
     contactEmail: string;
-    description: string;
+    description: string; // En Description
+    descriptionAr: string; // Ar Description
     companyType: PartnerType;
     subscriptionPlan: SubscriptionPlan;
     displayType: PartnerDisplayType;
     endDate?: string;
     status: PartnerStatus;
+    password?: string;
 }
 
 const AdminPartnerFormPage: React.FC = () => {
@@ -55,20 +58,21 @@ const AdminPartnerFormPage: React.FC = () => {
 
     useEffect(() => {
         if (isEdit && partnerToEdit) {
-            // Cast to AdminPartner to access specific admin fields
             const p = partnerToEdit as AdminPartner;
             reset({
-                companyName: language === 'ar' ? p.nameAr : p.name, 
+                companyName: p.name, // Maps to name_en
+                companyNameAr: p.nameAr, // Maps to name_ar
                 contactEmail: p.email,
                 companyType: p.type,
                 subscriptionPlan: p.subscriptionPlan,
                 displayType: p.displayType,
                 endDate: p.subscriptionEndDate?.split('T')[0],
-                description: language === 'ar' ? p.descriptionAr : p.description,
+                description: p.description, // Maps to description_en
+                descriptionAr: p.descriptionAr, // Maps to description_ar
                 status: p.status
             });
         }
-    }, [isEdit, partnerToEdit, reset, language]);
+    }, [isEdit, partnerToEdit, reset]);
 
     const addMutation = useMutation({
         mutationFn: ({ data, status }: { data: PartnerRequest, status: PartnerStatus }) => addPartner(data, status),
@@ -81,10 +85,11 @@ const AdminPartnerFormPage: React.FC = () => {
     });
 
     const updateMutation = useMutation({
-        mutationFn: (updates: Partial<AdminPartner>) => updatePartnerAdmin(partnerId!, updates),
+        mutationFn: (updates: any) => updatePartnerAdmin(partnerId!, updates),
         onSuccess: () => {
             showToast('Partner updated successfully!', 'success');
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
+            queryClient.invalidateQueries({ queryKey: ['partner', partnerId] });
             navigate('/admin/partners/list');
         },
         onError: () => showToast('Failed to update partner.', 'error'),
@@ -92,21 +97,31 @@ const AdminPartnerFormPage: React.FC = () => {
 
     const onSubmit = (data: PartnerFormValues) => {
         if (isEdit) {
-            const updates: Partial<AdminPartner> = {
+            // Correctly map form fields to API update payload (which expects nameEn, nameAr etc)
+            const updates: any = {
                 subscriptionPlan: data.subscriptionPlan,
                 subscriptionEndDate: data.endDate || undefined,
                 displayType: data.displayType,
                 status: data.status,
-                // Update basic info as well if needed
-                name: data.companyName,
+                nameEn: data.companyName,
+                nameAr: data.companyNameAr,
                 email: data.contactEmail,
-                description: data.description
+                descriptionEn: data.description,
+                descriptionAr: data.descriptionAr,
+                type: data.companyType
             };
+            
+            if (data.password) {
+                updates.password = data.password;
+            }
+
              updateMutation.mutate(updates);
         } else {
              // Construct a valid PartnerRequest object with defaults for missing fields
              const fullData: PartnerRequest = {
-                companyName: data.companyName,
+                companyName: data.companyName, // Usually EN name for request
+                // In a real add partner request flow from admin, we might want to support AR name explicitly if the API supported it directly
+                // For now sticking to request interface
                 contactEmail: data.contactEmail,
                 companyType: data.companyType,
                 subscriptionPlan: data.subscriptionPlan,
@@ -136,7 +151,7 @@ const AdminPartnerFormPage: React.FC = () => {
     if (isEdit && loadingPartner) return <div>Loading Partner...</div>;
 
     return (
-        <div className="max-w-3xl mx-auto animate-fadeIn">
+        <div className="max-w-4xl mx-auto animate-fadeIn">
             <div className="mb-6">
                 <Link to="/admin/partners/list" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                     <ArrowLeftIcon className="w-5 h-5" />
@@ -158,22 +173,38 @@ const AdminPartnerFormPage: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        {!isEdit && (
-                            <>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Company Name</label>
-                                    <Input {...register('companyName', { required: true })} placeholder="e.g. Sunrise Developments" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Contact Email</label>
-                                    <Input type="email" {...register('contactEmail', { required: true })} placeholder="contact@company.com" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <Textarea {...register('description')} rows={3} />
-                                </div>
-                            </>
-                        )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Company Name (English)</label>
+                                <Input {...register('companyName', { required: true })} placeholder="e.g. Sunrise Developments" dir="ltr" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Company Name (Arabic)</label>
+                                <Input {...register('companyNameAr')} placeholder="مثال: شروق للتطوير العقاري" dir="rtl" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Contact Email</label>
+                            <Input type="email" {...register('contactEmail', { required: true })} placeholder="contact@company.com" />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Password</label>
+                            <Input type="password" {...register('password')} placeholder={isEdit ? "Leave blank to keep current password" : "Required for new partner"} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description (English)</label>
+                                <Textarea {...register('description')} rows={3} dir="ltr" />
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium mb-1">Description (Arabic)</label>
+                                <Textarea {...register('descriptionAr')} rows={3} dir="rtl" />
+                            </div>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -215,7 +246,7 @@ const AdminPartnerFormPage: React.FC = () => {
                         
                         {!isEdit && (
                             <div className="bg-amber-50 p-3 rounded text-xs text-amber-800">
-                                Note: A default password 'password123' will be assigned. The partner can change it later.
+                                Note: If password is left blank, 'password123' will be assigned by default.
                             </div>
                         )}
 

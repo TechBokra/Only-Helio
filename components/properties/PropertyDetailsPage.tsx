@@ -141,9 +141,12 @@ const PropertyDetailsPage: React.FC = () => {
     
     const pageTitle = `${property.title[language]} | ONLY HELIO`;
     const pageDescription = property.description[language].substring(0, 160);
-    const amenityKeys = property.amenities[language];
+    
+    // FIX: Use 'en' array as source of truth for keys, then map to localized values
+    // This fixes the issue where Arabic array is empty in DB but English has keys
+    const amenityKeys = property.amenities.en || [];
+    
     const allImages = [property.imageUrl, ...property.gallery].filter(Boolean);
-
 
     const handleWhatsAppShare = () => {
         const urlToShare = window.location.href;
@@ -256,23 +259,27 @@ const PropertyDetailsPage: React.FC = () => {
                             </p>
                         </DetailSection>
 
-                        <DetailSection title={t_page.amenities}>
-                            <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {amenityKeys.map(amenityKey => {
-                                    const Icon = getAmenityIcon(amenityKey);
-                                    return (
-                                        <li key={amenityKey} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                            <div className="p-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 flex-shrink-0">
-                                                <Icon className="w-5 h-5"/>
-                                            </div>
-                                            <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
-                                                {t_page.amenitiesIncluded[amenityKey] || amenityKey}
-                                            </span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </DetailSection>
+                        {amenityKeys.length > 0 && (
+                            <DetailSection title={t_page.amenities}>
+                                <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {amenityKeys.map(amenityKey => {
+                                        const Icon = getAmenityIcon(amenityKey);
+                                        // Attempt to translate, fallback to key if not found
+                                        const label = t_page.amenitiesIncluded[amenityKey] || amenityKey;
+                                        return (
+                                            <li key={amenityKey} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                <div className="p-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 flex-shrink-0">
+                                                    <Icon className="w-5 h-5"/>
+                                                </div>
+                                                <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                                                    {label}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </DetailSection>
+                        )}
 
                         {/* Similar Properties */}
                         {similarProperties.length > 0 && (

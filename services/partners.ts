@@ -21,8 +21,6 @@ interface UserRow {
     displayType: string | null;
     contactMethods: any; // JSONB
     createdAt: string;
-    // Optional password field might not be returned in select * depending on security, 
-    // but useful for typing if we deal with it manually.
     password?: string; 
 }
 
@@ -114,7 +112,6 @@ export const getAllPartnersForAdmin = async (): Promise<AdminPartner[]> => {
     return (data || []).map(row => mapDbToPartner(row as UserRow) as AdminPartner);
 };
 
-// NEW: Server-side Pagination for Admin
 export const getPaginatedPartners = async (
     page: number, 
     limit: number, 
@@ -204,7 +201,6 @@ export const updatePartner = async (id: string, updates: PartnerUpdatePayload): 
     if (updates.descriptionAr !== undefined) dbUpdates.description_ar = updates.descriptionAr;
     
     // Fallbacks if only 'name' or 'description' is passed (legacy behavior support)
-    // IMPORTANT: Check if nameEn/nameAr were explicitly provided first to avoid overwriting.
     if (updates.name !== undefined && updates.nameEn === undefined) dbUpdates.name_en = updates.name;
     if (updates.description !== undefined && updates.descriptionEn === undefined) dbUpdates.description_en = updates.description;
 
@@ -223,7 +219,7 @@ export const updatePartner = async (id: string, updates: PartnerUpdatePayload): 
     if (updates.displayType !== undefined) dbUpdates.displayType = updates.displayType;
     
     if (updates.contactMethods !== undefined) dbUpdates.contactMethods = updates.contactMethods;
-    if (updates.password !== undefined) dbUpdates.password = updates.password;
+    if (updates.password !== undefined && updates.password !== '') dbUpdates.password = updates.password;
 
     const { error } = await supabase.from('User').update(dbUpdates).eq('id', id);
     
