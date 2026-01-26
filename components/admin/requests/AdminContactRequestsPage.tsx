@@ -1,11 +1,12 @@
+
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getAllContactRequests,
     updateContactRequestStatus,
     deleteContactRequest,
 } from '../../../services/contactRequests';
-// FIX: Corrected import path for useAdminTable hook.
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
@@ -112,13 +113,20 @@ const AdminContactRequestsPage: React.FC = () => {
                                     </Select>
                                 </TableCell>
                                 <TableCell>
-                                    <Button
-                                        variant="link"
-                                        className="text-red-500"
-                                        onClick={() => setRequestToDelete(req.id)}
-                                    >
-                                        {t_admin.table.delete}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Link to={`/admin/contact-requests/${req.id}`}>
+                                            <Button variant="outline" size="sm">
+                                                {t_admin.table.details}
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            variant="link"
+                                            className="text-red-500"
+                                            onClick={() => setRequestToDelete(req.id)}
+                                        >
+                                            {t_admin.table.delete}
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -164,14 +172,21 @@ const AdminContactRequestsPage: React.FC = () => {
                         </option>
                     ))}
                 </Select>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    onClick={() => setRequestToDelete(req.id)}
-                >
-                    {t_admin.table.delete}
-                </Button>
+                <div className="flex gap-2">
+                    <Link to={`/admin/contact-requests/${req.id}`}>
+                        <Button variant="ghost" size="sm" className="text-amber-600 hover:bg-amber-50">
+                            View
+                        </Button>
+                    </Link>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        onClick={() => setRequestToDelete(req.id)}
+                    >
+                        {t_admin.table.delete}
+                    </Button>
+                </div>
             </CardFooter>
         </Card>
     );

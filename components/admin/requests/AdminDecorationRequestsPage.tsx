@@ -64,14 +64,14 @@ const AdminDecorationRequestsPage: React.FC = () => {
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (item: Lead, term: string) => 
-            item.customerName.toLowerCase().includes(term) || 
-            item.customerPhone.includes(term) ||
-            item.serviceTitle.toLowerCase().includes(term),
+            (item.customerName || '').toLowerCase().includes(term) || 
+            (item.customerPhone || '').includes(term) ||
+            (item.serviceTitle || '').toLowerCase().includes(term),
         filterFns: {}
     });
 
     const handleDelete = async (id: string) => {
-        if (window.confirm(t.adminShared.confirmDelete)) {
+        if (window.confirm(i18n.adminShared.confirmDelete)) {
             await apiDeleteLead(id);
             showToast('Request deleted successfully', 'success');
             refetch();
@@ -110,9 +110,9 @@ const AdminDecorationRequestsPage: React.FC = () => {
                                 <TableCell>
                                     <div className="flex gap-2">
                                         <Link to={`/admin/decoration-requests/${lead.id}`}>
-                                            <Button variant="outline" size="sm">{t.adminShared.details}</Button>
+                                            <Button variant="outline" size="sm">{i18n.adminShared.details}</Button>
                                         </Link>
-                                        <Button variant="link" size="sm" className="text-red-500" onClick={() => handleDelete(lead.id)}>{t.adminShared.delete}</Button>
+                                        <Button variant="link" size="sm" className="text-red-500" onClick={() => handleDelete(lead.id)}>{i18n.adminShared.delete}</Button>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -141,9 +141,9 @@ const AdminDecorationRequestsPage: React.FC = () => {
                 <p className="text-xs text-gray-400 text-right">{new Date(lead.createdAt).toLocaleDateString(language)}</p>
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between">
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(lead.id)} className="text-red-500">{t.adminShared.delete}</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(lead.id)} className="text-red-500">{i18n.adminShared.delete}</Button>
                 <Link to={`/admin/decoration-requests/${lead.id}`} className="w-full">
-                    <Button variant="ghost" className="w-full">{t.adminShared.details}</Button>
+                    <Button variant="ghost" className="w-full">{i18n.adminShared.details}</Button>
                 </Link>
             </CardFooter>
         </Card>
@@ -152,7 +152,7 @@ const AdminDecorationRequestsPage: React.FC = () => {
     return (
         <div className="animate-fadeIn">
             <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t.nav.decorationsRequests}</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{i18n.adminDashboard.nav.decorationsRequests}</h1>
                 <p className="text-gray-500 dark:text-gray-400">Manage all decoration and art requests.</p>
             </div>
 
@@ -182,13 +182,13 @@ const AdminDecorationRequestsPage: React.FC = () => {
             <div className="my-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
-                        <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
+                        <input type="text" placeholder={i18n.adminDashboard.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
                     </div>
                 </div>
             </div>
 
             <ResponsiveList
-                items={paginatedItems}
+                items={paginatedItems || []}
                 renderTable={renderTable}
                 renderCard={renderCard}
                 emptyState={<div className="text-center p-8 text-gray-500">{t.decorationsManagement.noRequests}</div>}

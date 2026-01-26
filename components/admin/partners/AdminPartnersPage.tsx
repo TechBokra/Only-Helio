@@ -148,14 +148,14 @@ const AdminPartnersPage: React.FC = () => {
     
     const updateUrlFilter = (key: string, value: string) => {
         setFilter(key, value);
-        setSearchParams(prev => {
-            if (value === 'all') {
-                prev.delete(key);
-            } else {
-                prev.set(key, value);
-            }
-            return prev;
-        }, { replace: true });
+        // Safe update of URL params
+        const newParams = new URLSearchParams(searchParams);
+        if (value === 'all') {
+            newParams.delete(key);
+        } else {
+            newParams.set(key, value);
+        }
+        setSearchParams(newParams, { replace: true });
     };
 
     const renderTable = (items: AdminPartner[]) => (

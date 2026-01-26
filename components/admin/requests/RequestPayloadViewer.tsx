@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Request, RequestType } from '../../../types';
 import DetailItem from '../../shared/DetailItem';
 import { useLanguage } from '../../shared/LanguageContext';
@@ -16,6 +16,32 @@ const RequestPayloadViewer: React.FC<RequestPayloadViewerProps> = ({ request }) 
     
     // Safety check for payload
     if (!payload) return <div className="text-gray-500 italic">No payload data available.</div>;
+
+    // Helper to extract structured data from flattened notes
+    const parseStructuredNotes = (notes: string | undefined) => {
+        if (!notes) return { structured: [], remaining: '' };
+        
+        const lines = notes.split('\n');
+        const structured: { label: string, value: string }[] = [];
+        const remainingLines: string[] = [];
+        
+        let isParsingHeaders = true;
+
+        lines.forEach(line => {
+            const trimLine = line.trim();
+            // Check for Key: Value pattern, but exclude "--- Notes ---" divider
+            if (isParsingHeaders && trimLine.includes(':') && !trimLine.startsWith('---')) {
+                const [key, ...rest] = trimLine.split(':');
+                structured.push({ label: key.trim(), value: rest.join(':').trim() });
+            } else if (trimLine.startsWith('--- Notes ---')) {
+                isParsingHeaders = false; // Stop parsing headers after divider
+            } else if (trimLine.length > 0) {
+                remainingLines.push(trimLine);
+            }
+        });
+
+        return { structured, remaining: remainingLines.join('\n') };
+    };
 
     switch (type) {
         case RequestType.PARTNER_APPLICATION:
@@ -98,8 +124,10 @@ const RequestPayloadViewer: React.FC<RequestPayloadViewerProps> = ({ request }) 
 
         case RequestType.LEAD:
             const l = payload as any;
+            const { structured, remaining } = parseStructuredNotes(l.customerNotes);
+            
             return (
-                <div className="space-y-4 animate-fadeIn">
+                <div className="space-y-6 animate-fadeIn">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <DetailItem label="Service Type" value={l.serviceType} />
                         <DetailItem label="Partner ID" value={l.partnerId} />
@@ -107,9 +135,40 @@ const RequestPayloadViewer: React.FC<RequestPayloadViewerProps> = ({ request }) 
                         <DetailItem label="Preferred Time" value={l.contactTime} />
                     </div>
                     <DetailItem label="Service Title" value={l.serviceTitle} />
-                    <div className="bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-md border border-yellow-200 dark:border-yellow-800/30">
-                        <DetailItem label="Initial Customer Notes" value={l.customerNotes || 'No notes provided.'} />
-                    </div>
+                    
+                    {/* Render structured details extracted from notes (For Finishing/Decor Requests) */}
+                    {structured.length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4 border-b pb-2">
+                                Request Specifications
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                                {structured.map((item, idx) => (
+                                    <div key={idx}>
+                                        <span className="block text-xs font-medium text-gray-500 dark:text-gray-400">{item.label}</span>
+                                        <span className="block text-sm font-semibold text-gray-900 dark:text-white">{item.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Reference Image */}
+                    {l.referenceImage && (
+                        <div>
+                             <p className="text-sm font-medium text-gray-500 mb-2">Reference Attachment</p>
+                             <a href={l.referenceImage} target="_blank" rel="noreferrer" className="inline-block">
+                                 <img src={l.referenceImage} alt="Reference" className="w-48 h-auto rounded-lg border hover:opacity-90 transition-opacity"/>
+                             </a>
+                        </div>
+                    )}
+
+                    {/* Remaining plain text notes */}
+                    {remaining && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-md border border-yellow-200 dark:border-yellow-800/30">
+                            <DetailItem label="Additional Notes" value={<p className="whitespace-pre-wrap">{remaining}</p>} />
+                        </div>
+                    )}
                 </div>
             );
 

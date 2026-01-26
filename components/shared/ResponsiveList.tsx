@@ -9,13 +9,13 @@ interface ResponsiveListProps<T> {
 }
 
 export function ResponsiveList<T>({
-    items,
+    items = [], // Default to empty array to prevent "undefined" errors
     renderTable,
     renderCard,
     emptyState,
 }: ResponsiveListProps<T>) {
 
-    if (items.length === 0) {
+    if (!items || items.length === 0) {
         return <>{emptyState}</>;
     }
 
@@ -23,7 +23,7 @@ export function ResponsiveList<T>({
         <>
             {/* Mobile/Tablet View */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden w-full">
-                {items.map(renderCard)}
+                {items.map((item, index) => renderCard(item, index))}
             </div>
             
             {/* Desktop View */}

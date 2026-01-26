@@ -1,3 +1,4 @@
+
 import { useSearchParams } from 'react-router-dom';
 import { useMemo, useCallback } from 'react';
 
@@ -26,48 +27,44 @@ export const usePropertyFilters = () => {
     const page = useMemo(() => parseInt(searchParams.get('page') || '1', 10), [searchParams]);
 
     const setFilter = useCallback((filterName: string, value: string | string[]) => {
-        setSearchParams(prev => {
-            const newParams = new URLSearchParams(prev);
-            if (Array.isArray(value)) {
-                 if (value.length > 0) {
-                    newParams.set(filterName, value.join(','));
-                } else {
-                    newParams.delete(filterName);
-                }
+        const newParams = new URLSearchParams(searchParams);
+        
+        if (Array.isArray(value)) {
+             if (value.length > 0) {
+                newParams.set(filterName, value.join(','));
             } else {
-                if (value === 'all' || !value) {
-                    newParams.delete(filterName);
-                } else {
-                    newParams.set(filterName, value);
-                }
+                newParams.delete(filterName);
             }
-            // Always reset to page 1 when a filter is changed, except for the 'view' filter
-            if (filterName !== 'view') {
-                newParams.delete('page');
+        } else {
+            if (value === 'all' || !value) {
+                newParams.delete(filterName);
+            } else {
+                newParams.set(filterName, value);
             }
-            return newParams;
-        }, { replace: true });
-    }, [setSearchParams]);
+        }
+        // Always reset to page 1 when a filter is changed, except for the 'view' filter
+        if (filterName !== 'view') {
+            newParams.delete('page');
+        }
+        
+        setSearchParams(newParams, { replace: true });
+    }, [searchParams, setSearchParams]);
     
     const setPage = useCallback((newPage: number) => {
-        setSearchParams(prev => {
-            const newParams = new URLSearchParams(prev);
-            newParams.set('page', String(newPage));
-            return newParams;
-        }, { replace: true });
-    }, [setSearchParams]);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('page', String(newPage));
+        setSearchParams(newParams, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     const resetFilters = useCallback(() => {
         // Preserve the current view when resetting other filters
-        setSearchParams(prev => {
-            const currentView = prev.get('view');
-            const newParams = new URLSearchParams();
-            if (currentView) {
-                newParams.set('view', currentView);
-            }
-            return newParams;
-        }, { replace: true });
-    }, [setSearchParams]);
+        const currentView = searchParams.get('view');
+        const newParams = new URLSearchParams();
+        if (currentView) {
+            newParams.set('view', currentView);
+        }
+        setSearchParams(newParams, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     return useMemo(() => ({
         ...filters,

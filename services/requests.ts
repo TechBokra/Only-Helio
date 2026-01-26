@@ -1,4 +1,5 @@
 
+import { supabase } from '../supabaseClient';
 import { RequestType } from '../types';
 import type { Request, LeadMessage } from '../types';
 import { addNotification } from './notifications';
@@ -128,9 +129,31 @@ export const getRequestById = async (id: string): Promise<Request | undefined> =
     } catch { /* ignore */ }
 
     // 2. Fallback: Search generic pool. 
-    // Optimization: In a real backend, we'd query by ID directly against specific tables.
     const allRequests = await getAllRequests();
-    return allRequests.find(r => r.id === id);
+    const req = allRequests.find(r => r.id === id);
+
+    if (req) {
+        // Fetch messages for this request ID (even if not a Lead)
+        // This relies on LeadMessage table being used for all request types (FK removed)
+        const { data: messages } = await supabase
+            .from('LeadMessage')
+            .select('*')
+            .eq('leadId', id)
+            .order('timestamp', { ascending: true });
+            
+        if (messages && req.payload) {
+             (req.payload as any).messages = messages.map(msg => ({
+                id: msg.id,
+                sender: msg.sender,
+                senderId: msg.senderId,
+                type: msg.type,
+                content: msg.content,
+                timestamp: msg.timestamp
+            }));
+        }
+    }
+
+    return req;
 };
 
 export const addRequest = async (type: RequestType, data: Omit<Request, 'id' | 'type' | 'status' | 'createdAt' | 'updatedAt'>): Promise<Request> => {
@@ -283,7 +306,22 @@ export const updateRequest = async (id: string, updates: Partial<Request>): Prom
 };
 
 export const addMessageToLead = async (requestId: string, messageData: Omit<LeadMessage, 'id' | 'timestamp'>): Promise<Request | undefined> => {
+    // Reuse the existing service which inserts into LeadMessage
+    // Note: We MUST run db_fix_messages.sql first to remove FK constraint if requestId is not a Lead ID.
     const { addMessageToLead: serviceAddMessage } = await import('./leads');
-    await serviceAddMessage(requestId, messageData);
+    
+    // We ignore the error about "Lead" updates if it's not a lead table ID
+    try {
+        await serviceAddMessage(requestId, messageData);
+    } catch (e: any) {
+        // If it's just the 'Lead' table update failing (because ID not found), we can ignore it 
+        // as long as the message inserted.
+        if (e.message?.includes('Lead') && !e.message?.includes('LeadMessage')) {
+            // ignore
+        } else {
+            throw e;
+        }
+    }
+    
     return getRequestById(requestId);
 };

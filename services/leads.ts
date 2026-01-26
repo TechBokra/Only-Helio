@@ -66,10 +66,11 @@ const mapDbToLead = (row: LeadRow): Lead => ({
 });
 
 export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> => {
-    // Lead has multiple FKs to User. Must use explicit constraint name from SQL script.
+    // Removed `messages:LeadMessage(*)` to avoid PGRST200 error since FK was dropped.
+    // List views generally don't need full message history.
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar)`)
         .eq('partnerId', partnerId)
         .order('createdAt', { ascending: false });
         
@@ -81,20 +82,35 @@ export const getLeadsByPartnerId = async (partnerId: string): Promise<Lead[]> =>
 };
 
 export const getLeadById = async (leadId: string): Promise<Lead | undefined> => {
+    // 1. Fetch Lead
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar)`)
         .eq('id', leadId)
         .single();
 
-    if (error) return undefined;
-    return mapDbToLead(data as unknown as LeadRow);
+    if (error || !data) return undefined;
+
+    // 2. Manual Fetch for Messages (since FK is gone)
+    const { data: messages } = await supabase
+        .from('LeadMessage')
+        .select('*')
+        .eq('leadId', leadId)
+        .order('timestamp', { ascending: true });
+
+    const leadRow = data as unknown as LeadRow;
+    if (messages) {
+        leadRow.messages = messages as LeadMessageRow[];
+    }
+
+    return mapDbToLead(leadRow);
 };
 
 export const getAllLeads = async (): Promise<(Lead & { partnerName?: string })[]> => {
+    // Removed `messages:LeadMessage(*)`
     const { data, error } = await supabase
         .from('Lead')
-        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`)
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar)`)
         .order('createdAt', { ascending: false });
 
     if (error || !data) {
@@ -116,9 +132,10 @@ export const getPaginatedLeads = async (
         assignedTo?: string; 
     }
 ): Promise<{ leads: Lead[]; total: number }> => {
+    // Removed `messages:LeadMessage(*)`
     let query = supabase
         .from('Lead')
-        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar), messages:LeadMessage(*)`, { count: 'exact' });
+        .select(`*, partner:User!Lead_partnerId_fkey(name_en, name_ar)`, { count: 'exact' });
 
     if (filters) {
         if (filters.status && filters.status !== 'all') {
@@ -232,16 +249,27 @@ export const addMessageToLead = async (leadId: string, messageData: Omit<LeadMes
     const { error } = await supabase.from('LeadMessage').insert(newMessage);
     if (error) throw error;
 
-    await supabase.from('Lead').update({ updatedAt: new Date().toISOString() }).eq('id', leadId);
-
-    if (messageData.sender === 'partner' || messageData.sender === 'admin') {
-         const lead = await getLeadById(leadId);
-         if (lead && lead.status === 'new') {
-             await updateLead(leadId, { status: 'contacted' });
-         }
+    // Try updating updatedAt on parent tables if they exist
+    // We ignore errors here because we don't know which table the ID belongs to without querying first, 
+    // and for performance we just fire-and-forget or try Lead first.
+    
+    // 1. Try Lead Table
+    const { error: leadError } = await supabase.from('Lead').update({ updatedAt: new Date().toISOString() }).eq('id', leadId);
+    
+    // If lead updated successfully, we assume it's a lead.
+    if (!leadError) {
+        if (messageData.sender === 'partner' || messageData.sender === 'admin') {
+             const lead = await getLeadById(leadId);
+             if (lead && lead.status === 'new') {
+                 await updateLead(leadId, { status: 'contacted' });
+             }
+        }
     }
 
-    return getLeadById(leadId);
+    // Since we don't have FKs, getting the full object back depends on where it is.
+    // Ideally, the UI refetches the specific entity using getRequestById.
+    // We return undefined here to signal the caller to refetch their specific context.
+    return undefined; 
 };
 
 export const deleteLead = async (leadId: string): Promise<boolean> => {

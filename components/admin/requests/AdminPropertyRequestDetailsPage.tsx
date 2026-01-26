@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import type { Property } from '../../../types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllPropertyRequests, updatePropertyRequestStatus } from '../../../services/propertyRequests';
+import { getRequestById } from '../../../services/requests'; // Generic Fetcher
 import { addProperty } from '../../../services/properties';
 import { ArrowLeftIcon, ArrowPathIcon } from '../../ui/Icons';
 import DetailItem from '../../shared/DetailItem';
@@ -13,12 +14,23 @@ import UnifiedMap from '../../shared/UnifiedMap';
 import { Button } from '../../ui/Button';
 import { supabase } from '../../../supabaseClient';
 import { sendPropertyApprovalEmail, sendStatusUpdateEmail } from '../../../services/emailService';
+import ConversationThread from '../../shared/ConversationThread'; // Import Thread
+import { Card, CardHeader, CardTitle, CardContent } from '../../ui/Card';
 
 const AdminPropertyRequestDetailsPage: React.FC = () => {
     const { requestId } = useParams<{ requestId: string }>();
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
+    
     const { data: requests, isLoading } = useQuery({ queryKey: ['propertyRequests'], queryFn: getAllPropertyRequests });
+    
+    // Fetch generic request wrapper to get messages
+    const { data: genericRequest, refetch: refetchGeneric } = useQuery({ 
+        queryKey: ['request', requestId], 
+        queryFn: () => getRequestById(requestId!),
+        enabled: !!requestId
+    });
+
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToast } = useToast();
@@ -31,20 +43,13 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
 
     const updateRequestMutation = useMutation({
         mutationFn: async (status: 'approved' | 'rejected' | 'pending') => {
-             // 1. Update DB Status
              await updatePropertyRequestStatus(request!.id, status as any);
 
-             // 2. Send Email
              if (request) {
                 if (status === 'approved') {
-                    // Send specific property approval email
                      const pd = request.propertyDetails as any;
                      const title = pd?.title?.en || 'Property Listing';
-                     // Note: We don't have user email here directly in some legacy requests, checking propertyDetails structure
-                     // Assuming 'customerPhone' is the ID, in real app we'd fetch user or email from request if captured.
-                     // For MVP, we'll log it if email is missing.
-                     // Ideally, PropertyListingRequest should store contactEmail.
-                     const email = (request as any).contactEmail || 'user@example.com'; // Fallback
+                     const email = (request as any).contactEmail || 'user@example.com'; 
                      await sendPropertyApprovalEmail(request.customerName, email, title);
                 } else if (status === 'rejected') {
                      const email = (request as any).contactEmail || 'user@example.com';
@@ -185,7 +190,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
             } else {
                 showToast(`Request has been ${status}.`, 'success');
                 queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
-                // Correct redirect to nested list
                 navigate('/admin/property-requests');
             }
         },
@@ -212,14 +216,22 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     };
     const hasValidLocation = pd.location && !isNaN(Number(pd.location.lat)) && !isNaN(Number(pd.location.lng));
 
+    // Construct a thread-compatible object
+    const threadEntity = {
+        id: request.id,
+        messages: (genericRequest?.payload as any)?.messages || [],
+        contactTime: request.contactTime,
+        customerNotes: undefined
+    };
+
     return (
-        <div className="max-w-4xl mx-auto animate-fadeIn">
-             {/* Updated back link */}
-             <Link to="/admin/property-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+        <div className="max-w-6xl mx-auto animate-fadeIn space-y-6">
+             <Link to="/admin/property-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline">
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>
-            <div className="flex justify-between items-start mb-6">
+
+            <div className="flex justify-between items-start">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t_admin.propertyDetailsTitle}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize ${
                     request.status === 'approved' ? 'bg-green-100 text-green-700' :
@@ -230,132 +242,102 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 </span>
             </div>
             
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 space-y-8">
-                 <section>
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Owner Info</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <DetailItem label="Name" value={request.customerName} />
-                        <DetailItem label="Phone" value={request.customerPhone} />
-                        <DetailItem label="Contact Time" value={request.contactTime} />
-                    </div>
-                </section>
-                
-                 <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Cooperation & Listing</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <DetailItem label="Cooperation Model" value={request.cooperationType} />
-                        <DetailItem label="Listing Start Date" value={pd.listingStartDate} />
-                        <DetailItem label="Listing End Date" value={pd.listingEndDate} />
-                    </div>
-                 </section>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Property Details</CardTitle></CardHeader>
+                        <CardContent>
+                             {Object.keys(pd).length === 0 ? (
+                                <div className="text-red-500 italic">No property details provided.</div>
+                            ) : (
+                                <div className="space-y-6">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                                        <DetailItem label="Title (EN)" value={pd.title?.en || 'N/A'} />
+                                        <DetailItem label="Title (AR)" value={pd.title?.ar || 'N/A'} />
+                                        <DetailItem label="Type" value={safeLang(pd.propertyType)} />
+                                        <DetailItem label="Purpose" value={safeLang(pd.purpose)} />
+                                        <DetailItem label="Area" value={pd.area ? `${pd.area} m²` : 'N/A'} />
+                                        <DetailItem label="Price" value={pd.price ? `EGP ${Number(pd.price).toLocaleString()}` : 'N/A'} />
+                                        <DetailItem label="Cooperation" value={request.cooperationType} />
+                                     </div>
+                                     <DetailItem label="Address" value={pd.address} layout="grid"/>
+                                     <DetailItem label="Description" value={<p className="whitespace-pre-line text-sm">{pd.description?.en || pd.description?.ar}</p>} layout="grid"/>
+                                     
+                                     {hasValidLocation && (
+                                        <div className="mt-4 border rounded overflow-hidden h-48">
+                                            <UnifiedMap 
+                                                mode="read"
+                                                markers={[{
+                                                    id: 'request-location',
+                                                    lat: Number(pd.location.lat),
+                                                    lng: Number(pd.location.lng),
+                                                    color: 'amber'
+                                                }]}
+                                            />
+                                        </div>
+                                     )}
+                                </div>
+                            )}
 
-                <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-amber-500 mb-4">Property Details</h2>
-                    
-                    {Object.keys(pd).length === 0 ? (
-                        <div className="text-red-500 italic">No property details provided in this request.</div>
-                    ) : (
-                         <>
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6">
-                                <DetailItem label="Title (EN)" value={pd.title?.en || 'N/A'} />
-                                <DetailItem label="Title (AR)" value={pd.title?.ar || 'N/A'} />
-                                <DetailItem label="Purpose" value={safeLang(pd.purpose)} />
-                                <DetailItem label="Property Type" value={safeLang(pd.propertyType)} />
-                                <DetailItem label="Finishing" value={safeLang(pd.finishingStatus)} />
-                                <DetailItem label="Area" value={pd.area ? `${pd.area} m²` : 'N/A'} />
-                                <DetailItem label="Price" value={pd.price ? `EGP ${Number(pd.price).toLocaleString()}` : 'N/A'} />
-                                <DetailItem label="Bedrooms" value={pd.bedrooms} />
-                                <DetailItem label="Bathrooms" value={pd.bathrooms} />
-                                <DetailItem label="Floor" value={pd.floor} />
-                                <DetailItem label="In Compound" value={pd.isInCompound ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                                <DetailItem label="Installments" value={pd.hasInstallments ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                                <DetailItem label="Real Estate Finance" value={pd.realEstateFinanceAvailable ? t.propertyDetailsPage.yes : t.propertyDetailsPage.no} />
-                                <DetailItem label="Delivery" value={pd.deliveryType === 'immediate' ? 'Immediate' : `${pd.deliveryMonth || '?'}/${pd.deliveryYear || '?'}`} />
-                             </div>
-                             <div className="mt-4 space-y-2">
-                                 <DetailItem label="Address" value={pd.address} layout="grid"/>
-                                 <DetailItem label="Description (EN)" value={<p className="whitespace-pre-line">{pd.description?.en || '-'}</p>} layout="grid"/>
-                                 <DetailItem label="Description (AR)" value={<p className="whitespace-pre-line">{pd.description?.ar || '-'}</p>} layout="grid"/>
-                                 <DetailItem label="Amenities" value={(pd.amenities?.en || []).join(', ')} layout="grid" />
-                             </div>
-
-                             {hasValidLocation ? (
-                                <div className="mt-6">
-                                    <h3 className="text-sm font-medium text-gray-500 mb-2">Location Verification</h3>
-                                    <div className="h-64 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                                        <UnifiedMap 
-                                            mode="read"
-                                            markers={[{
-                                                id: 'request-location',
-                                                lat: Number(pd.location.lat),
-                                                lng: Number(pd.location.lng),
-                                                color: 'amber'
-                                            }]}
-                                        />
+                            {request.images && request.images.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <p className="text-sm font-medium text-gray-500 mb-2">Images</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        {request.images.map((img: string, idx: number) => (
+                                            <a key={idx} href={img} target="_blank" rel="noreferrer" className="block aspect-square">
+                                                <img src={img} alt={`Prop ${idx}`} className="w-full h-full object-cover rounded-md border" />
+                                            </a>
+                                        ))}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1 font-mono">
-                                        Lat: {pd.location.lat}, Lng: {pd.location.lng}
-                                    </p>
                                 </div>
-                             ) : (
-                                <div className="mt-6 p-4 bg-gray-100 rounded text-gray-500 text-sm italic">
-                                    No valid location coordinates provided.
-                                </div>
-                             )}
-                         </>
-                    )}
-                </section>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                {pd.hasInstallments && (
-                    <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-amber-500 mb-4">Installment Details</h2>
-                        <div className="grid grid-cols-3 gap-4">
-                            <DetailItem label="Down Payment" value={`EGP ${Number(pd.downPayment || 0).toLocaleString()}`} />
-                            <DetailItem label="Monthly" value={`EGP ${Number(pd.monthlyInstallment || 0).toLocaleString()}`} />
-                            <DetailItem label="Years" value={pd.years} />
-                        </div>
-                    </section>
-                )}
+                    <Card>
+                        <CardHeader><CardTitle>Conversation & History</CardTitle></CardHeader>
+                        <CardContent>
+                             <ConversationThread 
+                                lead={threadEntity} 
+                                requestId={request.id} 
+                                onMessageSent={() => refetchGeneric()} 
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
 
-                 {request.images && request.images.length > 0 ? (
-                    <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-amber-500 mb-4">Images</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {request.images.map((img: string, index: number) => (
-                                <a key={index} href={img} target="_blank" rel="noreferrer">
-                                    <img src={img} alt={`Property ${index+1}`} className="w-full h-32 object-cover rounded-md border border-gray-100" />
-                                </a>
-                            ))}
-                        </div>
-                    </section>
-                ) : (
-                    <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-amber-500 mb-4">Images</h2>
-                        <p className="text-gray-500 italic">No images uploaded.</p>
-                    </section>
-                )}
+                <div className="lg:col-span-1 space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Owner Info</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                             <DetailItem label="Name" value={request.customerName} />
+                             <DetailItem label="Phone" value={request.customerPhone} />
+                             <DetailItem label="Preferred Contact" value={request.contactTime} />
+                        </CardContent>
+                    </Card>
 
-                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4">
-                    {request.status === 'pending' ? (
-                        <>
-                            <button onClick={() => updateRequestMutation.mutate('rejected')} disabled={updateRequestMutation.isPending} className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors">
-                               {t.adminShared.reject}
-                            </button>
-                             <button onClick={() => updateRequestMutation.mutate('approved')} disabled={updateRequestMutation.isPending || addPropertyMutation.isPending} className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors">
-                                {language === 'ar' ? 'موافقة وإنشاء مسودة' : 'Approve & Create Draft'}
-                            </button>
-                        </>
-                    ) : (
-                        <Button 
-                            variant="secondary" 
-                            onClick={() => updateRequestMutation.mutate('pending')} 
-                            isLoading={updateRequestMutation.isPending} 
-                            className="flex items-center gap-2"
-                        >
-                            <ArrowPathIcon className="w-4 h-4" />
-                            {language === 'ar' ? 'إعادة فتح الطلب (تعيين كمعلق)' : 'Reopen Request (Set to Pending)'}
-                        </Button>
-                    )}
+                     <div className="mt-8 pt-6 flex flex-col gap-3">
+                        {request.status === 'pending' ? (
+                            <>
+                                <button onClick={() => updateRequestMutation.mutate('approved')} disabled={updateRequestMutation.isPending || addPropertyMutation.isPending} className="w-full px-6 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors shadow-sm">
+                                    {language === 'ar' ? 'موافقة وإنشاء مسودة' : 'Approve & Create Draft'}
+                                </button>
+                                <button onClick={() => updateRequestMutation.mutate('rejected')} disabled={updateRequestMutation.isPending} className="w-full px-6 py-3 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shadow-sm">
+                                {t.adminShared.reject}
+                                </button>
+                            </>
+                        ) : (
+                            <Button 
+                                variant="secondary" 
+                                onClick={() => updateRequestMutation.mutate('pending')} 
+                                isLoading={updateRequestMutation.isPending} 
+                                className="flex items-center justify-center gap-2 w-full"
+                            >
+                                <ArrowPathIcon className="w-4 h-4" />
+                                {language === 'ar' ? 'إعادة فتح الطلب' : 'Reopen Request'}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

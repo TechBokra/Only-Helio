@@ -106,9 +106,13 @@ const AdminRoutes: React.FC = () => {
                 <Route path="property-requests" element={<AdminPropertyRequestsPage />} />
                 <Route path="property-requests/:requestId" element={<AdminPropertyRequestDetailsPage />} />
                 
+                {/* Contact Requests */}
                 <Route path="contact-requests" element={<AdminContactRequestsPage />} />
+                <Route path="contact-requests/:requestId" element={<AdminRequestDetailsPage />} />
                 
+                {/* Property Inquiries */}
                 <Route path="property-inquiries" element={<AdminPropertyInquiriesPage />} />
+                <Route path="property-inquiries/:requestId" element={<AdminRequestDetailsPage />} />
                 
                 <Route path="finishing-requests" element={<AdminFinishingRequestsPage />} />
                 <Route path="finishing-requests/:requestId" element={<AdminRequestDetailsPage />} /> 
@@ -137,7 +141,6 @@ const AdminRoutes: React.FC = () => {
                 <Route path="properties" element={<AdminPropertiesLayout />}>
                     <Route index element={<AdminPropertiesDashboard />} />
                     <Route path="list" element={<AdminPropertiesListPage />} />
-                    {/* These redirects ensure legacy links still work, but main nav uses new structure */}
                     <Route path="listing-requests" element={<Navigate to="/admin/property-requests" replace />} />
                     <Route path="search-requests" element={<Navigate to="/admin/property-inquiries" replace />} />
                     <Route path="filters" element={<AdminFilterManagementPage />} />

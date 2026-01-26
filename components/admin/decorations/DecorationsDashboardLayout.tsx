@@ -10,7 +10,7 @@ const DecorationsLayout: React.FC = () => {
 
     const tabs = [
         { name: t_nav.dashboard, href: '/admin/platform-decorations', exact: true },
-        // 'decorationsRequests' tab removed, now a sidebar item
+        // Ensure only Portfolio and Categories are here. Requests are in the main sidebar or accessed via dashboard stats.
         { name: t_decor.portfolioTab, href: '/admin/platform-decorations/portfolio', exact: false },
         { name: t_decor.categoriesTab, href: '/admin/platform-decorations/categories', exact: false },
     ];

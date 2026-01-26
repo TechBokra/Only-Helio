@@ -123,38 +123,6 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
          queryClient.invalidateQueries({ queryKey: ['allProperties'] }); // Main public list
     };
 
-    const mutation = useMutation({
-        mutationFn: ({ id, status }: { id: string, status: ListingStatus }) => updateProperty(id, { listingStatus: status }),
-        onSuccess: () => {
-            showToast('Property updated successfully', 'success');
-            invalidate();
-        },
-        onError: () => showToast('Failed to update property', 'error')
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: string) => deleteProperty(id),
-        onSuccess: () => {
-            showToast('Property deleted successfully', 'success');
-            invalidate();
-        },
-        onError: () => showToast('Failed to delete property', 'error')
-    });
-    
-    const handleSelect = (propertyId: string) => {
-        setSelectedProperties(prev =>
-            prev.includes(propertyId) ? prev.filter(id => id !== propertyId) : [...prev, propertyId]
-        );
-    };
-
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedProperties(paginatedItems.map(p => p.id));
-        } else {
-            setSelectedProperties([]);
-        }
-    };
-
     const handleBulkAction = async () => {
         if (!actionToConfirm) return;
         const promises = selectedProperties.map(id => {
@@ -174,14 +142,29 @@ const AdminPropertiesListPage: React.FC<AdminPropertiesListPageProps> = ({
 
     const handleStatusFilterChange = (value: string) => {
         setFilter('status', value);
-        // Sync URL
-        setSearchParams(prev => {
-            if (value === 'all') prev.delete('status');
-            else prev.set('status', value);
-            return prev;
-        }, { replace: true });
+        // Sync URL safely
+        const newParams = new URLSearchParams(searchParams);
+        if (value === 'all') newParams.delete('status');
+        else newParams.set('status', value);
+        setSearchParams(newParams, { replace: true });
     };
     
+    // ... helper functions for selection ...
+    const handleSelect = (propertyId: string) => {
+        setSelectedProperties(prev =>
+            prev.includes(propertyId) ? prev.filter(id => id !== propertyId) : [...prev, propertyId]
+        );
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedProperties(paginatedItems.map(p => p.id));
+        } else {
+            setSelectedProperties([]);
+        }
+    };
+    
+    // Render Functions
     const renderTable = (items: Property[]) => (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
              {selectedProperties.length > 0 && (

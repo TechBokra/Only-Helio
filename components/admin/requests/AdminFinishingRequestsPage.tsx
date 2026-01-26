@@ -2,7 +2,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Lead, LeadStatus } from '../../../types';
-// FIX: Import keepPreviousData
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { updateLead, deleteLead as apiDeleteLead, getPaginatedLeads } from '../../../services/leads';
 import { inputClasses } from '../../ui/FormField';
@@ -15,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
 import { Button } from '../../ui/Button';
-import { ChevronRightIcon } from '../../ui/Icons';
+import { ChevronRightIcon, EyeIcon } from '../../ui/Icons';
 import { useToast } from '../../shared/ToastContext';
 
 const statusColors: { [key in LeadStatus]: string } = {
@@ -32,7 +31,7 @@ const ITEMS_PER_PAGE = 10;
 
 const AdminFinishingRequestsPage: React.FC = () => {
     const { language, t: i18n } = useLanguage();
-    const t = i18n.adminDashboard;
+    const t = i18n.adminDashboard; 
     const t_dash = i18n.dashboard;
     const { showToast } = useToast();
     
@@ -41,7 +40,6 @@ const AdminFinishingRequestsPage: React.FC = () => {
     const [serverSearch, setServerSearch] = useState('');
     const [filtersState, setFiltersState] = useState<{status?: string}>({});
 
-    // Fetch Paginated Leads (Finishing only)
     const { 
         data: queryData, 
         isLoading, 
@@ -62,7 +60,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
     const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
 
     const {
-        paginatedItems, // In manual mode, this is just 'leads'
+        paginatedItems,
         totalPages,
         currentPage, setCurrentPage,
         searchTerm, setSearchTerm,
@@ -79,9 +77,6 @@ const AdminFinishingRequestsPage: React.FC = () => {
             setPage(1);
         },
         onFilterChange: (newFilters) => {
-            // Map table filters to API filters
-            // Note: date range filtering usually needs backend support or advanced query parsing
-            // For now, we connect status. Date range would require service update.
             setFiltersState({ status: newFilters.status !== 'all' ? newFilters.status : undefined });
             setPage(1);
         }
@@ -98,7 +93,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
     };
     
     const handleDelete = async (leadId: string) => {
-        if (window.confirm(t_dash.leadTable.confirmDelete)) {
+        if (window.confirm(i18n.adminShared.confirmDelete)) {
             await apiDeleteLead(leadId);
             showToast('Deleted successfully', 'success');
             refetch();
@@ -113,7 +108,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
 
     const exportColumns = {
         customerName: t_dash.leadTable.customer,
-        partnerName: t.propertyTable.partner,
+        partnerName: i18n.adminDashboard.propertyTable.partner,
         customerPhone: t_dash.leadTable.phone,
         serviceTitle: t_dash.leadTable.service,
         status: t_dash.leadTable.status,
@@ -125,7 +120,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="py-3 w-8"></TableHead>
+                        <TableHead className="py-3 w-12"></TableHead>
                         <TableHead>{t_dash.leadTable.customer}</TableHead>
                         <TableHead>{t_dash.leadTable.service}</TableHead>
                         <TableHead>{t_dash.leadTable.date}</TableHead>
@@ -140,9 +135,13 @@ const AdminFinishingRequestsPage: React.FC = () => {
                         items.map(lead => (
                             <React.Fragment key={lead.id}>
                                 <TableRow>
-                                    <TableCell className="px-1">
-                                        <button onClick={() => toggleExpand(lead.id)} className="p-2">
-                                            <ChevronRightIcon className={`w-5 h-5 transition-transform ${expandedLeadId === lead.id ? 'rotate-90' : ''}`} />
+                                    <TableCell className="px-1 text-center">
+                                        <button 
+                                            onClick={() => toggleExpand(lead.id)} 
+                                            className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${expandedLeadId === lead.id ? 'bg-amber-100 text-amber-600' : 'text-gray-400'}`}
+                                            title="Quick Preview"
+                                        >
+                                            <ChevronRightIcon className={`w-5 h-5 transition-transform duration-200 ${expandedLeadId === lead.id ? 'rotate-90' : ''}`} />
                                         </button>
                                     </TableCell>
                                     <TableCell className="font-medium text-gray-900 whitespace-nowrap dark:text-white">
@@ -157,16 +156,33 @@ const AdminFinishingRequestsPage: React.FC = () => {
                                         </select>
                                     </TableCell>
                                     <TableCell>
-                                        <button onClick={() => handleDelete(lead.id)} className="font-medium text-red-600 dark:text-red-500 hover:underline">
-                                            {t_dash.leadTable.delete}
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={() => toggleExpand(lead.id)}
+                                                className="text-xs font-medium text-amber-600 hover:text-amber-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-amber-50"
+                                            >
+                                                <EyeIcon className="w-3 h-3"/> Preview
+                                            </button>
+                                            <Link to={`/admin/finishing-requests/${lead.id}`} className="text-gray-400 hover:text-gray-600">
+                                                <span className="sr-only">Details</span>
+                                                <ChevronRightIcon className="w-4 h-4"/>
+                                            </Link>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 {expandedLeadId === lead.id && (
                                     <TableRow className="bg-gray-50 dark:bg-gray-800/50">
-                                        <TableCell colSpan={6} className="p-0">
-                                            <div className="p-4 animate-fadeIn">
-                                                <ConversationThread lead={lead} onMessageSent={refetch} requestId={lead.id} />
+                                        <TableCell colSpan={6} className="p-0 border-t-0">
+                                            <div className="p-4 border-l-4 border-amber-500 ml-4 my-2 bg-white dark:bg-gray-800 shadow-inner rounded-r-lg h-[400px] flex flex-col">
+                                                <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                                                    <h4 className="font-bold text-gray-800 dark:text-white">Quick View: {lead.customerName}</h4>
+                                                    <Link to={`/admin/finishing-requests/${lead.id}`}>
+                                                        <Button size="sm" variant="outline">Full Details Page</Button>
+                                                    </Link>
+                                                </div>
+                                                <div className="flex-grow overflow-hidden">
+                                                    <ConversationThread lead={lead} onMessageSent={refetch} requestId={lead.id} />
+                                                </div>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -217,7 +233,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
         <div>
             <div className="flex justify-between items-start mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t.nav.finishingRequests}</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{i18n.adminDashboard.nav.finishingRequests}</h1>
                     <p className="text-gray-500 dark:text-gray-400">Manage all finishing service requests.</p>
                 </div>
                  <ExportDropdown
@@ -230,7 +246,7 @@ const AdminFinishingRequestsPage: React.FC = () => {
              <div className="my-8 p-6 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-2">
-                        <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
+                        <input type="text" placeholder={i18n.adminDashboard.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
                     </div>
                 </div>
             </div>
