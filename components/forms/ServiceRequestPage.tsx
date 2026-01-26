@@ -37,7 +37,8 @@ const ServiceRequestPage: React.FC = () => {
     const isPaymentFlow = isBooking || isPurchase;
     
     const formSlug = useMemo(() => {
-        // FIX: Correctly map custom design requests to the specific form slug
+        // Map types to specific form slugs defined in database/forms.ts
+        if (serviceType === 'property_inquiry') return 'property-inquiry';
         if (isCustom && serviceType === 'decorations') return 'custom-design-request';
         if (serviceType === 'finishing' && !isBooking) return 'finishing-request';
         if (serviceType === 'decorations' && !isPurchase) return 'decoration-request';
@@ -51,7 +52,7 @@ const ServiceRequestPage: React.FC = () => {
             ? (language === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking') 
             : isCustom 
                 ? t_custom_decor_modal.title 
-                : t_modal.title;
+                : (serviceType === 'property_inquiry' ? (language === 'ar' ? 'طلب بحث عن عقار' : 'Property Search Request') : t_modal.title);
 
     const submitButtonText = isPaymentFlow
         ? (language === 'ar' ? 'متابعة للدفع' : 'Proceed to Payment')
@@ -69,6 +70,7 @@ const ServiceRequestPage: React.FC = () => {
             finishingLevel: language === 'ar' ? 'مستوى التشطيب' : 'Finishing Level',
             itemCategory: language === 'ar' ? 'نوع العمل' : 'Category',
             dimensions: language === 'ar' ? 'الأبعاد' : 'Dimensions',
+            details: language === 'ar' ? 'تفاصيل الطلب' : 'Request Details',
         };
 
         const extraDetails: string[] = [];
@@ -88,10 +90,14 @@ const ServiceRequestPage: React.FC = () => {
         
         let managerId: string | undefined = undefined;
         if (serviceType && allPartners) {
-             const manager = allPartners.find(p => p.type === 'service_manager');
-            if (manager) {
-                managerId = manager.id;
-            }
+             // Basic routing logic based on service type to managers
+             if (serviceType === 'finishing') {
+                 managerId = allPartners.find(p => p.type === 'platform_finishing_manager' || p.type === 'service_manager')?.id;
+             } else if (serviceType === 'property_inquiry') {
+                 managerId = allPartners.find(p => p.type === 'real_estate_market_manager' || p.type === 'customer_relations_manager')?.id;
+             } else {
+                 managerId = allPartners.find(p => p.type === 'service_manager')?.id;
+             }
         }
 
         const submissionData = {
@@ -139,6 +145,20 @@ const ServiceRequestPage: React.FC = () => {
                         status: 'new'
                     }
                 }
+            });
+        } else if (serviceType === 'property_inquiry') {
+             // Explicit handling for property inquiries to use the correct RequestType
+             addRequest(RequestType.PROPERTY_INQUIRY, {
+                requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
+                payload: {
+                    details: formData.details, // Field from property-inquiry form
+                    ...formData
+                } as any
+            }).then(() => {
+                 showToast(t_modal.successMessage, 'success');
+                 setTimeout(() => navigate(-1), 2000);
+            }).catch(() => {
+                showToast('Submission failed. Please try again.', 'error');
             });
         } else {
             // Standard Lead Submission

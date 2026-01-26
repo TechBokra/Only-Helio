@@ -47,7 +47,7 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
                 navigate('/admin/partners/list?status=pending_setup'); 
             } else {
                 showToast(language === 'ar' ? 'تم رفض الطلب.' : 'Request rejected.', 'success');
-                navigate('/admin/partners/requests');
+                navigate('/admin/partner-requests');
             }
             queryClient.invalidateQueries({ queryKey: ['partnerRequests'] });
             queryClient.invalidateQueries({ queryKey: ['allPartnersAdmin'] });
@@ -69,7 +69,7 @@ const AdminPartnerRequestDetailsPage: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto">
             {/* Updated back link */}
-            <Link to="/admin/partners/requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+            <Link to="/admin/partner-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>

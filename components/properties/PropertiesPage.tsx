@@ -77,10 +77,12 @@ const PropertiesPage: React.FC = () => {
         : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8';
 
     const handleRequestAssistance = () => {
-        // Redirect to contact page with a context message
-        navigate('/contact', { 
+        // Redirect to Service Request page with explicit type 'property_inquiry'
+        navigate('/request-service', { 
             state: { 
-                subject: language === 'ar' ? 'طلب مساعدة في البحث عن عقار' : 'Property Search Assistance Request' 
+                serviceTitle: language === 'ar' ? 'طلب بحث عن عقار' : 'Property Search Request',
+                partnerId: 'admin-user', // Platform request
+                serviceType: 'property_inquiry'
             } 
         });
     };

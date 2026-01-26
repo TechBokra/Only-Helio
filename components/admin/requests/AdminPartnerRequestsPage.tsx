@@ -78,8 +78,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    {/* Updated link to nested route */}
-                                    <Link to={`/admin/partners/requests/${req.id}`}>
+                                    <Link to={`/admin/partner-requests/${req.id}`}>
                                         <Button variant="outline" size="sm">
                                             {t_admin.table.details}
                                         </Button>
@@ -118,8 +117,7 @@ const AdminPartnerRequestsPage: React.FC = () => {
                 <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                 {/* Updated link to nested route */}
-                 <Link to={`/admin/partners/requests/${req.id}`} className="w-full">
+                 <Link to={`/admin/partner-requests/${req.id}`} className="w-full">
                     <Button variant="ghost" className="w-full">{t_admin.table.details}</Button>
                 </Link>
             </CardFooter>
@@ -128,7 +126,6 @@ const AdminPartnerRequestsPage: React.FC = () => {
 
     return (
         <div>
-             {/* Header is handled by Layout now */}
             <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}

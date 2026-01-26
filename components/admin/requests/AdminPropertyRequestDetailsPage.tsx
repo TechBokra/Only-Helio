@@ -186,7 +186,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 showToast(`Request has been ${status}.`, 'success');
                 queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
                 // Correct redirect to nested list
-                navigate('/admin/properties/listing-requests');
+                navigate('/admin/property-requests');
             }
         },
         onError: (error: any) => {
@@ -200,7 +200,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     if (!request) return (
         <div className="p-8 text-center bg-white rounded-lg shadow dark:bg-gray-800 dark:text-white">
             <h3 className="text-lg font-bold text-red-500">Request not found</h3>
-            <Link to="/admin/properties/listing-requests" className="text-amber-500 hover:underline mt-4 block">Return to list</Link>
+            <Link to="/admin/property-requests" className="text-amber-500 hover:underline mt-4 block">Return to list</Link>
         </div>
     );
     
@@ -215,7 +215,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto animate-fadeIn">
              {/* Updated back link */}
-             <Link to="/admin/properties/listing-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
+             <Link to="/admin/property-requests" className="inline-flex items-center gap-2 text-amber-600 hover:underline mb-4">
                 <ArrowLeftIcon className="w-5 h-5" />
                 {t.adminShared.backToRequests}
             </Link>
