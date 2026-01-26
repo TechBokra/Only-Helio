@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -22,7 +21,8 @@ const PaymentPage: React.FC = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
-    // Corrected translation access path based on billing.ts structure being spread into root
+    
+    // Fix: Access payment translations directly from root (t.payment), as 'billing' keys are spread into root in localization files
     const t_pay = t.payment;
     
     const { data: siteContent, isLoading: isLoadingContent } = useQuery({ queryKey: ['siteContent'], queryFn: getContent });
@@ -171,7 +171,7 @@ const PaymentPage: React.FC = () => {
     if (isLoadingContent) return <div className="p-10 text-center flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div></div>;
     
     // Safety check for translations
-    if (!t_pay) return <div className="p-10 text-center text-red-500">Error loading payment configuration (Translation missing).</div>;
+    if (!t_pay) return <div className="p-10 text-center text-red-500">Error loading payment configuration. Please try again.</div>;
 
     const config = siteContent?.paymentConfiguration;
 

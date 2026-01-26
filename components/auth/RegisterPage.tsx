@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -132,8 +131,8 @@ const RegisterPage: React.FC = () => {
         const typeKey = companyType as string;
         const planKey = selectedPlan as string;
         
-        // Get dynamic price from fetched plans
-        const planDetails = allPlans?.[typeKey]?.[planKey]?.[language];
+        // Get dynamic price from fetched plans - Using 'any' cast to resolve TS index error
+        const planDetails = (allPlans as any)?.[typeKey]?.[planKey]?.[language];
         const planPriceString = planDetails?.price || "0";
         const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
 
@@ -283,7 +282,8 @@ const RegisterPage: React.FC = () => {
                                 {selectedPlan && companyType && (
                                      // Quick display of selected plan price to inform user before submit
                                     (() => {
-                                        const planDetails = allPlans?.[companyType as string]?.[selectedPlan as string]?.[language];
+                                        // Using any cast to resolve TS index error
+                                        const planDetails = (allPlans as any)?.[companyType as string]?.[selectedPlan as string]?.[language];
                                         const planPriceString = planDetails?.price || "0";
                                         const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
                                         
@@ -305,7 +305,6 @@ const RegisterPage: React.FC = () => {
                                 <div className="mt-12 flex justify-between">
                                     <Button type="button" variant="secondary" onClick={prevStep}>{t_page.back}</Button>
                                     <Button type="submit" isLoading={mutation.isPending}>
-                                        {/* Dynamic Label based on price check inside render is complex, fallback to generic or check logic above */}
                                         {t_page.submitRequest}
                                     </Button>
                                 </div>
