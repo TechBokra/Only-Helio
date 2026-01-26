@@ -7,6 +7,7 @@ const CONTENT_KEY = 'site_content_v1';
 // Full rich content fallback
 const fallbackContent: SiteContent = {
   logoUrl: '',
+  enableMaps: true, // Default enabled
   hero: { 
       ar: { title: 'بوابتك الحصرية لأرقى العقارات في هليوبوليس الجديدة', subtitle: 'اكتشف روائع معمارية وخدمات متكاملة مصممة خصيصًا لتلبية طموحات سكان مدينة هليوبوليس الجديدة.' }, 
       en: { title: 'Your Exclusive Gateway to the Finest Properties in New Heliopolis', subtitle: 'Discover architectural masterpieces and integrated services tailored to meet the ambitions of New Heliopolis residents.' }, 

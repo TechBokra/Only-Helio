@@ -12,12 +12,16 @@ import { useToast } from '../shared/ToastContext';
 import { Checkbox } from '../ui/Checkbox';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { ChartBarIcon, FileDownloadIcon, FunnelIcon, TableCellsIcon, CheckCircleIcon } from '../ui/Icons';
+import { 
+    ChartBarIcon, FileDownloadIcon, FunnelIcon, TableCellsIcon, 
+    CalendarIcon, ArrowDownIcon, RefreshIcon, FilterIcon 
+} from '../ui/Icons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { StatusBadge } from '../ui/StatusBadge';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
 type DataSourceType = 'leads' | 'properties' | 'partners';
 type DateRangeShortcut = 'all' | 'today' | 'week' | 'month' | 'quarter' | 'year';
@@ -36,6 +40,9 @@ const AdminReportsPage: React.FC = () => {
     const { showToast } = useToast();
     const t_reports = t.adminReports;
     
+    // Toggle state for column selector visibility
+    const [showColumnSelector, setShowColumnSelector] = useState(false);
+
     const { register, watch, setValue } = useForm<FormData>({
         defaultValues: {
             dataSource: 'leads',
@@ -59,6 +66,8 @@ const AdminReportsPage: React.FC = () => {
     const { data: properties, isLoading: loadingProps } = useQuery({ queryKey: ['allPropertiesAdmin'], queryFn: getAllProperties });
     const { data: partners, isLoading: loadingPartners } = useQuery({ queryKey: ['allPartnersAdmin'], queryFn: getAllPartnersForAdmin });
 
+    const loading = loadingLeads || loadingProps || loadingPartners;
+
     // Configuration Definitions
     const columnDefinitions: Record<DataSourceType, Record<string, { label: string, path: string }>> = {
         leads: {
@@ -67,14 +76,14 @@ const AdminReportsPage: React.FC = () => {
             serviceTitle: { label: 'Service', path: 'serviceTitle' },
             status: { label: 'Status', path: 'status' },
             createdAt: { label: 'Date', path: 'createdAt' },
-            partnerName: { label: 'Assigned Partner', path: 'partnerName' }
+            partnerName: { label: 'Partner', path: 'partnerName' }
         },
         properties: {
             title: { label: 'Title', path: `title.${language}` },
             type: { label: 'Type', path: `type.${language}` },
-            status: { label: 'Listing Status', path: 'listingStatus' }, // Using listingStatus internally
+            status: { label: 'Status', path: 'listingStatus' },
             price: { label: 'Price', path: 'priceNumeric' },
-            area: { label: 'Area (m²)', path: 'area' },
+            area: { label: 'Area', path: 'area' },
             location: { label: 'Location', path: `address.${language}` },
             partner: { label: 'Partner', path: 'partnerName' }
         },
@@ -83,8 +92,8 @@ const AdminReportsPage: React.FC = () => {
             type: { label: 'Type', path: 'type' },
             email: { label: 'Email', path: 'email' },
             status: { label: 'Status', path: 'status' },
-            plan: { label: 'Subscription Plan', path: 'subscriptionPlan' },
-            joined: { label: 'Joined Date', path: 'createdAt' } 
+            plan: { label: 'Plan', path: 'subscriptionPlan' },
+            joined: { label: 'Joined', path: 'createdAt' } 
         }
     };
 
@@ -111,7 +120,6 @@ const AdminReportsPage: React.FC = () => {
     const handleSelectAllColumns = () => {
         const colDefs = columnDefinitions[dataSource];
         if (!colDefs) return;
-        
         const allCols = Object.keys(colDefs);
         if (selectedColumns.length === allCols.length) {
             setValue('columns', []);
@@ -119,6 +127,15 @@ const AdminReportsPage: React.FC = () => {
             setValue('columns', allCols);
         }
     };
+
+    // Set default columns on datasource change
+    React.useEffect(() => {
+        const currentDefs = columnDefinitions[dataSource];
+        if (currentDefs) {
+             const defaultCols = Object.keys(currentDefs);
+             setValue('columns', defaultCols);
+        }
+    }, [dataSource, setValue]);
 
     // Filter Logic
     const filteredData = useMemo(() => {
@@ -137,7 +154,7 @@ const AdminReportsPage: React.FC = () => {
             
             const start = new Date(startDate);
             const end = new Date(endDate);
-            end.setHours(23, 59, 59); // Include end of day
+            end.setHours(23, 59, 59); 
 
             const dateMatch = itemDate >= start && itemDate <= end;
 
@@ -153,25 +170,51 @@ const AdminReportsPage: React.FC = () => {
         });
     }, [dataSource, leads, properties, partners, startDate, endDate, statusFilter]);
 
-    // Chart Data Preparation
-    const chartData = useMemo(() => {
+    // Analytics & Charts Data
+    const analytics = useMemo(() => {
         if (!filteredData.length) return null;
 
-        // Group by Status for Doughnut
+        // 1. Status Distribution
         const statusCounts: Record<string, number> = {};
+        // 2. Timeline Data (Trend)
+        const timelineData: Record<string, number> = {};
+
         filteredData.forEach(item => {
+            // Status
             const statusField = dataSource === 'properties' ? 'listingStatus' : 'status';
             const status = (item as any)[statusField] || 'Unknown';
             statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+            // Timeline
+            const dateField = dataSource === 'properties' ? 'listingStartDate' : 'createdAt';
+            const dateStr = (item as any)[dateField];
+            if (dateStr) {
+                const dateKey = new Date(dateStr).toISOString().split('T')[0];
+                timelineData[dateKey] = (timelineData[dateKey] || 0) + 1;
+            }
         });
 
+        const sortedDates = Object.keys(timelineData).sort();
+        
         return {
-            doughnut: {
+            total: filteredData.length,
+            statusDistribution: {
                 labels: Object.keys(statusCounts),
                 datasets: [{
                     data: Object.values(statusCounts),
-                    backgroundColor: ['#FBBF24', '#F97316', '#D97706', '#B45309', '#78350F', '#10B981', '#EF4444'],
+                    backgroundColor: ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#6366F1', '#8B5CF6'],
                     borderWidth: 0
+                }]
+            },
+            timeline: {
+                labels: sortedDates,
+                datasets: [{
+                    label: 'Count',
+                    data: sortedDates.map(d => timelineData[d]),
+                    borderColor: '#F59E0B',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }]
             }
         };
@@ -191,12 +234,10 @@ const AdminReportsPage: React.FC = () => {
             return acc;
         }, {} as Record<string, string>);
 
-        // Map data to flat structure for export based on paths
         const flatData = filteredData.map(item => {
             const row: any = {};
             selectedColumns.forEach(colKey => {
                 const path = currentDefs[colKey]?.path;
-                // Simple path resolution if path exists
                 row[colKey] = path ? path.split('.').reduce((o, i) => o?.[i], item) : '';
             });
             return row;
@@ -210,232 +251,225 @@ const AdminReportsPage: React.FC = () => {
             exportToPdf(filename, columnsToExport, flatData, language);
         }
     };
-    
-    // Set default columns on datasource change
-    React.useEffect(() => {
-        const currentDefs = columnDefinitions[dataSource];
-        if (currentDefs) {
-             const defaultCols = Object.keys(currentDefs);
-             setValue('columns', defaultCols);
-        }
-    }, [dataSource, setValue]);
-
-    const loading = loadingLeads || loadingProps || loadingPartners;
 
     return (
-        <div className="h-[calc(100vh-100px)] flex flex-col animate-fadeIn">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_reports.title}</h1>
-                <p className="text-gray-500 dark:text-gray-400">{t_reports.subtitle}</p>
+        <div className="space-y-8 animate-fadeIn pb-12">
+            
+            {/* 1. Header & Title */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_reports.title}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{t_reports.subtitle}</p>
+                </div>
+                <div className="flex gap-2">
+                     <Button onClick={() => handleExport('csv')} variant="secondary" className="flex items-center gap-2">
+                         <FileDownloadIcon className="w-4 h-4" /> CSV
+                     </Button>
+                     <Button onClick={() => handleExport('pdf')} variant="primary" className="flex items-center gap-2">
+                         <FileDownloadIcon className="w-4 h-4" /> PDF
+                     </Button>
+                </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
-                
-                {/* LEFT SIDEBAR: CONFIGURATION */}
-                <div className="w-full lg:w-80 flex-shrink-0 overflow-y-auto space-y-6 pr-2">
+            {/* 2. Top Control Bar (Filters) */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     
-                    {/* Data Source Selection */}
-                    <Card>
-                        <CardHeader className="pb-3"><CardTitle className="text-lg flex items-center gap-2"><TableCellsIcon className="w-5 h-5 text-amber-500"/> Source</CardTitle></CardHeader>
-                        <CardContent>
-                            <select {...register('dataSource')} className={selectClasses}>
-                                <option value="leads">{t_reports.dataSources.leads}</option>
-                                <option value="properties">{t_reports.dataSources.properties}</option>
-                                <option value="partners">{t_reports.dataSources.partners}</option>
-                            </select>
+                    {/* Data Source */}
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data Source</label>
+                        <select {...register('dataSource')} className={selectClasses + " font-medium"}>
+                            <option value="leads">{t_reports.dataSources.leads}</option>
+                            <option value="properties">{t_reports.dataSources.properties}</option>
+                            <option value="partners">{t_reports.dataSources.partners}</option>
+                        </select>
+                    </div>
+
+                    {/* Date Presets */}
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Time Range</label>
+                        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                            {['week', 'month', 'year', 'all'].map((sc) => (
+                                <button 
+                                    key={sc}
+                                    type="button"
+                                    onClick={() => handleDateShortcut(sc as DateRangeShortcut)}
+                                    className={`flex-1 text-xs py-2 rounded-md transition-all font-medium ${dateRangeShortcut === sc ? 'bg-white dark:bg-gray-600 shadow text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                >
+                                    {sc.charAt(0).toUpperCase() + sc.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status Filter</label>
+                         <div className="relative">
+                             <select {...register('statusFilter')} className={selectClasses}>
+                                 <option value="all">All Statuses</option>
+                                 {dataSource === 'properties' ? (
+                                     <>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="draft">Draft</option>
+                                     </>
+                                 ) : dataSource === 'leads' ? (
+                                     <>
+                                        <option value="new">New</option>
+                                        <option value="contacted">Contacted</option>
+                                        <option value="in-progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                     </>
+                                 ) : (
+                                     <>
+                                        <option value="active">Active</option>
+                                        <option value="pending">Pending</option>
+                                     </>
+                                 )}
+                             </select>
+                             <FilterIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
+                    </div>
+                    
+                    {/* Columns Toggle */}
+                    <div className="relative">
+                         <Button type="button" variant="outline" className="w-full justify-between" onClick={() => setShowColumnSelector(!showColumnSelector)}>
+                            <span>Customize Columns ({selectedColumns.length})</span>
+                            <ArrowDownIcon className={`w-4 h-4 transition-transform ${showColumnSelector ? 'rotate-180' : ''}`} />
+                         </Button>
+                         
+                         {showColumnSelector && (
+                             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 p-4 animate-fadeIn">
+                                 <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                                     <span className="text-xs font-bold text-gray-500 uppercase">Visible Columns</span>
+                                     <button type="button" onClick={handleSelectAllColumns} className="text-xs text-amber-600 hover:underline">Toggle All</button>
+                                 </div>
+                                 <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                                    {columnDefinitions[dataSource] && Object.entries(columnDefinitions[dataSource]).map(([key, def]) => (
+                                        <label key={key} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                                            <Checkbox {...register('columns')} value={key} />
+                                            {/* @ts-ignore */}
+                                            <span className="text-gray-700 dark:text-gray-300">{(def as any).label}</span>
+                                        </label>
+                                    ))}
+                                 </div>
+                             </div>
+                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Visual Insights Dashboard (KPIs & Charts) */}
+            {analytics && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* KPI Card */}
+                    <Card className="lg:col-span-1 bg-amber-500 text-white border-none shadow-lg shadow-amber-500/20">
+                        <CardContent className="p-6 flex flex-col justify-between h-full">
+                            <div>
+                                <p className="text-amber-100 font-medium text-sm uppercase tracking-wider mb-2">Total Records</p>
+                                <h2 className="text-5xl font-bold">{analytics.total}</h2>
+                            </div>
+                            <div className="mt-8 pt-4 border-t border-white/20">
+                                <p className="text-sm text-white/90 flex items-center gap-2">
+                                    <CalendarIcon className="w-4 h-4" /> 
+                                    {new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    {/* Filters */}
-                    <Card>
-                         <CardHeader className="pb-3"><CardTitle className="text-lg flex items-center gap-2"><FunnelIcon className="w-5 h-5 text-amber-500"/> Filters</CardTitle></CardHeader>
-                         <CardContent className="space-y-4">
-                             {/* Date Shortcuts */}
-                             <div className="grid grid-cols-3 gap-2">
-                                {['today', 'week', 'month', 'year', 'all'].map((sc) => (
-                                    <button 
-                                        key={sc}
-                                        type="button"
-                                        onClick={() => handleDateShortcut(sc as DateRangeShortcut)}
-                                        className={`text-xs py-1 px-2 rounded border ${dateRangeShortcut === sc ? 'bg-amber-100 border-amber-500 text-amber-700 font-bold' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
-                                    >
-                                        {sc.charAt(0).toUpperCase() + sc.slice(1)}
-                                    </button>
-                                ))}
-                             </div>
-
-                             {/* Date Inputs */}
-                             <div className="space-y-2">
-                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">{t_reports.startDate}</label>
-                                    <input type="date" {...register('startDate')} className={inputClasses} />
-                                </div>
-                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">{t_reports.endDate}</label>
-                                    <input type="date" {...register('endDate')} className={inputClasses} />
-                                </div>
-                             </div>
-
-                             {/* Status Filter */}
-                             <div>
-                                 <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-                                 <select {...register('statusFilter')} className={selectClasses}>
-                                     <option value="all">All Statuses</option>
-                                     {dataSource === 'properties' ? (
-                                         <>
-                                            <option value="active">Active</option>
-                                            <option value="inactive">Inactive</option>
-                                            <option value="sold">Sold</option>
-                                         </>
-                                     ) : dataSource === 'leads' ? (
-                                         <>
-                                            <option value="new">New</option>
-                                            <option value="contacted">Contacted</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="cancelled">Cancelled</option>
-                                         </>
-                                     ) : (
-                                         <>
-                                            <option value="active">Active</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="disabled">Disabled</option>
-                                         </>
-                                     )}
-                                 </select>
-                             </div>
-                         </CardContent>
-                    </Card>
-
-                    {/* Columns Selection */}
-                    <Card>
-                        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                            <CardTitle className="text-lg flex items-center gap-2"><TableCellsIcon className="w-5 h-5 text-amber-500"/> Columns</CardTitle>
-                            <button type="button" onClick={handleSelectAllColumns} className="text-xs text-amber-600 hover:underline">Toggle All</button>
+                    {/* Doughnut Chart */}
+                    <Card className="lg:col-span-1">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-medium text-gray-500">Status Distribution</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                {columnDefinitions[dataSource] && Object.entries(columnDefinitions[dataSource]).map(([key, def]) => (
-                                    <label key={key} className="flex items-center gap-2 text-sm p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                                        <Checkbox {...register('columns')} value={key} />
-                                        {/* FIX: Cast 'def' to a known type to access 'label' property. */}
-                                        <span className="text-gray-700 dark:text-gray-300">{(def as { label: string }).label}</span>
-                                    </label>
-                                ))}
-                            </div>
+                        <CardContent className="h-48 flex justify-center pb-4">
+                            <Doughnut data={analytics.statusDistribution} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } } }} />
                         </CardContent>
                     </Card>
-                    
-                     {/* Export Actions - Mobile Only (Sticky Bottom) */}
-                     <div className="lg:hidden grid grid-cols-2 gap-4 sticky bottom-0 bg-gray-50 p-4 border-t">
-                        <Button onClick={() => handleExport('csv')} variant="secondary" className="w-full">CSV</Button>
-                        <Button onClick={() => handleExport('pdf')} variant="danger" className="w-full">PDF</Button>
-                    </div>
 
+                    {/* Line Chart */}
+                    <Card className="lg:col-span-1">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-medium text-gray-500">Growth Trend</CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-48 pb-4">
+                            <Line data={analytics.timeline} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { count: 3 } } } }} />
+                        </CardContent>
+                    </Card>
                 </div>
+            )}
 
-                {/* RIGHT SIDE: PREVIEW & CHARTS */}
-                <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-100 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800">
-                    
-                    {/* Top Bar: Stats & Actions */}
-                    <div className="p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="flex gap-6">
-                             <div className="text-center sm:text-left">
-                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Records</p>
-                                <p className="text-3xl font-bold text-gray-900 dark:text-white">{filteredData.length}</p>
-                            </div>
-                             {chartData && (
-                                <div className="hidden md:flex items-center gap-2 h-12">
-                                    <div className="h-full w-px bg-gray-200 dark:bg-gray-700 mx-2"></div>
-                                    <div className="w-10 h-10">
-                                         <Doughnut data={chartData.doughnut} options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }} />
-                                    </div>
-                                    <span className="text-xs text-gray-500 max-w-[100px]">Distribution by Status</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="hidden lg:flex gap-3">
-                             <Button onClick={() => handleExport('csv')} variant="secondary" className="flex items-center gap-2">
-                                 <FileDownloadIcon className="w-4 h-4" /> {t_reports.exportCSV}
-                             </Button>
-                             <Button onClick={() => handleExport('pdf')} variant="danger" className="flex items-center gap-2">
-                                 <FileDownloadIcon className="w-4 h-4" /> {t_reports.exportPDF}
-                             </Button>
-                        </div>
+            {/* 4. Data Table */}
+            <Card className="overflow-hidden border border-gray-200 dark:border-gray-700">
+                <CardHeader className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 py-4">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <TableCellsIcon className="w-5 h-5 text-gray-400" />
+                            Detailed Data
+                        </CardTitle>
+                        <span className="text-xs text-gray-500">Showing {filteredData.length} records</span>
                     </div>
+                </CardHeader>
+                <div className="overflow-x-auto">
+                    {loading ? (
+                        <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                            Loading data...
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="p-12 text-center text-gray-500 bg-gray-50/50">
+                            No records found matching your filters.
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    {selectedColumns.length > 0 ? selectedColumns.map(colKey => {
+                                        // @ts-ignore
+                                        const label = columnDefinitions[dataSource][colKey]?.label || colKey;
+                                        return <TableHead key={colKey} className="whitespace-nowrap bg-gray-50 dark:bg-gray-800 font-bold">{label}</TableHead>;
+                                    }) : <TableHead>No columns selected</TableHead>}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredData.slice(0, 100).map((item, idx) => (
+                                    <TableRow key={idx} className="hover:bg-amber-50/30 dark:hover:bg-amber-900/10 transition-colors border-b border-gray-100 dark:border-gray-800">
+                                         {selectedColumns.map(colKey => {
+                                             // @ts-ignore
+                                             const path = columnDefinitions[dataSource][colKey]?.path;
+                                             const value = path ? path.split('.').reduce((o: any, i: any) => o?.[i], item) : '';
+                                             
+                                             let content: React.ReactNode = value;
+                                             
+                                             // Special Rendering
+                                             if (colKey === 'status' || colKey.includes('Status')) {
+                                                 content = <StatusBadge status={value} className="text-[10px]" />;
+                                             } else if (colKey === 'createdAt' || colKey.includes('Date')) {
+                                                 content = new Date(value).toLocaleDateString(language);
+                                             } else if (colKey === 'price') {
+                                                 content = typeof value === 'number' ? value.toLocaleString() : value;
+                                             }
 
-                    {/* Table Preview */}
-                    <div className="flex-grow overflow-auto p-6">
-                         {loading ? (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-                            </div>
-                        ) : filteredData.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                                <ChartBarIcon className="w-16 h-16 mb-4 text-gray-300" />
-                                <p className="text-lg">No data matches your filters.</p>
-                                <Button variant="link" onClick={() => {setValue('statusFilter', 'all'); setValue('dateRangeShortcut', 'all'); handleDateShortcut('all')}}>Clear Filters</Button>
-                            </div>
-                        ) : (
-                             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                {selectedColumns.length > 0 ? selectedColumns.map(colKey => {
-                                                    // Explicitly cast the lookup result
-                                                    const colDefs = columnDefinitions[dataSource] as Record<string, { label: string; path: string }>;
-                                                    const colDef = colDefs?.[colKey];
-                                                    return (
-                                                        <TableHead key={colKey} className="whitespace-nowrap">
-                                                            {colDef?.label ?? colKey}
-                                                        </TableHead>
-                                                    );
-                                                }) : <TableHead>No columns selected</TableHead>}
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredData.slice(0, 50).map((item, idx) => (
-                                                <TableRow key={idx}>
-                                                     {selectedColumns.map(colKey => {
-                                                         const colDefs = columnDefinitions[dataSource] as Record<string, { label: string; path: string }>;
-                                                         const colDef = colDefs?.[colKey];
-                                                         const path = colDef?.path;
-                                                         // Safe property access using reduce
-                                                         const value = path ? path.split('.').reduce((o: any, i) => o?.[i], item) : '';
-                                                         
-                                                         // Formatting specific values
-                                                         let displayValue = value;
-                                                         if (colKey.toLowerCase().includes('date') || colKey.toLowerCase().includes('created')) {
-                                                             try {
-                                                                displayValue = new Date(value).toLocaleDateString(language);
-                                                             } catch (e) { /* keep original value */ }
-                                                         }
-                                                         if (colKey === 'price') {
-                                                             displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-                                                         }
-
-                                                         return (
-                                                            <TableCell key={colKey} className="whitespace-nowrap text-sm">
-                                                                {displayValue}
-                                                            </TableCell>
-                                                         );
-                                                     })}
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                                {filteredData.length > 50 && (
-                                    <div className="p-3 text-center text-xs text-gray-500 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-                                        Showing first 50 rows of {filteredData.length} total records. Export to see all.
-                                    </div>
-                                )}
-                             </div>
-                        )}
-                    </div>
-
+                                             return (
+                                                <TableCell key={colKey} className="whitespace-nowrap text-sm py-3 text-gray-700 dark:text-gray-300">
+                                                    {content}
+                                                </TableCell>
+                                             );
+                                         })}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
                 </div>
-            </div>
+                 {filteredData.length > 100 && (
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500">
+                        Showing first 100 rows. Use <strong>Export</strong> to see all data.
+                    </div>
+                )}
+            </Card>
         </div>
     );
 };

@@ -395,6 +395,7 @@ export interface Quote {
 export interface SiteContent {
     logoUrl?: string;
     locationPickerMapUrl?: string;
+    enableMaps?: boolean; // New Flag
     topBanner?: {
         enabled: boolean;
         content: { ar: string; en: string };

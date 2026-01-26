@@ -27,6 +27,7 @@ import StackedImageGallery from './StackedImageGallery';
 import UnifiedMap from '../shared/UnifiedMap';
 import MortgageCalculator from './MortgageCalculator';
 import PropertyCard from './PropertyCard';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 const PropertyDetailsPage: React.FC = () => {
     const { propertyId } = useParams<{ propertyId: string }>();
@@ -35,6 +36,7 @@ const PropertyDetailsPage: React.FC = () => {
     const { isFavorite, toggleFavorite } = useFavorites();
     const { showToast } = useToast();
     const navigate = useNavigate();
+    const { data: siteContent } = useSiteContent();
 
     const fetchProperty = useCallback(() => getPropertyById(propertyId!), [propertyId]);
     const { data: property, isLoading: isLoadingProp } = useQuery({ queryKey: [`property-${propertyId}`], queryFn: fetchProperty, enabled: !!propertyId });
@@ -142,10 +144,7 @@ const PropertyDetailsPage: React.FC = () => {
     const pageTitle = `${property.title[language]} | ONLY HELIO`;
     const pageDescription = property.description[language].substring(0, 160);
     
-    // FIX: Use 'en' array as source of truth for keys, then map to localized values
-    // This fixes the issue where Arabic array is empty in DB but English has keys
     const amenityKeys = property.amenities.en || [];
-    
     const allImages = [property.imageUrl, ...property.gallery].filter(Boolean);
 
     const handleWhatsAppShare = () => {
@@ -241,30 +240,32 @@ const PropertyDetailsPage: React.FC = () => {
                         <DetailSection title={t_page.description}>
                             <p className="whitespace-pre-line text-gray-600 dark:text-gray-300 leading-relaxed">{property.description[language]}</p>
                         </DetailSection>
-
-                        <DetailSection title={t_page.location}>
-                            <div className="rounded-lg overflow-hidden h-[400px] border border-gray-200 dark:border-gray-700">
-                                <UnifiedMap 
-                                    mode="read"
-                                    markers={[{
-                                        id: property.id,
-                                        lat: property.location.lat,
-                                        lng: property.location.lng,
-                                        color: 'amber'
-                                    }]}
-                                />
-                            </div>
-                            <p className="text-sm text-gray-500 mt-2">
-                                {language === 'ar' ? 'الإحداثيات:' : 'Coordinates:'} {property.location.lat.toFixed(4)}, {property.location.lng.toFixed(4)}
-                            </p>
-                        </DetailSection>
+                        
+                        {/* Conditionally Render Map based on settings */}
+                        {siteContent?.enableMaps && (
+                            <DetailSection title={t_page.location}>
+                                <div className="rounded-lg overflow-hidden h-[400px] border border-gray-200 dark:border-gray-700">
+                                    <UnifiedMap 
+                                        mode="read"
+                                        markers={[{
+                                            id: property.id,
+                                            lat: property.location.lat,
+                                            lng: property.location.lng,
+                                            color: 'amber'
+                                        }]}
+                                    />
+                                </div>
+                                <p className="text-sm text-gray-500 mt-2">
+                                    {language === 'ar' ? 'الإحداثيات:' : 'Coordinates:'} {property.location.lat.toFixed(4)}, {property.location.lng.toFixed(4)}
+                                </p>
+                            </DetailSection>
+                        )}
 
                         {amenityKeys.length > 0 && (
                             <DetailSection title={t_page.amenities}>
                                 <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {amenityKeys.map(amenityKey => {
                                         const Icon = getAmenityIcon(amenityKey);
-                                        // Attempt to translate, fallback to key if not found
                                         const label = t_page.amenitiesIncluded[amenityKey] || amenityKey;
                                         return (
                                             <li key={amenityKey} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">

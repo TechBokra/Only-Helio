@@ -5,7 +5,8 @@ import {
   HomeIcon, ChartBarIcon, UserPlusIcon, ClipboardDocumentListIcon, SearchIcon,
   InboxIcon, WrenchScrewdriverIcon, UsersIcon, CubeIcon, BuildingIcon, QuoteIcon,
   CogIcon, PhotoIcon, SparklesIcon, ShieldCheckIcon, FileDownloadIcon, PhoneIcon,
-  AdjustmentsHorizontalIcon, BellIcon, BanknotesIcon, ListIcon, CalculatorIcon
+  AdjustmentsHorizontalIcon, BellIcon, BanknotesIcon, ListIcon, CalculatorIcon,
+  TableCellsIcon
 } from '../components/ui/Icons';
 
 export interface NavLinkItem {
@@ -22,6 +23,7 @@ export const adminNavLinks: NavLinkItem[] = [
   // --- Group: Overview ---
   { name: t => t.adminDashboard.nav.dashboard, href: '/admin', icon: HomeIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, exact: true, group: 'Overview' },
   { name: t => t.adminDashboard.nav.analytics, href: '/admin/analytics', icon: ChartBarIcon, permission: Permission.VIEW_ANALYTICS, group: 'Overview' },
+  { name: t => t.adminDashboard.nav.reports, href: '/admin/reports', icon: TableCellsIcon, permission: Permission.VIEW_ANALYTICS, group: 'Overview' },
   { name: t => t.adminDashboard.nav.finance, href: '/admin/finance', icon: BanknotesIcon, permission: Permission.MANAGE_PLANS, group: 'Overview' },
   { name: t => t.notifications.title, href: '/admin/notifications', icon: BellIcon, permission: Permission.VIEW_ADMIN_DASHBOARD, group: 'Overview' },
   
@@ -53,6 +55,7 @@ export const adminNavLinks: NavLinkItem[] = [
   { name: t => t.adminDashboard.nav.banners, href: '/admin/banners', icon: PhotoIcon, permission: Permission.MANAGE_BANNERS, group: 'System' },
   { name: t => t.adminDashboard.nav.forms, href: '/admin/forms', icon: ClipboardDocumentListIcon, permission: Permission.MANAGE_FORMS, group: 'System' },
   { name: t => t.adminDashboard.nav.users, href: '/admin/users', icon: UsersIcon, permission: Permission.MANAGE_USERS, group: 'System' },
+  { name: t => t.adminDashboard.nav.rolesAndPermissions, href: '/admin/roles', icon: ShieldCheckIcon, permission: Permission.MANAGE_ROLES_PERMISSIONS, group: 'System' },
   { name: t => t.adminDashboard.nav.automationRules, href: '/admin/automation', icon: AdjustmentsHorizontalIcon, permission: Permission.MANAGE_AUTOMATION, group: 'System' },
   { name: t => t.adminDashboard.nav.aiEstimator, href: '/admin/ai-estimator', icon: CalculatorIcon, permission: Permission.MANAGE_PLATFORM_FINISHING_PACKAGES, group: 'System' },
   { name: t => t.adminDashboard.nav.settings, href: '/admin/settings', icon: CogIcon, permission: Permission.MANAGE_SETTINGS, group: 'System' },

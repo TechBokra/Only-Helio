@@ -16,6 +16,7 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Button } from '../ui/Button';
 import FormField, { inputClasses } from '../ui/FormField';
 import { RadioGroup, RadioGroupItem } from '../ui/RadioGroup';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 // Import new Sub-components
 import PropertyBasicInfo from './property/PropertyBasicInfo';
@@ -68,6 +69,7 @@ const PropertyFormPage: React.FC = () => {
     const { language, t } = useLanguage();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
+    const { data: siteContent } = useSiteContent();
     
     const usageType = currentUser?.type === 'developer' ? 'units' : 'properties';
     const { isLimitReached } = useSubscriptionUsage(usageType);
@@ -218,6 +220,13 @@ const PropertyFormPage: React.FC = () => {
             en: `EGP ${pricePerMeterNumeric.toLocaleString('en-US')}/m²`,
         } : undefined;
 
+        // Ensure location defaults if maps are disabled
+        const defaultLat = 30.0;
+        const defaultLng = 31.0;
+        const finalLocation = siteContent?.enableMaps 
+            ? formData.location 
+            : { lat: defaultLat, lng: defaultLng };
+
         const propertyData: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl'> = {
             ...formData,
             status: { 
@@ -241,7 +250,8 @@ const PropertyFormPage: React.FC = () => {
             type: { en: formData.type.en as any, ar: formData.type.ar },
             beds: formData.beds || 0,
             baths: formData.baths || 0,
-            floor: formData.floor
+            floor: formData.floor,
+            location: finalLocation
         };
         
         if (propertyId) {
@@ -262,7 +272,7 @@ const PropertyFormPage: React.FC = () => {
 
     return (
         <div>
-            {isMapOpen && (
+            {siteContent?.enableMaps && isMapOpen && (
                 <LocationPickerModal 
                     onClose={() => setIsMapOpen(false)} 
                     onLocationSelect={handleLocationSelect} 
@@ -290,7 +300,10 @@ const PropertyFormPage: React.FC = () => {
                     <PropertyFinancials />
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <PropertyLocation onOpenMap={() => setIsMapOpen(true)} />
+                        {/* Only show PropertyLocation block if maps are enabled globally */}
+                        {siteContent?.enableMaps && (
+                            <PropertyLocation onOpenMap={() => setIsMapOpen(true)} />
+                        )}
                         
                         <PropertyMedia 
                             mainImage={mainImage}

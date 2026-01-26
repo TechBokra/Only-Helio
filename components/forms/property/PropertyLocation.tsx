@@ -5,6 +5,7 @@ import { useLanguage } from '../../shared/LanguageContext';
 import FormField, { inputClasses } from '../../ui/FormField';
 import { Button } from '../../ui/Button';
 import { LocationMarkerIcon } from '../../ui/Icons';
+import { useSiteContent } from '../../../hooks/useSiteContent';
 
 interface PropertyLocationProps {
     onOpenMap: () => void;
@@ -13,6 +14,7 @@ interface PropertyLocationProps {
 const PropertyLocation: React.FC<PropertyLocationProps> = ({ onOpenMap }) => {
     const { register } = useFormContext();
     const { language, t } = useLanguage();
+    const { data: siteContent } = useSiteContent();
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
@@ -29,10 +31,13 @@ const PropertyLocation: React.FC<PropertyLocationProps> = ({ onOpenMap }) => {
                             <input type="number" step="any" {...register("location.lng", { valueAsNumber: true })} className={inputClasses} placeholder="e.g. 31.123" />
                         </FormField>
                     </div>
-                    <Button type="button" variant="outline" onClick={onOpenMap} className="flex items-center gap-2 mb-[2px]">
-                        <LocationMarkerIcon className="w-5 h-5" /> 
-                        {language === 'ar' ? 'تحديد على الخريطة' : 'Select on Map'}
-                    </Button>
+                    {/* Only show map picker button if maps are enabled */}
+                    {siteContent?.enableMaps && (
+                        <Button type="button" variant="outline" onClick={onOpenMap} className="flex items-center gap-2 mb-[2px]">
+                            <LocationMarkerIcon className="w-5 h-5" /> 
+                            {language === 'ar' ? 'تحديد على الخريطة' : 'Select on Map'}
+                        </Button>
+                    )}
                 </div>
                 <p className="text-xs text-gray-500">
                     {t.forms.locationHint}

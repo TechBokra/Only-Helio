@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { SiteContent } from '../../types';
 import { inputClasses } from '../ui/FormField';
-import { PhotoIcon, BanknotesIcon, CreditCardIcon, CircleStackIcon, ArrowPathIcon, CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from '../ui/Icons';
+import { PhotoIcon, BanknotesIcon, CreditCardIcon, CircleStackIcon, ArrowPathIcon, CheckCircleIcon, ExclamationCircleIcon, XCircleIcon, LocationMarkerIcon, GlobeAltIcon, PhoneIcon } from '../ui/Icons';
 import { getContent, updateContent as updateSiteContent } from '../../services/content';
 import { getDatabaseStats, TableStat } from '../../services/systemStats';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Checkbox } from '../ui/Checkbox';
 import { Select } from '../ui/Select';
+import { ToggleSwitch } from '../ui/ToggleSwitch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -38,7 +39,7 @@ const AdminSettingsPage: React.FC = () => {
     const { 
         data: dbStats, 
         isLoading: statsLoading, 
-        refetch: refetchStats,
+        refetch: refetchStats, 
         isRefetching: isRefetchingStats 
     } = useQuery({ 
         queryKey: ['dbStats'], 
@@ -70,6 +71,7 @@ const AdminSettingsPage: React.FC = () => {
     const watchLogoUrl = watch('logoUrl');
     const watchRouting = watch('contactConfiguration.routing');
     const watchQrCode = watch('paymentConfiguration.instapay.qrCodeUrl');
+    const watchEnableMaps = watch('enableMaps');
 
     const onSubmit = async (formData: SiteContent) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -114,26 +116,59 @@ const AdminSettingsPage: React.FC = () => {
                     <div className="p-6 space-y-6">
                         {/* GENERAL TAB */}
                         {activeTab === 'general' && (
-                             <div className="space-y-6 animate-fadeIn">
-                                <div><label className="block text-sm font-medium mb-1">Site Description (AR)</label><Textarea {...register('footer.ar.description')} className={inputClasses} rows={3}/></div>
-                                <div><label className="block text-sm font-medium mb-1">Site Description (EN)</label><Textarea {...register('footer.en.description')} className={inputClasses} rows={3}/></div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label className="block text-sm font-medium mb-1">Address (AR)</label><Input {...register('footer.ar.address')} className={inputClasses}/></div>
-                                    <div><label className="block text-sm font-medium mb-1">Address (EN)</label><Input {...register('footer.en.address')} className={inputClasses}/></div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label className="block text-sm font-medium mb-1">Hours (AR)</label><Input {...register('footer.ar.hours')} className={inputClasses}/></div>
-                                    <div><label className="block text-sm font-medium mb-1">Hours (EN)</label><Input {...register('footer.en.hours')} className={inputClasses}/></div>
-                                </div>
-                                
-                                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <label htmlFor="logoUrl" className="block text-sm font-medium mb-2">Site Logo</label>
-                                    <div className="flex items-center gap-4">
-                                        {watchLogoUrl ? <img src={watchLogoUrl} alt="Logo Preview" className="h-12 bg-gray-200 p-1 rounded-md" /> : <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center"><PhotoIcon className="w-6 h-6 text-gray-400" /></div>}
-                                        <Input type="file" id="logoUrl" onChange={handleLogoChange} accept="image/*" className="max-w-sm" />
-                                    </div>
-                                </div>
+                             <div className="space-y-8 animate-fadeIn">
+                                {/* 1. Site Identity */}
+                                <Card>
+                                    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><GlobeAltIcon className="w-5 h-5 text-gray-400"/> Site Identity</CardTitle></CardHeader>
+                                    <CardContent className="space-y-6">
+                                         <div>
+                                            <label htmlFor="logoUrl" className="block text-sm font-medium mb-2">Site Logo</label>
+                                            <div className="flex items-center gap-4">
+                                                {watchLogoUrl ? <img src={watchLogoUrl} alt="Logo Preview" className="h-12 bg-gray-200 p-1 rounded-md" /> : <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center"><PhotoIcon className="w-6 h-6 text-gray-400" /></div>}
+                                                <Input type="file" id="logoUrl" onChange={handleLogoChange} accept="image/*" className="max-w-sm" />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div><label className="block text-sm font-medium mb-1">Site Description (AR)</label><Textarea {...register('footer.ar.description')} className={inputClasses} rows={3}/></div>
+                                            <div><label className="block text-sm font-medium mb-1">Site Description (EN)</label><Textarea {...register('footer.en.description')} className={inputClasses} rows={3}/></div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* 2. Feature Toggles */}
+                                <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-900/10">
+                                    <CardHeader><CardTitle className="text-lg flex items-center gap-2 text-amber-700 dark:text-amber-500"><LocationMarkerIcon className="w-5 h-5"/> Platform Features</CardTitle></CardHeader>
+                                    <CardContent>
+                                         <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                            <div>
+                                                <label className="font-semibold text-gray-900 dark:text-white block mb-1">Enable Maps & Geolocation</label>
+                                                <p className="text-sm text-gray-500">
+                                                    Show maps on property details, allow location picking in forms, and display map view.
+                                                </p>
+                                            </div>
+                                            <ToggleSwitch 
+                                                checked={watchEnableMaps || false} 
+                                                onChange={(val) => setValue('enableMaps', val, { shouldDirty: true })} 
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* 3. Location Info */}
+                                <Card>
+                                    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><PhoneIcon className="w-5 h-5 text-gray-400"/> Location Info</CardTitle></CardHeader>
+                                    <CardContent className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div><label className="block text-sm font-medium mb-1">Address (AR)</label><Input {...register('footer.ar.address')} className={inputClasses}/></div>
+                                            <div><label className="block text-sm font-medium mb-1">Address (EN)</label><Input {...register('footer.en.address')} className={inputClasses}/></div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div><label className="block text-sm font-medium mb-1">Hours (AR)</label><Input {...register('footer.ar.hours')} className={inputClasses}/></div>
+                                            <div><label className="block text-sm font-medium mb-1">Hours (EN)</label><Input {...register('footer.en.hours')} className={inputClasses}/></div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                              </div>
                         )}
 

@@ -12,6 +12,7 @@ import { Checkbox } from '../../ui/Checkbox';
 import { Button } from '../../ui/Button';
 import { useAddPropertyForm } from '../../../hooks/useAddPropertyForm';
 import DynamicForm from '../../shared/DynamicForm';
+import { useSiteContent } from '../../../hooks/useSiteContent';
 
 // Derive props type from the return type of the hook
 type Step3FormFieldsProps = ReturnType<typeof useAddPropertyForm>;
@@ -19,6 +20,8 @@ type Step3FormFieldsProps = ReturnType<typeof useAddPropertyForm>;
 export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
     const { language, t } = useLanguage();
     const t_page = t.addPropertyPage;
+    const { data: siteContent } = useSiteContent();
+
     const {
         register: registerManual,
         watch: watchManual,
@@ -39,7 +42,8 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
     const watchContactMethod = watchManual("contactMethod");
 
     // Header Content: Location Map (Appears ABOVE the dynamic form fields)
-    const locationHeader = (
+    // Only show if Maps are enabled in settings
+    const locationHeader = siteContent?.enableMaps ? (
         <div className="col-span-full mb-6 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location Coordinates</label>
              <div className="flex flex-wrap items-center gap-4">
@@ -56,10 +60,9 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
                 )}
             </div>
         </div>
-    );
+    ) : null;
 
     // Determine which fields to hide based on the active language
-    // If AR, hide EN description. If EN, hide AR description.
     const hiddenFields = language === 'ar' ? ['description.en'] : ['description.ar'];
 
     return (
@@ -70,7 +73,7 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
                 slug="add-property"
                 customSubmit={handleDynamicSubmit}
                 submitButtonText={t_page.submitButton}
-                headerContent={locationHeader} // Passed to appear at the TOP
+                headerContent={locationHeader} 
                 hiddenFields={hiddenFields}
                 externalFormMethods={formMethods as any} // Pass shared methods
              >
