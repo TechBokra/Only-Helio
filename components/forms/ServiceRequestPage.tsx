@@ -113,7 +113,7 @@ const ServiceRequestPage: React.FC = () => {
                     amount: tier.price,
                     description: `Finishing Service: ${bookingTitle}`,
                     type: 'service_payment',
-                    userId: formData.customerPhone, // Temp ID
+                    userId: formData.customerPhone, // Temp ID for guest
                     userName: formData.customerName,
                     data: {
                         ...submissionData,
@@ -133,7 +133,7 @@ const ServiceRequestPage: React.FC = () => {
                     amount: workItem.price,
                     description: `Product Purchase: ${workItem.title.en}`,
                     type: 'product_purchase',
-                    userId: formData.customerPhone, // Temp ID
+                    userId: formData.customerPhone, // Temp ID for guest
                     userName: formData.customerName,
                     data: {
                         ...submissionData,

@@ -13,13 +13,14 @@ import { RequestType } from '../../types';
 import SubscriptionPlanSelector from '../shared/SubscriptionPlanSelector';
 import { useLanguage } from '../shared/LanguageContext';
 import { useToast } from '../shared/ToastContext';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { commonSchemas } from '../../utils/validation';
 import { fileToBase64 } from '../../utils/fileUtils';
 import { sendWelcomeEmail } from '../../services/emailService';
+import { getPlans } from '../../services/plans';
 
 // Validation Schema using centralized utils
 const registerSchema = z.object({
@@ -33,12 +34,6 @@ const registerSchema = z.object({
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
-
-const PLAN_PRICES: Record<string, Record<string, number>> = {
-    developer: { basic: 0, professional: 5000, elite: 15000 },
-    agency: { basic: 0, professional: 2000, elite: 5000 },
-    finishing: { commission: 0, professional: 3000, elite: 8000 },
-};
 
 const Stepper: React.FC<{ steps: string[], currentStep: number }> = ({ steps, currentStep }) => {
     return (
@@ -62,6 +57,9 @@ const RegisterPage: React.FC = () => {
     const t_page = t.partnerRequestForm;
     const { showToast } = useToast();
     const navigate = useNavigate();
+    
+    // Fetch plans dynamically
+    const { data: allPlans } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
     
     const [currentStep, setCurrentStep] = useState(1);
     const [formSubmitted, setFormSubmitted] = useState(false);
@@ -133,7 +131,11 @@ const RegisterPage: React.FC = () => {
 
         const typeKey = companyType as string;
         const planKey = selectedPlan as string;
-        const price = PLAN_PRICES[typeKey]?.[planKey] || 0;
+        
+        // Get dynamic price from fetched plans
+        const planDetails = allPlans?.[typeKey]?.[planKey]?.[language];
+        const planPriceString = planDetails?.price || "0";
+        const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
 
         if (price > 0) {
              navigate('/payment', { 
@@ -141,7 +143,7 @@ const RegisterPage: React.FC = () => {
                     amount: price,
                     description: `Partner Subscription: ${companyType} (${selectedPlan})`,
                     type: 'subscription_fee',
-                    userId: data.contactEmail, 
+                    userId: data.contactEmail, // Temp ID
                     userName: data.companyName,
                     data: finalData
                 } 
@@ -278,22 +280,33 @@ const RegisterPage: React.FC = () => {
                                     </div>
                                 </FormField>
 
-                                {selectedPlan && companyType && PLAN_PRICES[companyType]?.[selectedPlan] > 0 && (
-                                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mt-6">
-                                        <p className="font-semibold text-amber-800">Payment Required</p>
-                                        <p className="text-sm text-amber-700">
-                                            You have selected the <strong>{selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}</strong> plan. 
-                                            A payment of <strong>{PLAN_PRICES[companyType][selectedPlan].toLocaleString()} EGP</strong> will be required upon submission.
-                                        </p>
-                                    </div>
+                                {selectedPlan && companyType && (
+                                     // Quick display of selected plan price to inform user before submit
+                                    (() => {
+                                        const planDetails = allPlans?.[companyType as string]?.[selectedPlan as string]?.[language];
+                                        const planPriceString = planDetails?.price || "0";
+                                        const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
+                                        
+                                        if (price > 0) {
+                                            return (
+                                                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mt-6">
+                                                    <p className="font-semibold text-amber-800">Payment Required</p>
+                                                    <p className="text-sm text-amber-700">
+                                                        You have selected the <strong>{planDetails?.name || selectedPlan}</strong> plan. 
+                                                        A payment of <strong>{planPriceString}</strong> will be required upon submission.
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()
                                 )}
 
                                 <div className="mt-12 flex justify-between">
                                     <Button type="button" variant="secondary" onClick={prevStep}>{t_page.back}</Button>
                                     <Button type="submit" isLoading={mutation.isPending}>
-                                        {selectedPlan && companyType && PLAN_PRICES[companyType]?.[selectedPlan] > 0 
-                                            ? (language === 'ar' ? 'متابعة للدفع' : 'Proceed to Payment') 
-                                            : t_page.submitRequest}
+                                        {/* Dynamic Label based on price check inside render is complex, fallback to generic or check logic above */}
+                                        {t_page.submitRequest}
                                     </Button>
                                 </div>
                             </form>

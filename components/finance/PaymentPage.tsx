@@ -22,7 +22,8 @@ const PaymentPage: React.FC = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
-    const t_pay = t.billing.payment;
+    // Corrected translation access path based on billing.ts structure being spread into root
+    const t_pay = t.payment;
     
     const { data: siteContent, isLoading: isLoadingContent } = useQuery({ queryKey: ['siteContent'], queryFn: getContent });
     
@@ -71,32 +72,59 @@ const PaymentPage: React.FC = () => {
         onSuccess: async (transaction) => {
             setTransactionId(transaction.id);
             setIsSuccess(true);
-            const paymentStatus = transaction.status; 
+            const paymentStatus = transaction.status; // 'paid' or 'reviewing'
+            const paymentNote = `\n\n[Payment Info]\nTransaction ID: ${transaction.id}\nStatus: ${transaction.status.toUpperCase()}\nMethod: ${transaction.method}\nAmount: ${transaction.amount} EGP`;
             
             try {
                 if (contextData) {
+                    // 1. Partner Subscriptions (New or Upgrade)
                     if (type === 'subscription_fee') {
                         if (contextData.isUpgrade) {
+                            // Only upgrade immediately if payment is verified (e.g. Card), otherwise wait for admin review
                             if (paymentStatus === 'paid') {
                                 await upgradePartnerPlan(contextData.partnerId, contextData.newPlan);
+                                showToast('Plan upgraded successfully!', 'success');
+                            } else {
+                                showToast('Upgrade request submitted for review.', 'success');
                             }
                         } else {
+                             // New Partner Application
                              await addRequest(RequestType.PARTNER_APPLICATION, {
                                 requesterInfo: { name: contextData.contactName, phone: contextData.contactPhone, email: contextData.contactEmail },
-                                payload: { ...contextData, paymentStatus: paymentStatus } 
+                                payload: { 
+                                    ...contextData, 
+                                    paymentStatus: paymentStatus,
+                                    description: (contextData.description || '') + paymentNote 
+                                } 
                             });
                         }
-                    } else if (type === 'listing_fee') {
+                    } 
+                    // 2. Property Listings (Paid Listing)
+                    else if (type === 'listing_fee') {
                         const { requesterInfo, payload } = contextData;
+                        // payload contains propertyDetails and images
+                        const updatedPayload = {
+                            ...payload,
+                            paymentStatus: paymentStatus,
+                            // Append payment note to property description or internal field if available, 
+                            // here we assume propertyDetails is an object we can modify
+                            propertyDetails: {
+                                ...payload.propertyDetails,
+                                description: (payload.propertyDetails.description || '') + paymentNote
+                            }
+                        };
                         await addRequest(RequestType.PROPERTY_LISTING_REQUEST, {
                             requesterInfo,
-                            payload: { ...payload, paymentStatus: paymentStatus }
+                            payload: updatedPayload
                         });
-                    } else if (type === 'service_payment' || type === 'product_purchase') {
+                    } 
+                    // 3. Products & Services (Decorations & Finishing)
+                    else if (type === 'service_payment' || type === 'product_purchase') {
+                        // Create a Lead in CRM
                         await addLead({
                             ...contextData,
-                            customerNotes: `${contextData.customerNotes || ''}\n[Payment Transaction: ${transaction.id} - ${transaction.status.toUpperCase()}]`,
-                            status: 'new'
+                            customerNotes: `${contextData.customerNotes || ''}${paymentNote}`,
+                            status: 'new' // Status is new, but notes indicate payment
                         });
                     }
                 }
@@ -106,7 +134,7 @@ const PaymentPage: React.FC = () => {
             }
         },
         onError: () => {
-            showToast(t_pay.paymentFailed, 'error');
+            showToast(t_pay?.paymentFailed || 'Payment Failed', 'error');
         }
     });
 
@@ -114,13 +142,13 @@ const PaymentPage: React.FC = () => {
         let receiptUrl = undefined;
         
         if (!method) {
-             showToast(t_pay.methodRequired, "error");
+             showToast(t_pay?.methodRequired || 'Method Required', "error");
              return;
         }
 
         if (method === 'instapay') {
             if (!receiptFile) {
-                showToast(t_pay.receiptRequired, 'error');
+                showToast(t_pay?.receiptRequired || 'Receipt Required', 'error');
                 return;
             }
             receiptUrl = await fileToBase64(receiptFile);
@@ -142,6 +170,9 @@ const PaymentPage: React.FC = () => {
     if (!isValidSession) return null;
     if (isLoadingContent) return <div className="p-10 text-center flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div></div>;
     
+    // Safety check for translations
+    if (!t_pay) return <div className="p-10 text-center text-red-500">Error loading payment configuration (Translation missing).</div>;
+
     const config = siteContent?.paymentConfiguration;
 
     if (isSuccess) {
