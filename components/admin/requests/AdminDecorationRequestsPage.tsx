@@ -1,9 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-// FIX: KeepPreviousData import
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { deleteLead as apiDeleteLead, getPaginatedLeads } from '../../../services/leads';
+import { useQuery } from '@tanstack/react-query';
+import { deleteLead as apiDeleteLead, getAllLeads } from '../../../services/leads';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Lead, LeadStatus } from '../../../types';
@@ -25,33 +24,33 @@ const statusColors: { [key in LeadStatus]: string } = {
     cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
-const ITEMS_PER_PAGE = 10;
-
 const AdminDecorationRequestsPage: React.FC = () => {
     const { language, t: i18n } = useLanguage();
     const t = i18n.adminDashboard;
     const t_dash = i18n.dashboard;
     const { showToast } = useToast();
-
-    // -- Server Side State --
-    const [page, setPage] = useState(1);
-    const [serverSearch, setServerSearch] = useState('');
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
     const { 
-        data: queryData, 
+        data: allLeads, 
         isLoading, 
         refetch 
     } = useQuery({ 
-        queryKey: ['paginatedLeads', 'decorations', page, serverSearch], 
-        queryFn: () => getPaginatedLeads(page, ITEMS_PER_PAGE, {
-            serviceType: 'decorations',
-            query: serverSearch
-        }),
-        placeholderData: keepPreviousData
+        queryKey: ['allLeads'], 
+        queryFn: getAllLeads
     });
 
-    const leads = queryData?.leads || [];
-    const totalItems = queryData?.total || 0;
+    const decorationLeads = useMemo(() => {
+        if (!allLeads) return [];
+        
+        const relevant = allLeads.filter(lead => lead.serviceType === 'decorations');
+        
+        if (activeTab === 'pending') {
+            return relevant.filter(l => ['new', 'contacted', 'site-visit', 'quoted', 'in-progress'].includes(l.status));
+        } else {
+            return relevant.filter(l => ['completed', 'cancelled', 'rejected'].includes(l.status));
+        }
+    }, [allLeads, activeTab]);
 
     const { 
         paginatedItems, 
@@ -61,16 +60,14 @@ const AdminDecorationRequestsPage: React.FC = () => {
         searchTerm,
         setSearchTerm,
     } = useAdminTable({
-        data: leads,
-        itemsPerPage: ITEMS_PER_PAGE,
+        data: decorationLeads,
+        itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
-        manualPagination: true,
-        totalItems: totalItems,
-        onPageChange: setPage,
-        onSearchChange: (term) => {
-            setServerSearch(term);
-            setPage(1);
-        }
+        searchFn: (item: Lead, term: string) => 
+            item.customerName.toLowerCase().includes(term) || 
+            item.customerPhone.includes(term) ||
+            item.serviceTitle.toLowerCase().includes(term),
+        filterFns: {}
     });
 
     const handleDelete = async (id: string) => {
@@ -112,8 +109,8 @@ const AdminDecorationRequestsPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex gap-2">
-                                        <Link to={`/admin/requests/${lead.id}`}>
-                                            <Button variant="link" size="sm">View Details</Button>
+                                        <Link to={`/admin/decoration-requests/${lead.id}`}>
+                                            <Button variant="outline" size="sm">{t.adminShared.details}</Button>
                                         </Link>
                                         <Button variant="link" size="sm" className="text-red-500" onClick={() => handleDelete(lead.id)}>{t.adminShared.delete}</Button>
                                     </div>
@@ -145,8 +142,8 @@ const AdminDecorationRequestsPage: React.FC = () => {
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between">
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(lead.id)} className="text-red-500">{t.adminShared.delete}</Button>
-                <Link to={`/admin/requests/${lead.id}`} className="w-full">
-                    <Button variant="ghost" className="w-full">View Details</Button>
+                <Link to={`/admin/decoration-requests/${lead.id}`} className="w-full">
+                    <Button variant="ghost" className="w-full">{t.adminShared.details}</Button>
                 </Link>
             </CardFooter>
         </Card>
@@ -159,7 +156,30 @@ const AdminDecorationRequestsPage: React.FC = () => {
                 <p className="text-gray-500 dark:text-gray-400">Manage all decoration and art requests.</p>
             </div>
 
-            <div className="my-6 p-4 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
+                <button
+                    onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'pending'
+                            ? 'border-amber-500 text-amber-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                    }`}
+                >
+                    {language === 'ar' ? 'قيد الانتظار' : 'Pending Requests'}
+                </button>
+                <button
+                    onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'history'
+                            ? 'border-amber-500 text-amber-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                    }`}
+                >
+                    {language === 'ar' ? 'الأرشيف' : 'Archive (History)'}
+                </button>
+            </div>
+
+            <div className="my-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-1">
                         <input type="text" placeholder={t.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />

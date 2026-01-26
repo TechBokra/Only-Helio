@@ -34,6 +34,7 @@ const AdminDecorationRequestsPage = React.lazy(() => import('./requests/AdminDec
 const AdminPartnerRequestDetailsPage = React.lazy(() => import('./requests/AdminPartnerRequestDetailsPage'));
 const AdminPropertyRequestDetailsPage = React.lazy(() => import('./requests/AdminPropertyRequestDetailsPage'));
 const AdminRequestDetailsPage = React.lazy(() => import('./requests/AdminRequestDetailsPage')); // Generic fallback for mixed lists
+const AdminDecorationRequestDetailsPage = React.lazy(() => import('./requests/AdminDecorationRequestDetailsPage')); // Specific for decorations
 const AdminCreateRequestPage = React.lazy(() => import('./requests/AdminCreateRequestPage'));
 
 const AdminPartnersLayout = React.lazy(() => import('./partners/AdminPartnersLayout'));
@@ -110,7 +111,10 @@ const AdminRoutes: React.FC = () => {
                 <Route path="property-inquiries" element={<AdminPropertyInquiriesPage />} />
                 
                 <Route path="finishing-requests" element={<AdminFinishingRequestsPage />} />
+                <Route path="finishing-requests/:requestId" element={<AdminRequestDetailsPage />} /> 
+
                 <Route path="decoration-requests" element={<AdminDecorationRequestsPage />} />
+                <Route path="decoration-requests/:requestId" element={<AdminDecorationRequestDetailsPage />} />
                 
                 <Route path="partners" element={<AdminPartnersLayout />}>
                     <Route index element={<AdminPartnersDashboard />} />
