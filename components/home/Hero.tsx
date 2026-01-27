@@ -5,6 +5,7 @@ import { useSiteContent } from '../../hooks/useSiteContent';
 import { useLanguage } from '../shared/LanguageContext';
 import { SearchIcon, BuildingIcon, WrenchScrewdriverIcon, HomeIcon } from '../ui/Icons';
 import { Card } from '../ui/Card';
+import type { HeroImage } from '../../types';
 
 const Hero: React.FC = () => {
     const { language, t } = useLanguage();
@@ -39,7 +40,7 @@ const Hero: React.FC = () => {
 
     return (
         <section className="relative h-[600px] lg:h-[700px] flex items-center justify-center text-center text-white overflow-hidden">
-            {heroImages.map((image, index) => (
+            {heroImages.map((image: HeroImage, index: number) => (
                  <div key={image.src} className={`slider-image ${index === currentImageIndex ? 'active' : ''}`}>
                     <div className="watermarked w-full h-full">
                         <img

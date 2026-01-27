@@ -34,7 +34,7 @@ const Testimonial: React.FC = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {testimonialItems.map((testimonial: any, index: number) => (
+                    {testimonialItems.map((testimonial, index) => (
                         <div key={index} className="bg-gray-50 dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow flex flex-col h-full">
                             <div className="mb-6">
                                 <div className="bg-amber-500/10 w-12 h-12 rounded-full flex items-center justify-center text-amber-500">

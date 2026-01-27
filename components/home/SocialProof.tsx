@@ -34,7 +34,7 @@ const SocialProof: React.FC = () => {
         <section className="bg-gray-50 py-20">
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                    {stats.map((stat: any, index: number) => (
+                    {stats.map((stat, index) => (
                         <div key={index}>
                             <p className="text-4xl md:text-5xl font-bold text-amber-500">{stat.value}</p>
                             <p className="mt-2 text-lg text-gray-600">{stat.name[language]}</p>

@@ -246,6 +246,76 @@ export interface Lead {
 
 // --- CMS & Configuration ---
 
+export interface LocalizedString {
+    ar: string;
+    en: string;
+}
+
+export interface HeroImage {
+    src: string;
+    alt: LocalizedString;
+}
+
+export interface HeroSection {
+    ar: { title: string; subtitle: string };
+    en: { title: string; subtitle: string };
+    images: HeroImage[];
+}
+
+export interface StatItem {
+    value: string;
+    name: LocalizedString;
+}
+
+export interface SocialProofSection {
+    enabled: boolean;
+    stats: StatItem[];
+}
+
+export interface ServiceFeature {
+    title: string;
+    description: string;
+    link: string;
+    icon: string;
+}
+
+export interface ServicesSection {
+    enabled: boolean;
+    ar: { title: string; description: string; features: ServiceFeature[] };
+    en: { title: string; description: string; features: ServiceFeature[] };
+}
+
+export interface WhyUsFeature {
+    title: string;
+    description: string;
+}
+
+export interface WhyUsSection {
+    enabled: boolean;
+    ar: { title: string; description: string; features: WhyUsFeature[] };
+    en: { title: string; description: string; features: WhyUsFeature[] };
+}
+
+export interface TestimonialItem {
+    quote: LocalizedString;
+    author: LocalizedString;
+    location: LocalizedString;
+}
+
+export interface TestimonialsSection {
+    enabled: boolean;
+    ar: { title: string; subtitle: string };
+    en: { title: string; subtitle: string };
+    items: TestimonialItem[];
+}
+
+export interface WhyNewHeliopolisSection {
+    enabled: boolean;
+    ar: { title: string; location: { title: string; description: string; stats: { value: string; desc: string }[] } };
+    en: { title: string; location: { title: string; description: string; stats: { value: string; desc: string }[] } };
+    images: { src: string; alt: LocalizedString }[];
+}
+
 export interface Banner {
     id: string;
     title: string;
@@ -267,20 +337,20 @@ export interface SiteContent {
         instapay: { enabled: boolean; number: string; walletName?: string; paymentLink?: string; qrCodeUrl?: string; instructions: { ar: string; en: string } };
         paymob: { enabled: boolean; apiKey: string; secretKey: string; publicKey: string };
     };
-    hero: any;
+    hero: HeroSection;
     homeCTA?: any;
     homeListings?: any;
-    whyUs: any;
-    services: any;
+    whyUs: WhyUsSection;
+    services: ServicesSection;
     partners: any;
-    testimonials?: any;
-    socialProof?: any;
-    whyNewHeliopolis: any;
+    testimonials?: TestimonialsSection;
+    socialProof?: SocialProofSection;
+    whyNewHeliopolis: WhyNewHeliopolisSection;
     finishingServices?: any[];
     projectsPage?: any;
     finishingPage?: any;
     decorationsPage?: any;
-    quotes?: Quote[];
+    quotes?: { quote: { ar: string; en: string }; author: { ar: string; en: string } }[];
     footer: any;
     privacyPolicy?: any;
     termsOfUse?: any;

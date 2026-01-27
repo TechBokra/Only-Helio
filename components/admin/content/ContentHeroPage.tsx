@@ -101,7 +101,7 @@ const ContentHeroPage: React.FC = () => {
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Preview (Slide {index + 1})</label>
                                     <div className="relative aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
                                         <img 
-                                            src={(field as any).src || 'https://via.placeholder.com/300x169?text=No+Image'} 
+                                            src={field.src || 'https://via.placeholder.com/300x169?text=No+Image'} 
                                             alt="preview" 
                                             className="w-full h-full object-cover"
                                         />
@@ -110,7 +110,7 @@ const ContentHeroPage: React.FC = () => {
                                             <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, index)} />
                                         </label>
                                     </div>
-                                    {!((field as any).src) && <p className="text-xs text-red-500 mt-1">* Image required</p>}
+                                    {!field.src && <p className="text-xs text-red-500 mt-1">* Image required</p>}
                                 </div>
                                 
                                 <div className="flex-grow grid grid-cols-1 gap-4">

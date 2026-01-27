@@ -60,7 +60,7 @@ const AboutCity: React.FC = () => {
                         <h3 className="text-2xl md:text-3xl font-bold text-gray-900">{t.location.title}</h3>
                         <p className="text-gray-600 text-lg">{t.location.description}</p>
                         <div className="grid grid-cols-2 gap-4 text-center">
-                            {t.location.stats.map((stat: any, index: number) => (
+                            {t.location.stats.map((stat, index) => (
                                 <div key={index} className="bg-white p-4 rounded-lg">
                                     <p className="text-amber-500 text-2xl font-bold">{stat.value}</p>
                                     <p className="text-gray-500 text-sm">{stat.desc}</p>
@@ -69,13 +69,13 @@ const AboutCity: React.FC = () => {
                         </div>
                     </div>
                      <div className="relative w-full h-[500px] rounded-2xl shadow-xl overflow-hidden border-4 border-white">
-                        {images.map((image: any, index: number) => (
+                        {images.map((image, index) => (
                             <div key={index} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}>
                                 <img src={image.src} alt={image.alt[language]} className="w-full h-full object-cover" />
                             </div>
                         ))}
                         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex space-x-2">
-                             {images.map((_: any, index: number) => (
+                             {images.map((_, index) => (
                                 <button key={index} onClick={() => goToSlide(index)} className={`w-3 h-3 rounded-full transition-colors ${currentSlide === index ? 'bg-amber-500' : 'bg-gray-400/50 hover:bg-gray-400'}`} aria-label={`${language === 'ar' ? 'اذهب إلى الشريحة' : 'Go to slide'} ${index + 1}`}></button>
                             ))}
                         </div>

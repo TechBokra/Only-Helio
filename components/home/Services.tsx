@@ -70,7 +70,7 @@ const Services: React.FC = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
-                    {t.features.map((feature: any) => {
+                    {t.features.map((feature) => {
                         const IconComponent = iconMap[feature.icon] || BuildingIcon;
                         return <ServiceCard key={feature.title} {...feature} icon={<IconComponent className="w-8 h-8" />} />;
                     })}
