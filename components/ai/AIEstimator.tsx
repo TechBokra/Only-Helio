@@ -20,13 +20,10 @@ import {
     ChevronLeftIcon, 
     BanknotesIcon,
     SparklesIcon,
-    ChartBarIcon,
     UserPlusIcon,
-    FileDownloadIcon,
-    PhoneIcon
+    PhoneIcon,
+    ClipboardDocumentListIcon
 } from '../ui/Icons';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const AIEstimator: React.FC = () => {
     const { language, t } = useLanguage();
@@ -45,7 +42,6 @@ const AIEstimator: React.FC = () => {
         phone: currentUser?.contactMethods?.phone?.number || ''
     });
     
-    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
 
@@ -88,7 +84,7 @@ const AIEstimator: React.FC = () => {
                 const item = allItems.find(i => i.id === itemId);
                 if (item) {
                     const isPerMeter = item.unit.en === 'm²' || item.unit.ar === 'م²' || item.unit.en === 'm' || item.unit.ar === 'م.ط';
-                    const qty = isPerMeter ? unitArea : 1; // Default to 1 for points/pieces unless we add specific quantity inputs per item later
+                    const qty = isPerMeter ? unitArea : 1; // Default to 1 for points/pieces
                     
                     totalMin += (item.minPrice || 0) * qty;
                     totalMax += (item.maxPrice || 0) * qty;
@@ -156,112 +152,15 @@ const AIEstimator: React.FC = () => {
         onError: () => showToast('Failed to submit request.', 'error')
     });
 
-    // --- Generate PDF with New Logic ---
-    const handleDownloadPDF = async () => {
-        if (!config) return;
-        setIsDownloadingPdf(true);
-
-        try {
-            const doc = new jsPDF();
-            
-            // Font loading logic (omitted for brevity, assuming existing one works or use fetch)
-            try {
-                const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf';
-                const response = await fetch(fontUrl);
-                const buffer = await response.arrayBuffer();
-                const blob = new Blob([buffer]);
-                const reader = new FileReader();
-                 await new Promise<void>((resolve) => {
-                    reader.onloadend = () => {
-                        const base64 = (reader.result as string)?.split(',')[1];
-                        if (base64) {
-                            doc.addFileToVFS('Amiri-Regular.ttf', base64);
-                            doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-                            doc.setFont('Amiri');
-                        }
-                        resolve();
-                    };
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) { console.warn("Font load failed", e); }
-
-            const isRTL = language === 'ar';
-            const title = isRTL ? 'تقرير تقدير تكلفة التشطيب' : 'Finishing Cost Estimate Report';
-            const date = new Date().toLocaleDateString(language);
-            
-            doc.setFontSize(22);
-            doc.text(title, 105, 20, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.text(`${isRTL ? 'التاريخ' : 'Date'}: ${date}`, isRTL ? 190 : 20, 30, { align: isRTL ? 'right' : 'left' });
-            doc.text(`${isRTL ? 'المساحة' : 'Area'}: ${unitArea} m²`, isRTL ? 190 : 20, 38, { align: isRTL ? 'right' : 'left' });
-
-            // Summary Table
-            const summaryBody = [
-                 [isRTL ? 'تكلفة البنود (خامات + مصنعية)' : 'Items Cost (Mat + Labor)', `${calculateTotals.min.toLocaleString()} - ${calculateTotals.max.toLocaleString()} EGP`],
-                 [isRTL ? `نسبة إشراف (${config.supervisionRate}%)` : `Supervision Fees (${config.supervisionRate}%)`, `${calculateTotals.supervisionMin.toLocaleString()} - ${calculateTotals.supervisionMax.toLocaleString()} EGP`],
-                 [isRTL ? 'الإجمالي التقريبي' : 'Grand Total Estimate', `${calculateTotals.grandTotalMin.toLocaleString()} - ${calculateTotals.grandTotalMax.toLocaleString()} EGP`]
-            ];
-
-            autoTable(doc, {
-                startY: 50,
-                body: summaryBody,
-                theme: 'grid',
-                styles: { font: 'Amiri', halign: isRTL ? 'right' : 'left', fontSize: 12 },
-                columnStyles: { 0: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
-            });
-
-            // Detailed Table
-            const tableHead = isRTL ? [['المرحلة', 'البند', 'سعر الوحدة (تقريبي)']] : [['Stage', 'Item', 'Unit Price Range']];
-            const tableBody: any[] = [];
-
-            stages.forEach(stage => {
-                const selectedInStage = selectedItems[stage.id] || [];
-                if (selectedInStage.length > 0) {
-                     // Stage Header Row
-                    tableBody.push([{ content: stage.name[language], colSpan: 3, styles: { fillColor: [255, 248, 225], fontStyle: 'bold' } }]);
-                    
-                    const allItems = [...stage.basicItems, ...stage.optionalItems];
-                    allItems.filter(i => selectedInStage.includes(i.id)).forEach(item => {
-                         const range = `${item.minPrice} - ${item.maxPrice}`;
-                         tableBody.push(['', item.name[language], range]);
-                    });
-                }
-            });
-
-            autoTable(doc, {
-                startY: (doc as any).lastAutoTable.finalY + 15,
-                head: tableHead,
-                body: tableBody,
-                styles: { font: 'Amiri', halign: isRTL ? 'right' : 'left' },
-                headStyles: { fillColor: [245, 158, 11] },
-            });
-            
-            // Footer Notes
-            const finalY = (doc as any).lastAutoTable.finalY + 20;
-            doc.setFontSize(10);
-            const notes = config.globalNotes?.[language] || (isRTL ? 'ملاحظة: الأسعار استرشادية.' : 'Note: Prices are indicative.');
-            const splitNotes = doc.splitTextToSize(notes, 170);
-            doc.text(splitNotes, isRTL ? 190 : 20, finalY, { align: isRTL ? 'right' : 'left' });
-
-            doc.save(`estimate-${Date.now()}.pdf`);
-        } catch (e) {
-            showToast("Error generating PDF", "error");
-        } finally {
-            setIsDownloadingPdf(false);
-        }
-    };
-
     const handleSubmit = () => {
-         // ... (Keep existing submit logic)
-         const details = `Estimate: ${calculateTotals.grandTotalMin} - ${calculateTotals.grandTotalMax} EGP. Area: ${unitArea}m.`;
+         const details = `Estimate: ${calculateTotals.grandTotalMin} - ${calculateTotals.grandTotalMax} EGP. Area: ${unitArea}m. Items: ${JSON.stringify(selectedItems)}`;
          mutation.mutate({
             partnerId: 'admin-user',
             serviceType: 'finishing',
             customerName: contactForm.name,
             customerPhone: contactForm.phone,
             contactTime: 'Any time',
-            serviceTitle: `Finishing Estimate Request`,
+            serviceTitle: `Finishing Estimate Request (${unitArea}m)`,
             customerNotes: details,
             managerId: 'platform-finishing-manager-1'
         });
@@ -271,6 +170,68 @@ const AIEstimator: React.FC = () => {
     if (!config || stages.length === 0) return <div className="p-8 text-center">Config missing.</div>;
 
     const progress = ((currentStep + 1) / (stages.length + 1)) * 100;
+
+    // Helper to render the breakdown table
+    const renderBreakdown = () => {
+        return (
+            <div className="space-y-4 animate-fadeIn">
+                <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-lg border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
+                    {language === 'ar' ? 'تفاصيل البنود المختارة' : 'Selected Items Breakdown'}
+                </h4>
+                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-800">
+                            <tr>
+                                <th scope="col" className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{language === 'ar' ? 'البند' : 'Item'}</th>
+                                <th scope="col" className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{language === 'ar' ? 'الوحدة' : 'Unit'}</th>
+                                <th scope="col" className="px-4 py-3 text-end text-xs font-medium text-gray-500 uppercase tracking-wider">{language === 'ar' ? 'السعر التقديري' : 'Est. Cost'}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                            {stages.map(stage => {
+                                const selectedInStage = selectedItems[stage.id] || [];
+                                const allItems = [...stage.basicItems, ...stage.optionalItems];
+                                const activeItems = allItems.filter(i => selectedInStage.includes(i.id));
+                                
+                                if (activeItems.length === 0) return null;
+
+                                return (
+                                    <React.Fragment key={stage.id}>
+                                        <tr className="bg-amber-50/50 dark:bg-amber-900/10">
+                                            <td colSpan={3} className="px-4 py-2 text-sm font-bold text-amber-700 dark:text-amber-500">
+                                                {stage.name[language]}
+                                            </td>
+                                        </tr>
+                                        {activeItems.map(item => {
+                                            const isPerMeter = item.unit.en === 'm²' || item.unit.ar === 'م²' || item.unit.en === 'm' || item.unit.ar === 'م.ط';
+                                            const qty = isPerMeter ? unitArea : 1;
+                                            const minCost = (item.minPrice || 0) * qty;
+                                            const maxCost = (item.maxPrice || 0) * qty;
+                                            
+                                            return (
+                                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                        {item.name[language]}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                        {item.unit[language]}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white text-end" dir="ltr">
+                                                        {minCost.toLocaleString()} - {maxCost.toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="py-20 bg-gray-50 dark:bg-gray-800">
@@ -295,7 +256,6 @@ const AIEstimator: React.FC = () => {
                                 <p className="text-center text-gray-500 mb-8">{language === 'ar' ? 'خطوة' : 'Step'} {currentStep + 1} {language === 'ar' ? 'من' : 'of'} {stages.length}</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                     {/* Helper to render item list */}
                                      {['basicItems', 'optionalItems'].map((type) => (
                                          <div key={type} className="space-y-3">
                                             <h4 className="font-semibold text-lg text-gray-800 dark:text-gray-200 border-b pb-2 mb-3">
@@ -348,7 +308,7 @@ const AIEstimator: React.FC = () => {
                                         </Button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="space-y-8">
                                         <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-xl border border-amber-200 dark:border-amber-800">
                                             <h4 className="text-amber-800 dark:text-amber-300 font-semibold mb-4 flex items-center gap-2">
                                                 <BanknotesIcon className="w-5 h-5" />
@@ -373,6 +333,9 @@ const AIEstimator: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Detailed Breakdown Section */}
+                                        {renderBreakdown()}
                                         
                                         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                                              <h4 className="font-semibold mb-2 text-gray-900 dark:text-white flex items-center gap-2">
@@ -396,12 +359,8 @@ const AIEstimator: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                                            <Button variant="outline" onClick={handleDownloadPDF} isLoading={isDownloadingPdf} className="flex items-center justify-center gap-2">
-                                                <FileDownloadIcon className="w-5 h-5" />
-                                                {language === 'ar' ? 'تحميل PDF' : 'Download PDF'}
-                                            </Button>
-                                            <Button size="lg" onClick={handleSubmit} isLoading={mutation.isPending} className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-lg">
+                                        <div className="flex justify-center pt-4">
+                                            <Button size="lg" onClick={handleSubmit} isLoading={mutation.isPending} className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-lg w-full md:w-auto px-12">
                                                 <PhoneIcon className="w-5 h-5" />
                                                 {language === 'ar' ? 'تواصل للتنفيذ' : 'Request Execution'}
                                             </Button>

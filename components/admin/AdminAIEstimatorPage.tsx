@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { useForm, useFieldArray, Control, UseFormRegister, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
-import type { AIEstimatorConfig, AIEstimatorItem } from '../../types';
+import { useForm, useFieldArray, Control, UseFormRegister } from 'react-hook-form';
+import type { AIEstimatorConfig } from '../../types';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../shared/ToastContext';
 import { getAIEstimatorConfig, updateAIEstimatorConfig } from '../../services/aiConfig';
@@ -19,7 +19,7 @@ const ItemRow: React.FC<{
     itemIndex: number;
     removeItem: (index: number) => void;
     itemType: 'basicItems' | 'optionalItems';
-}> = ({ control, register, stageIndex, itemIndex, removeItem, itemType }) => {
+}> = ({ register, stageIndex, itemIndex, removeItem, itemType }) => {
     return (
         <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 mb-3">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
@@ -92,14 +92,14 @@ const StageEditor: React.FC<{
                             <h4 className="font-bold text-gray-700 dark:text-gray-300">Basic Items</h4>
                             <button type="button" onClick={() => appendBasic({ id: `item-${Date.now()}`, name: { ar: '', en: '' }, unit: { ar: '', en: '' }, minPrice: 0, maxPrice: 0, minLabor: 0, maxLabor: 0 })} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">+ Add</button>
                         </div>
-                        {basicFields.map((field, index) => <ItemRow key={field.id} {...{ control, register, stageIndex, itemIndex: index, removeItem: removeBasic, itemType: 'basicItems' }} />)}
+                        {basicFields.map((field, index) => <ItemRow key={field.id} control={control} register={register} stageIndex={stageIndex} itemIndex={index} removeItem={removeBasic} itemType="basicItems" />)}
                     </div>
                      <div>
                         <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
                             <h4 className="font-bold text-gray-700 dark:text-gray-300">Optional Items</h4>
                              <button type="button" onClick={() => appendOptional({ id: `item-${Date.now()}`, name: { ar: '', en: '' }, unit: { ar: '', en: '' }, minPrice: 0, maxPrice: 0, minLabor: 0, maxLabor: 0 })} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">+ Add</button>
                         </div>
-                        {optionalFields.map((field, index) => <ItemRow key={field.id} {...{ control, register, stageIndex, itemIndex: index, removeItem: removeOptional, itemType: 'optionalItems' }} />)}
+                        {optionalFields.map((field, index) => <ItemRow key={field.id} control={control} register={register} stageIndex={stageIndex} itemIndex={index} removeItem={removeOptional} itemType="optionalItems" />)}
                     </div>
                 </div>
             </div>
@@ -133,20 +133,23 @@ const AdminAIEstimatorPage: React.FC = () => {
     };
 
     const handleAutoUpdate = async () => {
-        if (!window.confirm("This will use AI to update prices based on current market data. Existing names and units will be preserved, but prices will be overwritten. Continue?")) return;
+        if (!window.confirm("This will use AI to update prices based on current market data. Continue?")) return;
         
         setIsUpdatingWithAI(true);
         try {
             const currentConfig = getValues();
             const updatedConfig = await updateEstimatorPricesWithAI(currentConfig);
             
-            // Pass a fresh object clone to ensure React Hook Form detects changes
-            reset(JSON.parse(JSON.stringify(updatedConfig)));
+            console.log("Updated config from AI:", updatedConfig);
+            
+            // Hard reset with deep clone to force React Hook Form to re-render all fields
+            const newValues = JSON.parse(JSON.stringify(updatedConfig));
+            reset(newValues);
             
             showToast("Prices updated from AI! Review changes and click Save.", "success");
         } catch (e: any) {
             console.error(e);
-            showToast("Failed to update prices with AI: " + e.message, "error");
+            showToast("Failed to update prices: " + e.message, "error");
         } finally {
             setIsUpdatingWithAI(false);
         }
@@ -184,30 +187,26 @@ const AdminAIEstimatorPage: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                
-                {/* Global Settings Card */}
                 <Card>
                     <CardHeader><CardTitle className="flex items-center gap-2"><CalculatorIcon className="w-5 h-5 text-amber-500"/> Global Variables</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">Supervision Rate (%)</label>
                             <input type="number" {...register('supervisionRate', { valueAsNumber: true })} className={inputClasses + " max-w-[150px]"} />
-                            <p className="text-xs text-gray-500 mt-1">This percentage will be added to the total material and labor cost.</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Standard Note (Arabic)</label>
-                                <textarea {...register('globalNotes.ar')} className={inputClasses} rows={3} dir="rtl" placeholder="ملاحظات تظهر في نهاية التقرير..." />
+                                <textarea {...register('globalNotes.ar')} className={inputClasses} rows={3} dir="rtl" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Standard Note (English)</label>
-                                <textarea {...register('globalNotes.en')} className={inputClasses} rows={3} dir="ltr" placeholder="Notes shown at the end of the report..." />
+                                <textarea {...register('globalNotes.en')} className={inputClasses} rows={3} dir="ltr" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Stages */}
                 <div className="space-y-6">
                     {stageFields.map((field, index) => (
                         <StageEditor 

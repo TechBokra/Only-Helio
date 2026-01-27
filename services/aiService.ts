@@ -1,6 +1,5 @@
 
-// We use type-only imports here. These are removed at runtime, so they won't cause 
-// "Failed to fetch" errors if the module is missing or fails to load initially.
+// We use type-only imports here. These are removed at runtime.
 import type { GenerateContentResponse, Schema } from "@google/genai";
 import type { AIEstimatorConfig, AIEstimatorItem } from "../types";
 
@@ -26,7 +25,7 @@ const cleanJson = (text: string): string => {
     return clean.trim();
 };
 
-// Fallback logic in case AI fails or is offline
+// Fallback logic
 const getFallbackData = (area: number, language: 'ar' | 'en'): AIAnalysisResult => {
     const isAr = language === 'ar';
     const baseRateLow = 5000;
@@ -39,13 +38,13 @@ const getFallbackData = (area: number, language: 'ar' | 'en'): AIAnalysisResult 
         laborPercentage: 40,
         materialPercentage: 60,
         tips: [
-            isAr ? "احرص على شراء الخامات الأساسية (أسمنت، رمل) دفعة واحدة لتوفير النقل." : "Buy basic materials (cement, sand) in bulk to save on transport.",
-            isAr ? "اتفق على مصنعية المتر بدلاً من المقاولة المقطوعية لضمان العدالة." : "Agree on labor per meter rather than a lump sum for fairness.",
-            isAr ? "تأكد من استلام بنود التأسيس (سباكة وكهرباء) باختبارات ضغط معتمدة." : "Ensure foundation items (plumbing/electrical) pass pressure tests."
+            isAr ? "احرص على شراء الخامات الأساسية دفعة واحدة." : "Buy basic materials in bulk.",
+            isAr ? "اتفق على مصنعية المتر." : "Agree on labor per meter.",
+            isAr ? "تأكد من اختبارات السباكة والكهرباء." : "Ensure plumbing/electrical tests."
         ],
         marketInsight: isAr 
-            ? "هذا تقدير تقريبي مبني على متوسط أسعار السوق الحالية؛ قد تختلف الأسعار الفعلية بناءً على جودة التشطيب المختارة."
-            : "This is a rough estimate based on current market averages; actual prices may vary based on finishing quality."
+            ? "تقدير تقريبي بناءً على متوسط السوق."
+            : "Rough estimate based on market averages."
     };
 };
 
@@ -56,7 +55,6 @@ export const generateFinishingAnalysis = async (
     language: 'ar' | 'en'
 ): Promise<AIAnalysisResult> => {
     
-    // 1. Resolve API Key safely
     let apiKey = '';
     try {
         // @ts-ignore
@@ -70,14 +68,12 @@ export const generateFinishingAnalysis = async (
         console.warn("Environment variable access failed");
     }
 
-    // 2. If no key, return fallback immediately
     if (!apiKey) {
         console.warn("AI API Key missing, using fallback.");
         return getFallbackData(area, language);
     }
 
     try {
-        // 3. Dynamic Import of SDK
         // @ts-ignore
         const { GoogleGenAI, Type } = await import("@google/genai");
 
@@ -134,7 +130,6 @@ export const generateFinishingAnalysis = async (
 // --- ADMIN FACING PRICE UPDATE ---
 export const updateEstimatorPricesWithAI = async (currentConfig: AIEstimatorConfig): Promise<AIEstimatorConfig> => {
     
-    // 1. Resolve API Key
     let apiKey = '';
     try {
         // @ts-ignore
@@ -156,39 +151,38 @@ export const updateEstimatorPricesWithAI = async (currentConfig: AIEstimatorConf
         // @ts-ignore
         const { GoogleGenAI, Type } = await import("@google/genai");
 
-        // Construct a prompt that focuses purely on extracting prices for IDs
+        // Flatten items for the prompt
         const itemsList = currentConfig.stages.flatMap(stage => 
             [...stage.basicItems, ...stage.optionalItems].map(item => ({
                 id: item.id,
-                name: item.name.ar + " / " + item.name.en,
-                unit: item.unit.ar
+                name: item.name.en + " (" + item.name.ar + ")", // Provide both names for context
+                unit: item.unit.en
             }))
         );
 
+        console.log("Sending items to AI:", itemsList.length);
+
         const prompt = `
             You are an expert Quantity Surveyor in Egypt (2025 Market).
-            I will provide a list of finishing items with IDs. 
+            I will provide a list of items with IDs.
             
             YOUR TASK:
-            Return a JSON array of objects. Each object must have:
-            - "id" (String): The exact ID I provided.
-            - "minPrice" (Number): Minimum TOTAL cost (Material + Labor) per unit in EGP.
-            - "maxPrice" (Number): Maximum TOTAL cost (Material + Labor) per unit in EGP.
-            - "minLabor" (Number): Minimum Labor-only cost per unit in EGP.
-            - "maxLabor" (Number): Maximum Labor-only cost per unit in EGP.
+            Return a JSON array where each object has:
+            - "id": The EXACT id provided.
+            - "minPrice": Min TOTAL cost (Material+Labor) in EGP per unit.
+            - "maxPrice": Max TOTAL cost (Material+Labor) in EGP per unit.
+            - "minLabor": Min Labor cost in EGP.
+            - "maxLabor": Max Labor cost in EGP.
 
-            RULES:
-            1. Prices must be realistic for high-quality finishing in New Heliopolis/Cairo 2025.
-            2. Labor cost is usually 25-40% of the total cost depending on the item.
-            3. Do NOT return 0. Estimate based on market averages if unsure.
-            4. STRICTLY match the IDs provided.
-            5. Return raw JSON only, no markdown formatting.
+            CRITICAL RULES:
+            1. DO NOT change the "id". It must match exactly.
+            2. Prices must be NUMBERS (no strings).
+            3. Return RAW JSON only.
 
-            ITEMS TO PRICE:
-            ${JSON.stringify(itemsList, null, 2)}
+            ITEMS:
+            ${JSON.stringify(itemsList)}
         `;
 
-        // Define a flat schema for the response to ensure simple parsing
         const responseSchema: Schema = {
             type: Type.ARRAY,
             items: {
@@ -211,34 +205,49 @@ export const updateEstimatorPricesWithAI = async (currentConfig: AIEstimatorConf
             config: {
                 responseMimeType: "application/json",
                 responseSchema: responseSchema,
-                temperature: 0.1 // Very low temp for precision
+                temperature: 0.1 
             }
         });
 
         const text = response.text;
         if (!text) throw new Error("Empty AI response");
         
-        // Clean JSON before parsing to handle Markdown wrappers
-        const cleanedText = cleanJson(text);
-        const newPrices = JSON.parse(cleanedText) as { id: string, minPrice: number, maxPrice: number, minLabor: number, maxLabor: number }[];
-        
-        // Convert array to map for O(1) lookup
-        const priceMap = new Map(newPrices.map(p => [p.id, p]));
+        console.log("AI Response received (Raw):", text.substring(0, 100) + "...");
 
-        // Deep merge logic: Keep original structure, only update prices if found
+        const cleanedText = cleanJson(text);
+        const newPrices = JSON.parse(cleanedText) as any[];
+        
+        console.log("Parsed prices count:", newPrices.length);
+
+        const priceMap = new Map();
+        newPrices.forEach(p => {
+            // Force conversion to number to avoid string issues
+            priceMap.set(p.id, {
+                minPrice: Number(p.minPrice) || 0,
+                maxPrice: Number(p.maxPrice) || 0,
+                minLabor: Number(p.minLabor) || 0,
+                maxLabor: Number(p.maxLabor) || 0
+            });
+        });
+
+        // Merge logic
+        let updateCount = 0;
         const updatedStages = currentConfig.stages.map(stage => ({
             ...stage,
             basicItems: stage.basicItems.map(item => {
                 const newPrice = priceMap.get(item.id);
+                if (newPrice) updateCount++;
                 return newPrice ? { ...item, ...newPrice } : item;
             }),
             optionalItems: stage.optionalItems.map(item => {
                 const newPrice = priceMap.get(item.id);
+                if (newPrice) updateCount++;
                 return newPrice ? { ...item, ...newPrice } : item;
             })
         }));
         
-        // Return updated config
+        console.log(`Updated ${updateCount} items successfully.`);
+
         return {
             ...currentConfig,
             stages: updatedStages,
