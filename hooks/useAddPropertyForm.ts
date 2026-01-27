@@ -31,7 +31,7 @@ export const useAddPropertyForm = () => {
 
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     
-    // Ref to prevent double submission race conditions
+    // Safety Ref AND State for strict prevention
     const isSubmittingRef = useRef(false);
     
     // Data Fetching
@@ -150,9 +150,8 @@ export const useAddPropertyForm = () => {
     };
 
     const onSubmit = async (formData: any) => {
-        // Strict blocking of duplicate submissions
-        if (isSubmittingRef.current || mutation.isPending) return;
-        
+        // Prevent double submission
+        if (isSubmittingRef.current || currentStep === 4) return;
         isSubmittingRef.current = true;
 
         const isOwner = formData.isOwner;
