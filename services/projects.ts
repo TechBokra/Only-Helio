@@ -1,6 +1,6 @@
 
 import { supabase } from '../supabaseClient';
-import type { Project } from '../types';
+import type { Project, ProjectType } from '../types';
 
 interface ProjectRow {
     id: string;
@@ -9,6 +9,7 @@ interface ProjectRow {
     name_ar: string;
     description_en: string;
     description_ar: string;
+    projectType?: string; // New field
     imageUrl: string;
     features: any; // JSONB
     createdAt: string;
@@ -25,6 +26,7 @@ const mapDbToProject = (row: ProjectRow): Project => ({
     partnerId: row.partnerId,
     name: { ar: row.name_ar, en: row.name_en },
     description: { ar: row.description_ar, en: row.description_en },
+    projectType: (row.projectType as ProjectType) || undefined,
     imageUrl: row.imageUrl,
     imageUrl_small: row.imageUrl,
     imageUrl_medium: row.imageUrl,
@@ -87,6 +89,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
         name_ar: project.name.ar,
         description_en: project.description.en,
         description_ar: project.description.ar,
+        projectType: project.projectType,
         imageUrl: project.imageUrl,
         // Pass array directly for JSONB
         features: project.features || [], 
@@ -114,6 +117,7 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
     // Direct mapping for simple fields
     if (updates.imageUrl) dbUpdates.imageUrl = updates.imageUrl;
     if (updates.features) dbUpdates.features = updates.features;
+    if (updates.projectType) dbUpdates.projectType = updates.projectType;
 
     const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
     

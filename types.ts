@@ -96,6 +96,7 @@ export interface Project {
     partnerId: string;
     name: { ar: string; en: string };
     description: { ar: string; en: string };
+    projectType?: ProjectType;
     imageUrl: string;
     imageUrl_small?: string;
     imageUrl_medium?: string;
