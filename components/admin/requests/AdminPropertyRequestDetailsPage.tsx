@@ -28,7 +28,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
         enabled: !!requestId
     });
 
-    // We still fetch the specific list to find the item quickly, but could rely on genericRequest
     const { data: requests, isLoading } = useQuery({ queryKey: ['propertyRequests'], queryFn: getAllPropertyRequests });
 
     const navigate = useNavigate();
@@ -38,21 +37,29 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     
     const request = useMemo(() => requests?.find(r => r.id === requestId), [requests, requestId]);
 
-    // --- Logic to Create Property ---
+    // Safe Language Helper: Ensures we never return an object to React
+    const safeLang = (obj: any) => {
+        if (obj === undefined || obj === null) return 'N/A';
+        if (typeof obj === 'string') return obj;
+        if (typeof obj === 'object') {
+            return obj[language] || obj.en || obj.ar || 'N/A';
+        }
+        return String(obj);
+    };
+
     const handleApproveAndCreate = async () => {
         if (!request) return;
+        if (isProcessing) return; // Prevent double click
         setIsProcessing(true);
 
         const pd = request.propertyDetails || {};
 
-        // 1. Validation
         if (!pd.title || !pd.price) {
             showToast('Cannot approve: Missing basic property details (Price/Title).', 'error');
             setIsProcessing(false);
             return;
         }
 
-        // 2. Prepare Data
         const priceNumeric = Number(pd.price) || 0;
         const area = Number(pd.area) || 0;
         const pricePerMeter = area > 0 ? Math.round(priceNumeric / area) : 0;
@@ -65,12 +72,12 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
 
         const rawType = pd.propertyType || 'Apartment';
         const typeEn = typeof rawType === 'string' ? rawType : (rawType.en || 'Apartment');
-
+        
         const rawFinishing = pd.finishingStatus || 'Core & Shell';
         const finishingEn = typeof rawFinishing === 'string' ? rawFinishing : (rawFinishing.en || 'Core & Shell');
 
         const newProperty: Omit<Property, 'id' | 'partnerName' | 'partnerImageUrl' | 'projectName'> = {
-            partnerId: 'individual-listings', // Must exist in DB
+            partnerId: 'individual-listings',
             title: { 
                 en: getEn(pd.title) || `Property: ${typeEn}`, 
                 ar: getAr(pd.title) || `عقار: ${typeEn === 'Apartment' ? 'شقة' : typeEn}` 
@@ -100,8 +107,9 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                 en: `EGP ${pricePerMeter.toLocaleString('en-US')}/m²`,
                 ar: `${pricePerMeter.toLocaleString('ar-EG')} ج.م/م²`
             } : undefined,
-            beds: Number(pd.bedrooms) || 0,
-            baths: Number(pd.bathrooms) || 0,
+            // FIX: Check for both keys (beds/bedrooms and baths/bathrooms)
+            beds: Number(pd.beds || pd.bedrooms) || 0,
+            baths: Number(pd.baths || pd.bathrooms) || 0,
             floor: Number(pd.floor) || 0,
             amenities: pd.amenities || { en: [], ar: [] },
             isInCompound: pd.isInCompound === 'yes' || pd.isInCompound === true,
@@ -118,7 +126,7 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
             realEstateFinanceAvailable: pd.realEstateFinanceAvailable === 'yes' || pd.realEstateFinanceAvailable === true,
             imageUrl: request.images && request.images[0] ? request.images[0] : 'https://via.placeholder.com/800x600?text=No+Image',
             gallery: request.images ? request.images.slice(1) : [],
-            listingStatus: 'draft', // Important: Created as draft
+            listingStatus: 'draft',
             contactMethod: pd.contactMethod || 'platform',
             ownerPhone: pd.ownerPhone,
             listingStartDate: pd.listingStartDate || new Date().toISOString().split('T')[0],
@@ -126,23 +134,17 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
         };
 
         try {
-            // 3. Create Property FIRST
             await addProperty(newProperty);
-            
-            // 4. Update Request Status SECOND
             await updatePropertyRequestStatus(request.id, 'approved');
             
-            // 5. Send Email
             const email = (request as any).contactEmail || 'user@example.com'; 
             await sendPropertyApprovalEmail(request.customerName, email, newProperty.title.en);
 
-            // 6. Refresh Data & Redirect
             await queryClient.invalidateQueries({ queryKey: ['propertyRequests'] });
-            await queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] }); // Refresh property list
+            await queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] });
             
             showToast(language === 'ar' ? 'تمت الموافقة وإنشاء المسودة بنجاح.' : 'Approved. Property created as Draft.', 'success');
             
-            // Delay slightly to ensure cache propagation
             setTimeout(() => {
                 navigate('/admin/properties/list?status=draft');
             }, 500);
@@ -187,7 +189,6 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
         }
     };
 
-
     if (isLoading) return <div className="p-8 text-center">Loading...</div>;
     
     if (!request) return (
@@ -198,16 +199,8 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
     );
     
     const pd = request.propertyDetails || {};
-    
-    const safeLang = (obj: any) => {
-        if (!obj) return 'N/A';
-        if (typeof obj === 'string') return obj;
-        return obj[language] || obj.en || obj.ar || 'N/A';
-    };
-    
     const hasValidLocation = pd.location && !isNaN(Number(pd.location.lat)) && !isNaN(Number(pd.location.lng));
 
-    // Construct a thread-compatible object
     const threadEntity = {
         id: request.id,
         messages: (genericRequest?.payload as any)?.messages || [],
@@ -250,9 +243,20 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                                         <DetailItem label="Area" value={pd.area ? `${pd.area} m²` : 'N/A'} />
                                         <DetailItem label="Price" value={pd.price ? `EGP ${Number(pd.price).toLocaleString()}` : 'N/A'} />
                                         <DetailItem label="Cooperation" value={request.cooperationType} />
+                                        {/* Display mapped Beds/Baths for verification */}
+                                        <DetailItem label="Bedrooms" value={pd.beds || pd.bedrooms || 0} />
+                                        <DetailItem label="Bathrooms" value={pd.baths || pd.bathrooms || 0} />
                                      </div>
+                                     
+                                     {/* Use safeLang for address to fix Object rendering crash */}
                                      <DetailItem label="Address" value={safeLang(pd.address)} layout="grid"/>
-                                     <DetailItem label="Description" value={<p className="whitespace-pre-line text-sm">{pd.description?.en || pd.description?.ar}</p>} layout="grid"/>
+                                     
+                                     <div className="mt-4">
+                                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Description</p>
+                                         <p className="text-sm text-gray-900 dark:text-white whitespace-pre-line bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                                             {safeLang(pd.description)}
+                                         </p>
+                                     </div>
                                      
                                      {hasValidLocation && (
                                         <div className="mt-4 border rounded overflow-hidden h-48">
@@ -287,12 +291,15 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
 
                     <Card>
                         <CardHeader><CardTitle>Conversation & History</CardTitle></CardHeader>
-                        <CardContent>
-                             <ConversationThread 
-                                lead={threadEntity} 
-                                requestId={request.id} 
-                                onMessageSent={() => refetchGeneric()} 
-                            />
+                        <CardContent className="p-0">
+                             {/* Fixed Height Container for Conversation */}
+                             <div className="h-[500px] flex flex-col">
+                                 <ConversationThread 
+                                    lead={threadEntity} 
+                                    requestId={request.id} 
+                                    onMessageSent={() => refetchGeneric()} 
+                                />
+                             </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -307,13 +314,13 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                     <div className="mt-8 pt-6 flex flex-col gap-3">
+                     <div className="mt-8 pt-6 flex flex-col gap-3 sticky top-6">
                         {request.status === 'pending' ? (
                             <>
                                 <button 
                                     onClick={handleApproveAndCreate} 
                                     disabled={isProcessing} 
-                                    className="w-full px-6 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50"
+                                    className="w-full px-6 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center gap-2"
                                 >
                                     {isProcessing ? 'Processing...' : (language === 'ar' ? 'موافقة وإنشاء مسودة' : 'Approve & Create Draft')}
                                 </button>
