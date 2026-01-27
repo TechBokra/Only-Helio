@@ -362,8 +362,8 @@ const PropertyDetailsPage: React.FC = () => {
                                 {property.realEstateFinanceAvailable && property.status.en === 'For Sale' && <DetailItem label={t_page.realEstateFinanceAvailable} value={t_page.yes} icon={<BanknotesIcon className="w-5 h-5 text-gray-400"/>} />}
                              </DetailSection>
                              
-                             {/* Mortgage Calculator */}
-                             {property.status.en === 'For Sale' && (
+                             {/* Mortgage Calculator - Only show if For Sale AND Finance is available */}
+                             {property.status.en === 'For Sale' && property.realEstateFinanceAvailable && (
                                  <MortgageCalculator propertyPrice={property.priceNumeric} />
                              )}
 

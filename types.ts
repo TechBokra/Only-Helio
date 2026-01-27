@@ -352,13 +352,22 @@ export interface AIEstimatorItem {
     id: string;
     name: { ar: string; en: string };
     unit: { ar: string; en: string };
-    price: number;
+    // Pricing Range (Total Unit Cost)
+    minPrice: number;
+    maxPrice: number;
+    // Labor Cost Portion (Range)
+    minLabor: number;
+    maxLabor: number;
 }
 
 export interface AIEstimatorConfig {
     model: string;
     prompt: string;
     options: any;
+    // Global Settings
+    supervisionRate: number; // percentage (e.g. 15)
+    globalNotes: { ar: string; en: string }; // Pre-written disclaimer/notes
+    lastUpdated?: string; // Timestamp of last AI update
     stages: {
         id: string;
         name: { ar: string; en: string };
