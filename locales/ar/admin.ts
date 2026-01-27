@@ -514,5 +514,41 @@ export const admin = {
                 "plans": "الباقات"
             }
         }
+    },
+    "adminAnalytics": {
+        "title": "التحليلات العامة",
+        "subtitle": "نظرة شاملة على أداء المنصة.",
+        "newLeads": "طلبات جديدة",
+        "newPartners": "شركاء جدد",
+        "newProperties": "عقارات جديدة",
+        "conversionRate": "معدل التحويل",
+        "leadsOverTime": "نمو الطلبات",
+        "requestTypeDistribution": "توزيع أنواع الطلبات",
+        "topPerformingPartners": "الشركاء الأكثر نشاطًا",
+        "topPerformingProperties": "العقارات الأكثر طلبًا",
+        "leads": "طلبات",
+        "last7days": "آخر 7 أيام",
+        "last30days": "آخر 30 يوم",
+        "thismonth": "هذا الشهر",
+        "thisyear": "هذا العام"
+    },
+    "adminReports": {
+        "title": "التقارير",
+        "subtitle": "تصدير بيانات مخصصة للتحليل.",
+        "step1": "خطوة 1: اختر مصدر البيانات",
+        "selectDataSource": "اختر المصدر...",
+        "dataSources": {
+            "leads": "الطلبات والعملاء",
+            "properties": "العقارات",
+            "partners": "الشركاء"
+        },
+        "step2": "خطوة 2: اختر الأعمدة",
+        "step3": "خطوة 3: النطاق الزمني (اختياري)",
+        "startDate": "من تاريخ",
+        "endDate": "إلى تاريخ",
+        "step4": "خطوة 4: التصدير",
+        "exportCSV": "تصدير CSV",
+        "exportPDF": "تصدير PDF",
+        "noColumnsSelected": "يرجى اختيار عمود واحد على الأقل."
     }
 };

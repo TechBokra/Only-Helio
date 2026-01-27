@@ -30,7 +30,7 @@ const StatCard: React.FC<{ title: string; value: number | string; icon: React.Re
 const AnalyticsContent: React.FC<{ timePeriod: TimePeriod, setTimePeriod: (p: TimePeriod) => void }> = ({ timePeriod, setTimePeriod }) => {
     const { language, t } = useLanguage();
     const t_analytics = t.adminAnalytics;
-    const { analyticsData } = useAdminAnalytics(); // Hook now handles suspense internally if configured, or parent suspense
+    const { analyticsData } = useAdminAnalytics(); 
 
     if (!analyticsData) return null;
     
@@ -123,7 +123,7 @@ const AnalyticsContent: React.FC<{ timePeriod: TimePeriod, setTimePeriod: (p: Ti
                             {analyticsData.topPartners.map(({ partner, count }) => partner && (
                                 <li key={partner.id}>
                                      <Link to={`/admin/partners?edit=${partner.id}&highlight=${partner.id}`} className="flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <img src={partner.imageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                        <img src={partner.imageUrl || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-full object-cover" />
                                         <div className="flex-grow">
                                             <p className="font-semibold text-sm truncate">{language === 'ar' ? partner.nameAr : partner.name}</p>
                                             <p className="text-xs text-gray-500">{partner.type}</p>
@@ -139,18 +139,24 @@ const AnalyticsContent: React.FC<{ timePeriod: TimePeriod, setTimePeriod: (p: Ti
                 <CardHeader><CardTitle>{t_analytics.topPerformingProperties}</CardTitle></CardHeader>
                 <CardContent>
                     <ul className="space-y-3">
-                        {analyticsData.topProperties.map(({ property, count }) => property && (
-                            <li key={property.id}>
-                                <Link to={`/admin/properties/edit/${property.id}`} className="flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <img src={property.imageUrl} alt="" className="w-10 h-10 rounded-md object-cover" />
-                                    <div className="flex-grow overflow-hidden">
-                                        <p className="font-semibold text-sm truncate">{property.title[language]}</p>
-                                        <p className="text-xs text-gray-500">{property.partnerName}</p>
-                                    </div>
-                                    <div className="font-bold text-gray-800 dark:text-gray-200 flex-shrink-0">{count} {t_analytics.leads}</div>
-                                </Link>
-                            </li>
-                        ))}
+                        {analyticsData.topProperties.map(({ property, count }) => {
+                            // Defensive Check: Property might be valid object but missing title if created via buggy request
+                            if (!property || !property.title) return null;
+                            const displayTitle = property.title[language] || property.title.en || 'Untitled Property';
+                            
+                            return (
+                                <li key={property.id}>
+                                    <Link to={`/admin/properties/edit/${property.id}`} className="flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <img src={property.imageUrl || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-md object-cover" />
+                                        <div className="flex-grow overflow-hidden">
+                                            <p className="font-semibold text-sm truncate">{displayTitle}</p>
+                                            <p className="text-xs text-gray-500">{property.partnerName}</p>
+                                        </div>
+                                        <div className="font-bold text-gray-800 dark:text-gray-200 flex-shrink-0">{count} {t_analytics.leads}</div>
+                                    </Link>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </CardContent>
             </Card>

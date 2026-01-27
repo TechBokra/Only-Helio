@@ -1,9 +1,9 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { addRequest } from '../services/requests';
-import { RequestType, AddPropertyRequest, FilterOption } from '../types';
+import { RequestType } from '../types';
 import { useToast } from '../components/shared/ToastContext';
 import { getAllPropertyTypes, getAllFinishingStatuses, getAllAmenities } from '../services/filters';
 import { getPlans } from '../services/plans';
@@ -11,11 +11,6 @@ import { getAllProjects } from '../services/projects';
 import { useLanguage } from '../components/shared/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { fileToBase64 } from '../utils/fileUtils';
-
-const purposeOptions = [
-    { en: 'For Sale', ar: 'للبيع' },
-    { en: 'For Rent', ar: 'إيجار' },
-] as const;
 
 export const useAddPropertyForm = () => {
     const { language, t } = useLanguage();
@@ -28,14 +23,16 @@ export const useAddPropertyForm = () => {
     const [purpose, setPurpose] = useState<'For Sale' | 'For Rent' | null>(null);
     const [cooperationType, setCooperationType] = useState<'paid_listing' | 'commission' | null>(null);
     
-    // Image State (Split to match Admin UI)
+    // Image State
     const [mainImageFile, setMainImageFile] = useState<File | null>(null);
     const [mainImagePreview, setMainImagePreview] = useState<string>('');
     const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
     const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
 
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [formSubmitted, setFormSubmitted] = useState(false);
+    
+    // Ref to prevent double submission race conditions
+    const isSubmittingRef = useRef(false);
     
     // Data Fetching
     const { data: propertyTypes, isLoading: isLoadingPropTypes } = useQuery({ queryKey: ['propertyTypes'], queryFn: getAllPropertyTypes });
@@ -49,66 +46,41 @@ export const useAddPropertyForm = () => {
     // React Hook Form
     const methods = useForm({
         defaultValues: {
-            // Owner Info
-            customerName: '', 
-            customerPhone: '', 
-            contactTime: '',
-            isOwner: false,
-            
-            // Property Core (Matching Admin Form Structure)
+            customerName: '', customerPhone: '', contactTime: '', isOwner: false,
             projectId: '',
-            title: { ar: '', en: '' },
-            description: { ar: '', en: '' },
-            address: { ar: '', en: '' },
-            
-            type: { en: 'Apartment', ar: 'شقة' }, // Store as object to match Admin components
+            title: { ar: '', en: '' }, description: { ar: '', en: '' }, address: { ar: '', en: '' },
+            type: { en: 'Apartment', ar: 'شقة' },
             status: { en: 'For Sale', ar: 'للبيع' },
             finishingStatus: { en: '', ar: '' },
-            
-            area: 0, 
-            priceNumeric: 0,
-            beds: 0, 
-            baths: 0, 
-            floor: 0,
-            
+            area: 0, priceNumeric: 0, beds: 0, baths: 0, floor: 0,
             location: { lat: 30.0, lng: 31.0 },
-            
-            // Features
-            isInCompound: 'false',
-            realEstateFinanceAvailable: 'false',
-            installmentsAvailable: 'false',
-            
+            isInCompound: 'false', realEstateFinanceAvailable: 'false', installmentsAvailable: 'false',
             delivery: { isImmediate: 'true', date: '' },
             installments: { downPayment: 0, monthlyInstallment: 0, years: 0 },
-            
             amenities: { en: [] as string[], ar: [] as string[] },
-            
             listingStartDate: new Date().toISOString().split('T')[0],
             listingEndDate: '',
             contactMethod: 'platform' as 'platform' | 'direct',
             ownerPhone: '',
-            
-            // Legacy/Mapping fields
-            deliveryType: 'immediate' as 'immediate' | 'future', // For backward compat if needed
+            deliveryType: 'immediate' as 'immediate' | 'future',
         }
     });
     
-    const { register, handleSubmit, watch, setValue, formState: { errors }, reset, getValues } = methods;
-    
-    // Watchers for UI updates
-    const watchType = watch("type");
+    const { register, handleSubmit, watch, setValue, formState: { errors }, reset } = methods;
     const watchLocation = watch("location");
 
-    // Mutation for submission
+    // Mutation
     const mutation = useMutation({
         mutationFn: (data: any) => addRequest(RequestType.PROPERTY_LISTING_REQUEST, data),
         onSuccess: () => {
-            setFormSubmitted(true);
+            setCurrentStep(4); // Success Step
             queryClient.invalidateQueries({ queryKey: ['allRequests'] });
+            isSubmittingRef.current = false;
         },
         onError: (error) => {
             console.error("Failed to submit property request:", error);
             showToast('Submission failed. Please try again.', 'error');
+            isSubmittingRef.current = false;
         }
     });
 
@@ -121,10 +93,9 @@ export const useAddPropertyForm = () => {
         setCooperationType(null);
         setPurpose(null);
         setCurrentStep(1);
-        setFormSubmitted(false);
+        isSubmittingRef.current = false;
     };
 
-    // Step navigation
     const nextStep = () => setCurrentStep(prev => prev + 1);
     const prevStep = () => {
         if (currentStep === 3) setCooperationType(null);
@@ -133,7 +104,6 @@ export const useAddPropertyForm = () => {
     }
     const handlePurposeSelect = (p: 'For Sale' | 'For Rent') => {
         setPurpose(p);
-        // Pre-fill status based on selection
         setValue('status', { en: p, ar: p === 'For Sale' ? 'للبيع' : 'إيجار' });
         nextStep();
     }
@@ -150,7 +120,7 @@ export const useAddPropertyForm = () => {
         return indPlans[subCategory] || {};
     }, [purpose, plans]);
 
-    // --- Image Handling (Unified with Admin Logic) ---
+    // Image Handlers
     const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -173,135 +143,103 @@ export const useAddPropertyForm = () => {
         setGalleryPreviews(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Location Modal Handlers
     const handleLocationSelect = (location: { lat: number, lng: number }) => {
         setValue('location.lat', location.lat, { shouldDirty: true });
         setValue('location.lng', location.lng, { shouldDirty: true });
         setIsLocationModalOpen(false);
     };
 
-    // Form submission
     const onSubmit = async (formData: any) => {
+        // Strict blocking of duplicate submissions
+        if (isSubmittingRef.current || mutation.isPending) return;
+        
+        isSubmittingRef.current = true;
+
         const isOwner = formData.isOwner;
         if (!isOwner) {
             showToast(t_page.errors.mustBeOwner, 'error');
+            isSubmittingRef.current = false;
             return;
         }
 
         if (!cooperationType || !purpose) {
             showToast(t_page.errors.cooperationType, 'error');
+            isSubmittingRef.current = false;
             return;
         }
         
-        // Mandatory Image Check
         if (!mainImageFile) {
             showToast(language === 'ar' ? 'يرجى رفع الصورة الرئيسية' : 'Please upload a main image', 'error');
+            isSubmittingRef.current = false;
             return;
         }
 
-        // Process Images
-        const mainImageBase64 = await fileToBase64(mainImageFile);
-        const galleryBase64Strings = await Promise.all(galleryFiles.map(file => fileToBase64(file)));
-        
-        // Combine images for the Request Payload (Main first)
-        const allImages = [mainImageBase64, ...galleryBase64Strings];
+        try {
+            const mainImageBase64 = await fileToBase64(mainImageFile);
+            const galleryBase64Strings = await Promise.all(galleryFiles.map(file => fileToBase64(file)));
+            const allImages = [mainImageBase64, ...galleryBase64Strings];
 
-        // Prepare Property Details Object (Matching Property Schema)
-        const propertyDetails = {
-            ...formData,
-            // Explicitly ensure critical fields are structured for the Property Entity
-            purpose: { en: purpose, ar: purpose === 'For Sale' ? 'للبيع' : 'إيجار' },
-            propertyType: formData.type,
-            finishingStatus: formData.finishingStatus,
-            price: formData.priceNumeric,
-            listingStatus: 'pending', // Initial status for request
+            const propertyDetails = {
+                ...formData,
+                purpose: { en: purpose, ar: purpose === 'For Sale' ? 'للبيع' : 'إيجار' },
+                propertyType: formData.type,
+                finishingStatus: formData.finishingStatus,
+                price: formData.priceNumeric,
+                listingStatus: 'pending', 
+                deliveryType: formData.delivery?.isImmediate === 'true' ? 'immediate' : 'future',
+                title: formData.title,
+                description: formData.description,
+                address: formData.address,
+            };
             
-            // Map flat fields to nested structures if needed, or keep as is if Admin Form components populated them correctly
-            deliveryType: formData.delivery?.isImmediate === 'true' ? 'immediate' : 'future',
+            const payloadData = {
+                requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
+                payload: {
+                    contactTime: formData.contactTime,
+                    cooperationType: cooperationType,
+                    propertyDetails,
+                    images: allImages,
+                }
+            };
             
-            // Used for search/filtering in Admin Request list
-            title: formData.title,
-            description: formData.description,
-            address: formData.address,
-        };
-        
-        // Common payload
-        const payloadData = {
-            requesterInfo: { name: formData.customerName, phone: formData.customerPhone },
-            payload: {
-                contactTime: formData.contactTime,
-                cooperationType: cooperationType,
-                propertyDetails,
-                images: allImages,
-            }
-        };
-        
-        if (cooperationType === 'paid_listing') {
-            // Retrieve dynamic price
-            const planDetails = plansForPurpose['paid_listing'];
-            const planPriceString = planDetails?.[language]?.price || "0";
-            const priceNumeric = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
+            if (cooperationType === 'paid_listing') {
+                const planDetails = plansForPurpose['paid_listing'];
+                const planPriceString = planDetails?.[language]?.price || "0";
+                const priceNumeric = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
 
-            if (priceNumeric > 0) {
-                 navigate('/payment', { 
-                    state: { 
-                        amount: priceNumeric,
-                        description: `Property Listing Fee: ${propertyDetails.title.en || 'New Property'}`,
-                        type: 'listing_fee',
-                        userId: formData.customerPhone, 
-                        userName: formData.customerName,
-                        data: payloadData
-                    } 
-                });
+                if (priceNumeric > 0) {
+                     navigate('/payment', { 
+                        state: { 
+                            amount: priceNumeric,
+                            description: `Property Listing Fee: ${propertyDetails.title.en || 'New Property'}`,
+                            type: 'listing_fee',
+                            userId: formData.customerPhone, 
+                            userName: formData.customerName,
+                            data: payloadData
+                        } 
+                    });
+                    isSubmittingRef.current = false;
+                } else {
+                     mutation.mutate(payloadData);
+                }
             } else {
-                 mutation.mutate(payloadData);
+                mutation.mutate(payloadData);
             }
-        } else {
-            mutation.mutate(payloadData);
+        } catch (e) {
+            console.error("Preparation failed", e);
+            isSubmittingRef.current = false;
         }
     };
 
     return {
-        currentStep,
-        purpose,
-        cooperationType,
-        plansForPurpose,
-        formSubmitted,
-        isLoadingContext,
-        isLocationModalOpen,
-        
-        // Image State
-        mainImagePreview,
-        galleryPreviews,
-        
-        // Handlers
-        nextStep,
-        prevStep,
-        handlePurposeSelect,
-        handleCooperationSelect,
-        handleMainImageChange,
-        handleGalleryImagesChange,
-        removeGalleryImage,
-        setIsLocationModalOpen,
-        handleLocationSelect,
-        resetForm,
-
-        // React Hook Form methods
-        register,
-        handleSubmit: handleSubmit(onSubmit),
-        watch,
-        setValue,
-        errors,
-        formMethods: methods, 
-        
-        // Data
-        projects,
-        propertyTypes,
-        finishingStatuses,
-        amenities,
-        
-        watchLocation,
-        
-        isSubmitting: mutation.isPending,
+        currentStep, purpose, cooperationType, plansForPurpose, formSubmitted: currentStep === 4,
+        isLoadingContext, isLocationModalOpen,
+        mainImagePreview, galleryPreviews,
+        nextStep, prevStep, handlePurposeSelect, handleCooperationSelect,
+        handleMainImageChange, handleGalleryImagesChange, removeGalleryImage,
+        setIsLocationModalOpen, handleLocationSelect, resetForm,
+        register, handleSubmit: handleSubmit(onSubmit), watch, setValue, errors, formMethods: methods, 
+        projects, propertyTypes, finishingStatuses, amenities, watchLocation,
+        isSubmitting: mutation.isPending || isSubmittingRef.current,
     };
 };

@@ -209,7 +209,9 @@ const AdminPropertyRequestDetailsPage: React.FC = () => {
         </div>
     );
     
+    // Defensive Check: Ensure pd exists
     const pd = request.propertyDetails || {};
+    
     const safeLang = (obj: any) => {
         if (!obj) return 'N/A';
         if (typeof obj === 'string') return obj;
