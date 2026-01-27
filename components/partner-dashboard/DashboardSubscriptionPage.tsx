@@ -80,6 +80,14 @@ const DashboardSubscriptionPage: React.FC = () => {
         }
     }, [currentUser, language, t_sub.propertiesListed, t.dashboardHome]);
 
+    // Moved useMemo above conditional returns to fix React Hook Error #310
+    const planOrder: SubscriptionPlan[] = useMemo(() => {
+        if (currentUser?.type === 'finishing') {
+            return ['commission', 'professional', 'elite'];
+        }
+        return ['basic', 'professional', 'elite'];
+    }, [currentUser?.type]);
+
     const handleUpgrade = (planKey: SubscriptionPlan, priceString: string) => {
         if (!currentUser) return;
         
@@ -113,17 +121,10 @@ const DashboardSubscriptionPage: React.FC = () => {
     
     const plansForCurrentUserType = t.subscriptionPlans[planCategory];
     const currentPlanKey = currentUser.subscriptionPlan;
-    const currentPlanDetails = plansForCurrentUserType[currentPlanKey as keyof typeof plansForCurrentUserType];
+    const currentPlanDetails = plansForCurrentUserType ? plansForCurrentUserType[currentPlanKey as keyof typeof plansForCurrentUserType] : null;
     
     const usagePercentage = currentLimit === Infinity ? 0 : (usageCount / currentLimit) * 100;
     
-    const planOrder: SubscriptionPlan[] = useMemo(() => {
-        if (currentUser.type === 'finishing') {
-            return ['commission', 'professional', 'elite'];
-        }
-        return ['basic', 'professional', 'elite'];
-    }, [currentUser.type]);
-
     const upgradeOptions = planOrder.filter(p => planOrder.indexOf(p) > planOrder.indexOf(currentPlanKey));
 
     return (

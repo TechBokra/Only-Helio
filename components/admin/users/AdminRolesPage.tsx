@@ -9,6 +9,24 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../ui/Card';
 import { Checkbox } from '../../ui/Checkbox';
 import { Button } from '../../ui/Button';
 
+// Mapping table to connect Role Enum to Translation Keys
+const roleToTranslationKey: Record<string, string> = {
+    [Role.DEVELOPER_PARTNER]: 'developer',
+    [Role.FINISHING_PARTNER]: 'finishing',
+    [Role.AGENCY_PARTNER]: 'agency',
+    [Role.SUPER_ADMIN]: 'admin',
+    [Role.DECORATION_MANAGER]: 'decoration_manager',
+    [Role.PLATFORM_FINISHING_MANAGER]: 'platform_finishing_manager',
+    [Role.FINISHING_MARKET_MANAGER]: 'finishing_market_manager',
+    [Role.PLATFORM_REAL_ESTATE_MANAGER]: 'platform_real_estate_manager',
+    [Role.REAL_ESTATE_MARKET_MANAGER]: 'real_estate_market_manager',
+    [Role.PARTNER_RELATIONS_MANAGER]: 'partner_relations_manager',
+    [Role.CONTENT_MANAGER]: 'content_manager',
+    [Role.SERVICE_MANAGER]: 'service_manager',
+    [Role.CUSTOMER_RELATIONS_MANAGER]: 'customer_relations_manager',
+    [Role.LISTINGS_MANAGER]: 'listings_manager',
+};
+
 const AdminRolesPage: React.FC = () => {
     const { t } = useLanguage();
     const t_admin = t.adminDashboard;
@@ -70,7 +88,7 @@ const AdminRolesPage: React.FC = () => {
                     <p className="text-gray-500 dark:text-gray-400">Manage permissions for each user role.</p>
                 </div>
                 <Button onClick={handleSave} isLoading={mutation.isPending}>
-                    Save Changes
+                    {t.adminShared.save}
                 </Button>
             </div>
 
@@ -78,19 +96,24 @@ const AdminRolesPage: React.FC = () => {
                 {Array.from(permissionsMap.keys())
                     .filter((role) => role !== Role.SUPER_ADMIN)
                     .map((role: Role) => {
+                        // 1. Get Translation Key
+                        const translationKey = roleToTranslationKey[role] || role;
+                        
+                        // 2. Get Title from Translation
+                        const title = t_admin.partnerTypes[translationKey as keyof typeof t_admin.partnerTypes] || role;
+
+                        // 3. Get Description (Using Role Key directly as we'll update locale files)
                         const roleKey = (Object.keys(Role) as Array<keyof typeof Role>).find((key) => Role[key] === role);
+                        const description = roleKey ? t_admin.roleDescriptions[roleKey as keyof typeof t_admin.roleDescriptions] : '';
+
                         return (
                             <Card key={role}>
                                 <CardHeader>
                                     <CardTitle className="capitalize text-amber-600">
-                                        {t_admin.partnerTypes[role as keyof typeof t_admin.partnerTypes]}
+                                        {title}
                                     </CardTitle>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 pt-1">
-                                        {roleKey
-                                            ? t_admin.roleDescriptions[
-                                                  roleKey as keyof typeof t_admin.roleDescriptions
-                                              ]
-                                            : ''}
+                                        {description}
                                     </p>
                                 </CardHeader>
                                 <CardContent className="space-y-3 max-h-96 overflow-y-auto">
@@ -107,7 +130,8 @@ const AdminRolesPage: React.FC = () => {
                                                 htmlFor={`${role}-${permission}`}
                                                 className="text-sm font-medium leading-none cursor-pointer"
                                             >
-                                                {(permission as string).replace(/_/g, ' ').toLowerCase()}
+                                                {/* Use translated permission name if available, else format raw string */}
+                                                {t_admin.permissions[permission] || (permission as string).replace(/_/g, ' ').toLowerCase()}
                                             </label>
                                         </div>
                                     ))}

@@ -180,6 +180,7 @@ const AdminRequestDetailsPage: React.FC = () => {
                         contactMethod: pd.contactMethod || 'platform',
                         ownerPhone: pd.ownerPhone,
                         listingStartDate: pd.listingStartDate || new Date().toISOString().split('T')[0],
+                        createdAt: new Date().toISOString()
                     };
                     await addProperty(newProperty);
                 }

@@ -39,7 +39,7 @@ const AIEstimator: React.FC = () => {
     // Contact State
     const [contactForm, setContactForm] = useState({
         name: currentUser?.name || '',
-        phone: currentUser?.phone || ''
+        phone: currentUser?.contactMethods?.phone?.number || ''
     });
 
     // Sync user data if logged in
@@ -47,7 +47,7 @@ const AIEstimator: React.FC = () => {
         if (currentUser) {
             setContactForm(prev => ({
                 name: prev.name || currentUser.name,
-                phone: prev.phone || currentUser.phone || ''
+                phone: prev.phone || currentUser.contactMethods?.phone?.number || ''
             }));
         }
     }, [currentUser]);

@@ -1,19 +1,12 @@
 
-
-// ==========================================
-// 1. Core Enums & Types
-// ==========================================
-
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark';
 
 export enum Role {
     SUPER_ADMIN = 'SUPER_ADMIN',
-    // External Partners
     DEVELOPER_PARTNER = 'DEVELOPER_PARTNER',
     FINISHING_PARTNER = 'FINISHING_PARTNER',
     AGENCY_PARTNER = 'AGENCY_PARTNER',
-    // Internal Managers
     DECORATION_MANAGER = 'DECORATION_MANAGER',
     PLATFORM_FINISHING_MANAGER = 'PLATFORM_FINISHING_MANAGER',
     FINISHING_MARKET_MANAGER = 'FINISHING_MARKET_MANAGER',
@@ -63,43 +56,30 @@ export enum Permission {
     MANAGE_FINISHING_PARTNERS = 'MANAGE_FINISHING_PARTNERS'
 }
 
-// ==========================================
-// 2. Partner & User Models
-// ==========================================
-
-export type PartnerType = 
-    | 'developer' | 'agency' | 'finishing' | 'admin' 
-    | 'decoration_manager' | 'platform_finishing_manager' | 'finishing_market_manager'
-    | 'platform_real_estate_manager' | 'real_estate_market_manager' | 'partner_relations_manager'
-    | 'content_manager' | 'service_manager' | 'customer_relations_manager' | 'listings_manager';
+export type PartnerType = 'developer' | 'finishing' | 'agency' | 'admin' | 'decoration_manager' | 'platform_finishing_manager' | 'finishing_market_manager' | 'platform_real_estate_manager' | 'real_estate_market_manager' | 'partner_relations_manager' | 'content_manager' | 'service_manager' | 'customer_relations_manager' | 'listings_manager';
 
 export type PartnerStatus = 'active' | 'pending' | 'disabled' | 'pending_setup';
 export type SubscriptionPlan = 'basic' | 'professional' | 'elite' | 'commission' | 'paid_listing';
-export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
 export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
+export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual' | 'sale' | 'rent';
 
 export interface Partner {
     id: string;
-    name: string;      // Display name (based on current lang context)
-    nameAr?: string;   // Raw Arabic Name
+    name: string;
+    nameAr?: string;
     email: string;
-    phone?: string;
+    description: string;
+    descriptionAr?: string;
     type: PartnerType;
     role: Role;
     status: PartnerStatus;
     imageUrl: string;
-    // Helper fields for responsive images
     imageUrl_small?: string;
     imageUrl_medium?: string;
     imageUrl_large?: string;
-    
-    description: string;   // Display description
-    descriptionAr?: string; // Raw Arabic Description
-
     subscriptionPlan: SubscriptionPlan;
     subscriptionEndDate?: string;
     displayType: PartnerDisplayType;
-    
     contactMethods?: {
         whatsapp: { enabled: boolean; number: string };
         phone: { enabled: boolean; number: string };
@@ -107,28 +87,22 @@ export interface Partner {
     };
     createdAt: string;
 }
-
 export type AdminPartner = Partner;
-
-// ==========================================
-// 3. Property & Project Models
-// ==========================================
 
 export type ProjectType = 'Compound' | 'Commercial_Mall' | 'Residential_Building' | 'Mixed_Use';
 
 export interface Project {
     id: string;
     partnerId: string;
-    partnerName?: string; 
     name: { ar: string; en: string };
     description: { ar: string; en: string };
     imageUrl: string;
     imageUrl_small?: string;
     imageUrl_medium?: string;
     imageUrl_large?: string;
+    features?: { icon: string; text: { en: string; ar: string } }[];
     createdAt: string;
-    features?: { icon: string; text: { ar: string; en: string } }[];
-    projectType?: ProjectType;
+    partnerName?: string;
 }
 
 export type ListingStatus = 'active' | 'inactive' | 'draft' | 'sold';
@@ -140,102 +114,52 @@ export interface Property {
     partnerImageUrl?: string;
     projectId?: string;
     projectName?: { ar: string; en: string };
-    
     title: { ar: string; en: string };
     description: { ar: string; en: string };
     address: { ar: string; en: string };
-    location: { lat: number; lng: number };
-    
-    status: { ar: string; en: 'For Sale' | 'For Rent' };
-    listingStatus: ListingStatus;
-    listingStartDate?: string;
-    listingEndDate?: string;
-    
-    type: { ar: string; en: string };
-    
     price: { ar: string; en: string };
     priceNumeric: number;
     pricePerMeter?: { ar: string; en: string };
-    
     area: number;
-    beds: number;
-    baths: number;
-    floor?: number;
-    
-    finishingStatus?: { ar: string; en: string };
-    
+    type: { ar: string; en: string };
+    status: { ar: string; en: string };
+    listingStatus: ListingStatus;
+    listingStartDate?: string;
+    listingEndDate?: string | null;
     imageUrl: string;
     imageUrl_small?: string;
     imageUrl_medium?: string;
     imageUrl_large?: string;
     gallery: string[];
-    
-    amenities: { ar: string[]; en: string[] };
-    
+    beds: number;
+    baths: number;
+    floor?: number;
+    finishingStatus?: { ar: string; en: string };
     isInCompound: boolean;
     installmentsAvailable: boolean;
     realEstateFinanceAvailable: boolean;
-    
-    delivery: {
-        isImmediate: boolean;
-        date?: string;
-    };
-    
-    installments?: {
-        downPayment: number;
-        monthlyInstallment: number;
-        years: number;
-    };
-    
+    delivery: { isImmediate: boolean; date?: string };
+    location: { lat: number; lng: number };
+    amenities: { ar: string[]; en: string[] };
+    installments?: { downPayment: number; monthlyInstallment: number; years: number };
     contactMethod?: 'platform' | 'direct';
     ownerPhone?: string;
-    
-    createdAt?: string;
+    createdAt: string;
 }
-
-export interface FilterOption {
-    id: string;
-    en: string;
-    ar: string;
-    applicableTo?: string[];
-}
-
-export interface PropertyFiltersType {
-    view: string;
-    status: string;
-    type: string;
-    query: string;
-    minPrice: string;
-    maxPrice: string;
-    project: string;
-    finishing: string;
-    installments: string;
-    realEstateFinance: string;
-    floor: string;
-    compound: string;
-    delivery: string;
-    amenities: string[];
-    beds: string;
-    baths: string;
-}
-
-// ==========================================
-// 4. Portfolio & Services
-// ==========================================
 
 export interface PortfolioItem {
     id: string;
     partnerId: string;
-    imageUrl: string;
-    alt: string;
+    partnerName?: string;
     title: { ar: string; en: string };
     category: { ar: string; en: string };
     categoryId?: string;
+    imageUrl: string;
+    alt: string;
     price?: number;
     dimensions?: string;
     availability?: 'In Stock' | 'Made to Order';
-    createdAt?: string;
-    partnerName?: string;
+    createdAt: string;
 }
 
 export interface DecorationCategory {
@@ -244,36 +168,7 @@ export interface DecorationCategory {
     description: { ar: string; en: string };
 }
 
-// ==========================================
-// 5. CRM (Leads, Requests, Notifications)
-// ==========================================
-
-export enum RequestType {
-    LEAD = 'LEAD',
-    PARTNER_APPLICATION = 'PARTNER_APPLICATION',
-    PROPERTY_LISTING_REQUEST = 'PROPERTY_LISTING_REQUEST',
-    CONTACT_MESSAGE = 'CONTACT_MESSAGE',
-    PROPERTY_INQUIRY = 'PROPERTY_INQUIRY'
-}
-
-export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'approved' | 'rejected' | 'assigned' | 'in-progress' | 'closed';
 export type LeadStatus = 'new' | 'contacted' | 'site-visit' | 'quoted' | 'in-progress' | 'completed' | 'cancelled';
-
-export interface Request {
-    id: string;
-    type: RequestType;
-    status: RequestStatus;
-    assignedTo?: string;
-    assignedToName?: string;
-    createdAt: string;
-    updatedAt?: string;
-    requesterInfo: {
-        name: string;
-        phone: string;
-        email?: string;
-    };
-    payload: unknown;
-}
 
 export interface LeadMessage {
     id: string;
@@ -296,71 +191,12 @@ export interface Lead {
     status: LeadStatus;
     contactTime?: string;
     customerNotes?: string;
-    assignedTo?: string;
     referenceImage?: string;
-    messages?: LeadMessage[];
+    assignedTo?: string;
     createdAt: string;
     updatedAt: string;
+    messages?: LeadMessage[];
     partnerName?: string;
-}
-
-// Request Sub-Types
-export interface ContactRequest {
-    id: string;
-    name: string;
-    phone: string;
-    message: string;
-    inquiryType?: string;
-    businessType?: string;
-    companyName?: string;
-    status: RequestStatus;
-    createdAt: string;
-    managerId?: string;
-}
-
-export interface AddPropertyRequest {
-    id: string;
-    customerName: string;
-    customerPhone: string;
-    contactTime?: string;
-    status: RequestStatus;
-    createdAt: string;
-    managerId?: string;
-    propertyDetails: any;
-    images?: string[];
-    cooperationType?: string;
-}
-
-export interface PartnerRequest {
-    id: string;
-    companyName: string;
-    companyType: PartnerType;
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-    description: string;
-    website?: string;
-    companyAddress: string;
-    logo?: string;
-    documents?: OfficialDocument[];
-    managementContacts?: any[];
-    subscriptionPlan: SubscriptionPlan;
-    status: 'pending' | 'approved' | 'rejected';
-    createdAt: string;
-}
-
-export interface OfficialDocument {
-    fileName: string;
-    fileContent: string;
-}
-
-export interface PropertyInquiryRequest {
-    id: string;
-    customerName: string;
-    customerPhone: string;
-    details: string;
-    status: RequestStatus;
-    createdAt: string;
 }
 
 export interface Notification {
@@ -371,10 +207,6 @@ export interface Notification {
     isRead: boolean;
     createdAt: string;
 }
-
-// ==========================================
-// 6. System & Content Configuration
-// ==========================================
 
 export interface Banner {
     id: string;
@@ -394,62 +226,117 @@ export interface Quote {
 
 export interface SiteContent {
     logoUrl?: string;
+    enableMaps?: boolean;
     locationPickerMapUrl?: string;
-    enableMaps?: boolean; // New Flag
-    topBanner?: {
-        enabled: boolean;
-        content: { ar: string; en: string };
-    };
-    contactConfiguration: {
-        routing: 'internal' | 'email' | 'both';
-        targetEmail?: string;
-    };
+    topBanner?: { enabled: boolean; content: { ar: string; en: string } };
+    contactConfiguration?: { routing: 'internal' | 'email' | 'both'; targetEmail?: string };
     paymentConfiguration?: {
-        instapay: {
-            enabled: boolean;
-            number: string;
-            walletName?: string;
-            paymentLink?: string;
-            qrCodeUrl?: string;
-            instructions: { ar: string; en: string };
-        };
-        paymob: {
-            enabled: boolean;
-            apiKey: string;
-            secretKey: string;
-            publicKey: string;
-        };
+        instapay: { enabled: boolean; number: string; walletName?: string; paymentLink?: string; qrCodeUrl?: string; instructions: { ar: string; en: string } };
+        paymob: { enabled: boolean; apiKey: string; secretKey: string; publicKey: string };
     };
-    hero: {
-        ar: { title: string; subtitle: string };
-        en: { title: string; subtitle: string };
-        images: { src: string; alt: { ar: string; en: string } }[];
-    };
-    homeCTA?: {
-        enabled: boolean;
-        ar: { title: string; subtitle: string; button: string; link: string };
-        en: { title: string; subtitle: string; button: string; link: string };
-    };
-    homeListings?: {
-        enabled: boolean;
-        count: number;
-        ar: { title: string };
-        en: { title: string };
-    };
+    hero: { ar: { title: string; subtitle: string }; en: { title: string; subtitle: string }; images: { src: string; alt: { ar: string; en: string } }[] };
+    homeCTA?: { enabled: boolean; ar: any; en: any };
+    homeListings?: { enabled: boolean; count: number; ar: any; en: any };
     whyUs: any;
     services: any;
     partners: any;
-    testimonials: any;
-    socialProof: any;
+    testimonials?: any;
+    socialProof?: any;
     whyNewHeliopolis: any;
     finishingServices?: any[];
     projectsPage?: any;
     finishingPage?: any;
     decorationsPage?: any;
     quotes?: Quote[];
+    footer: any;
     privacyPolicy?: any;
     termsOfUse?: any;
-    footer: any;
+}
+
+export interface FilterOption {
+    id: string;
+    en: string;
+    ar: string;
+    applicableTo?: string[];
+}
+
+export type RequestStatus = 'new' | 'pending' | 'reviewed' | 'approved' | 'rejected' | 'assigned' | 'in-progress' | 'closed';
+export enum RequestType {
+    LEAD = 'LEAD',
+    PARTNER_APPLICATION = 'PARTNER_APPLICATION',
+    PROPERTY_LISTING_REQUEST = 'PROPERTY_LISTING_REQUEST',
+    CONTACT_MESSAGE = 'CONTACT_MESSAGE',
+    PROPERTY_INQUIRY = 'PROPERTY_INQUIRY'
+}
+
+export interface Request {
+    id: string;
+    type: RequestType;
+    status: RequestStatus | LeadStatus;
+    assignedTo?: string;
+    assignedToName?: string;
+    createdAt: string;
+    updatedAt?: string;
+    requesterInfo: { name: string; phone: string; email?: string };
+    payload: Lead | PartnerRequest | AddPropertyRequest | ContactRequest | PropertyInquiryRequest | any;
+}
+
+export interface OfficialDocument {
+    fileName: string;
+    fileContent: string;
+}
+
+export interface PartnerRequest {
+    id: string;
+    companyName: string;
+    companyType: PartnerType;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    description: string;
+    website: string;
+    companyAddress: string;
+    logo?: string;
+    documents: OfficialDocument[];
+    managementContacts: any[];
+    subscriptionPlan: SubscriptionPlan;
+    status: 'pending' | 'approved' | 'rejected';
+    createdAt: string;
+}
+
+export interface AddPropertyRequest {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    contactTime?: string;
+    propertyDetails: any; 
+    images?: string[];
+    cooperationType?: string;
+    status: RequestStatus;
+    createdAt: string;
+    managerId?: string;
+}
+
+export interface ContactRequest {
+    id: string;
+    name: string;
+    phone: string;
+    message: string;
+    inquiryType?: string;
+    companyName?: string;
+    businessType?: string;
+    status: RequestStatus;
+    createdAt: string;
+    managerId?: string;
+}
+
+export interface PropertyInquiryRequest {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    details: string;
+    status: RequestStatus;
+    createdAt: string;
 }
 
 export interface SubscriptionPlanDetails {
@@ -460,15 +347,6 @@ export interface SubscriptionPlanDetails {
     commissionRate?: number;
 }
 
-export interface FavoriteItem {
-    id: string;
-    type: 'property' | 'service' | 'portfolio';
-}
-
-// ==========================================
-// 7. Finance & AI
-// ==========================================
-
 export interface AIEstimatorItem {
     id: string;
     name: { ar: string; en: string };
@@ -476,23 +354,40 @@ export interface AIEstimatorItem {
     price: number;
 }
 
-export interface AIEstimatorStage {
-    id: string;
-    name: { ar: string; en: string };
-    basicItems: AIEstimatorItem[];
-    optionalItems: AIEstimatorItem[];
-}
-
 export interface AIEstimatorConfig {
     model: string;
     prompt: string;
     options: any;
-    stages: AIEstimatorStage[];
+    stages: {
+        id: string;
+        name: { ar: string; en: string };
+        basicItems: AIEstimatorItem[];
+        optionalItems: AIEstimatorItem[];
+    }[];
+}
+
+export interface PropertyFiltersType {
+    view?: string;
+    status: string;
+    type: string;
+    query: string;
+    minPrice: string;
+    maxPrice: string;
+    project: string;
+    finishing: string;
+    installments: string;
+    realEstateFinance: string;
+    floor: string;
+    compound: string;
+    delivery: string;
+    amenities: string[];
+    beds: string;
+    baths: string;
 }
 
 export type TransactionStatus = 'paid' | 'pending' | 'reviewing' | 'failed' | 'refunded';
 export type TransactionType = 'subscription_fee' | 'listing_fee' | 'service_payment' | 'product_purchase';
-export type PaymentMethod = 'instapay' | 'card' | 'wallet' | 'cash';
+export type PaymentMethod = 'card' | 'instapay';
 
 export interface Transaction {
     id: string;
@@ -518,22 +413,10 @@ export interface FinanceStats {
     pendingReviews: number;
 }
 
-// ==========================================
-// 8. Form Engine
-// ==========================================
-
-export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'radio' | 'date' | 'file';
 export type FormCategory = 'public' | 'lead_gen' | 'partner_app' | 'admin_internal';
-export type SubmissionDestination = 'crm_messages' | 'crm_leads' | 'crm_partners' | 'email';
+export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'radio' | 'date' | 'file';
 export type ValidationRuleType = 'none' | 'email' | 'phone_eg' | 'url' | 'number' | 'custom';
-
-export interface FormFieldValidation {
-    type: ValidationRuleType;
-    pattern?: string;
-    minLength?: number;
-    maxLength?: number;
-    errorMessage?: { ar: string; en: string };
-}
+export type SubmissionDestination = 'crm_leads' | 'crm_partners' | 'crm_messages' | 'email';
 
 export interface FormFieldDefinition {
     id: string;
@@ -542,9 +425,15 @@ export interface FormFieldDefinition {
     label: { ar: string; en: string };
     placeholder?: { ar: string; en: string };
     required: boolean;
-    validation?: FormFieldValidation;
-    options?: string[] | string;
+    options?: string | string[]; 
     width?: 'full' | 'half' | 'third';
+    validation?: {
+        type: ValidationRuleType;
+        pattern?: string;
+        minLength?: number;
+        maxLength?: number;
+        errorMessage?: { ar: string; en: string };
+    };
 }
 
 export interface FormDefinition {
@@ -554,9 +443,44 @@ export interface FormDefinition {
     description?: { ar: string; en: string };
     category: FormCategory;
     destination: SubmissionDestination;
-    fields: FormFieldDefinition[];
-    submitButtonLabel?: { ar: string; en: string };
     isActive: boolean;
+    submitButtonLabel?: { ar: string; en: string };
+    fields: FormFieldDefinition[];
     createdAt: string;
     updatedAt: string;
+}
+
+export interface FavoriteItem {
+    id: string;
+    type: 'property' | 'service' | 'portfolio';
+}
+
+export interface PartnerService {
+    id: string;
+    partnerId: string;
+    title: { ar: string; en: string };
+    description: { ar: string; en: string };
+    priceRange?: { ar: string; en: string }; 
+    estimatedTime?: { ar: string; en: string }; 
+    imageUrl?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface RoutingRuleCondition {
+    field: string;
+    operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+    value: string | number;
+}
+
+export interface RoutingRuleAction {
+    assignTo: string;
+}
+
+export interface RoutingRule {
+    id: string;
+    name: { [key in 'ar' | 'en']: string };
+    active: boolean;
+    conditions: RoutingRuleCondition[];
+    action: RoutingRuleAction;
 }

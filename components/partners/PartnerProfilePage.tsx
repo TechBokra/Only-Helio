@@ -1,18 +1,18 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import type { Language, PortfolioItem, Property, AdminPartner, Project } from '../../types';
+import type { PortfolioItem } from '../../types';
 import Lightbox from '../shared/Lightbox';
 import PropertyCard from '../properties/PropertyCard';
 import { getPortfolioByPartnerId } from '../../services/portfolio';
 import { getPropertiesByPartnerId } from '../../services/properties';
+import { getPartnerServices } from '../../services/partnerServices'; // Import services
 import { useQuery } from '@tanstack/react-query';
 import { getPartnerById } from '../../services/partners';
 import { useLanguage } from '../shared/LanguageContext';
-import { WhatsAppIcon, ShareIcon } from '../ui/Icons';
+import { WhatsAppIcon, ShareIcon, WrenchScrewdriverIcon } from '../ui/Icons';
 import { useToast } from '../shared/ToastContext';
 import { Button } from '../ui/Button';
-
 
 const PartnerProfileSkeleton: React.FC = () => (
     <div className="animate-pulse">
@@ -47,8 +47,9 @@ const PartnerProfilePage: React.FC = () => {
     const { data: partnerInfo, isLoading: isLoadingPartner } = useQuery({ queryKey: [`partner-${partnerId}`], queryFn: () => getPartnerById(partnerId!), enabled: !!partnerId });
     const { data: partnerPortfolio, isLoading: isLoadingPortfolio } = useQuery({ queryKey: [`partnerPortfolio-${partnerId}`], queryFn: () => getPortfolioByPartnerId(partnerId!), enabled: !!partnerId });
     const { data: partnerProperties, isLoading: isLoadingProperties } = useQuery({ queryKey: [`partnerProperties-${partnerId}`], queryFn: () => getPropertiesByPartnerId(partnerId!), enabled: !!partnerId });
+    const { data: partnerServices, isLoading: isLoadingServices } = useQuery({ queryKey: [`partnerServices-${partnerId}`], queryFn: () => getPartnerServices(partnerId!), enabled: !!partnerId });
 
-    const loading = isLoadingPartner || isLoadingPortfolio || isLoadingProperties;
+    const loading = isLoadingPartner || isLoadingPortfolio || isLoadingProperties || isLoadingServices;
 
     // Use translation if available, otherwise fallback to DB data
     const displayData = useMemo(() => {
@@ -79,12 +80,13 @@ const PartnerProfilePage: React.FC = () => {
         });
     };
     
-    const handleRequestService = () => {
+    const handleRequestService = (serviceTitle?: string) => {
         if (!partnerInfo || !displayData) return;
-        const serviceTitle = `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}`;
+        const title = serviceTitle ? `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}: ${serviceTitle}` : `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}`;
+        
         navigate('/request-service', {
             state: {
-                serviceTitle,
+                serviceTitle: title,
                 partnerId: partnerInfo.id,
             }
         });
@@ -127,6 +129,8 @@ const PartnerProfilePage: React.FC = () => {
         );
     }
     
+    const activeServices = (partnerServices || []).filter(s => s.isActive);
+
     return (
         <div className="bg-white dark:bg-gray-900">
             {lightboxState.isOpen && (
@@ -162,7 +166,7 @@ const PartnerProfilePage: React.FC = () => {
                     <p className="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 mt-4">{displayData.description}</p>
                     <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                         <Button
-                            onClick={handleRequestService}
+                            onClick={() => handleRequestService()}
                             size="lg"
                             className="shadow-lg shadow-amber-500/20"
                         >
@@ -181,6 +185,41 @@ const PartnerProfilePage: React.FC = () => {
                     </div>
                 </div>
             </section>
+            
+            {/* NEW: Services Section */}
+            {activeServices.length > 0 && (
+                 <section className="py-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+                    <div className="container mx-auto px-6">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">{t.partnerProfilePage.servicesTitle}</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {activeServices.map(service => (
+                                <div key={service.id} className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col hover:border-amber-400 transition-colors">
+                                    <div className="mb-4">
+                                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-lg flex items-center justify-center mb-4">
+                                            <WrenchScrewdriverIcon className="w-6 h-6" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{service.title[language]}</h3>
+                                        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">{service.description[language]}</p>
+                                    </div>
+                                    <div className="mt-auto space-y-4">
+                                        {(service.priceRange || service.estimatedTime) && (
+                                            <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700/50 p-3 rounded-lg">
+                                                {service.priceRange && <span>💰 {service.priceRange[language]}</span>}
+                                                {service.estimatedTime && <span>⏱️ {service.estimatedTime[language]}</span>}
+                                            </div>
+                                        )}
+                                        <Button onClick={() => handleRequestService(service.title[language])} className="w-full">
+                                            {t.finishingPage.requestButton}
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
             
             {partnerInfo.type === 'finishing' && (
                 <section className="py-20">

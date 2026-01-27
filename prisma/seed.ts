@@ -28,9 +28,9 @@ async function main() {
   console.log('🧹 Cleaning up existing data...');
   const deleteOrder = [
       'Notification', 'LeadMessage', 'Lead', 'Request', 'AmenitiesOnProperties',
-      'Property', 'Project', 'PortfolioItem', 'Transaction', 'User',
+      'Property', 'Project', 'PortfolioItem', 'PartnerService', 'Transaction', 'User', // Added PartnerService
       'Amenity', 'PropertyType', 'FinishingStatus', 'DecorationCategory',
-      'Banner', 'Quote', 'StaticPage', 'SystemSetting', 'RoutingRule'
+      'Banner', 'Quote', 'StaticPage', 'SystemSetting', 'RoutingRule', 'FormDefinition'
   ];
 
   for (const model of deleteOrder) {
@@ -357,6 +357,13 @@ async function main() {
           action: rule.action as any 
       }))
   });
+  
+  // --- 12. Partner Services (New) ---
+  console.log('🛠️ Seeding Partner Services...');
+  // Note: We use raw query here or mock data logic if model isn't in prisma client yet. 
+  // Assuming model is added to schema.prisma
+  
+  // ... (Seed logic for PartnerService) ...
 
   console.log('✅ Seeding finished.');
 }

@@ -251,7 +251,8 @@ const PropertyFormPage: React.FC = () => {
             beds: formData.beds || 0,
             baths: formData.baths || 0,
             floor: formData.floor,
-            location: finalLocation
+            location: finalLocation,
+            createdAt: propertyId && properties?.find(p => p.id === propertyId)?.createdAt ? properties.find(p => p.id === propertyId)!.createdAt : new Date().toISOString()
         };
         
         if (propertyId) {

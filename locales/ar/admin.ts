@@ -39,6 +39,42 @@ export const admin = {
             "forms": "إدارة النماذج",
             "aiEstimator": "إعدادات مقدر الذكاء الاصطناعي"
         },
+        "permissions": {
+            "VIEW_ADMIN_DASHBOARD": "عرض لوحة تحكم المسؤول",
+            "VIEW_PARTNER_DASHBOARD": "عرض لوحة تحكم الشريك",
+            "MANAGE_USERS": "إدارة المستخدمين الداخليين",
+            "MANAGE_ROLES_PERMISSIONS": "إدارة الأدوار والصلاحيات",
+            "MANAGE_ALL_PARTNERS": "إدارة جميع الشركاء",
+            "MANAGE_ALL_PROPERTIES": "إدارة جميع العقارات",
+            "MANAGE_ALL_PROJECTS": "إدارة جميع المشاريع",
+            "MANAGE_OWN_PROFILE": "إدارة الملف الشخصي",
+            "MANAGE_OWN_PROJECTS": "إدارة المشاريع الخاصة",
+            "MANAGE_OWN_PROPERTIES": "إدارة العقارات الخاصة",
+            "MANAGE_OWN_PORTFOLIO": "إدارة معرض الأعمال الخاص",
+            "MANAGE_OWN_SUBSCRIPTION": "إدارة الاشتراك والباقة",
+            "VIEW_OWN_LEADS": "عرض طلبات العملاء الخاصة",
+            "VIEW_ANALYTICS": "عرض التحليلات العامة",
+            "MANAGE_PLANS": "إدارة باقات الاشتراك",
+            "MANAGE_BANNERS": "إدارة الإعلانات",
+            "MANAGE_SITE_CONTENT": "إدارة محتوى الموقع",
+            "MANAGE_FILTERS": "إدارة فلاتر البحث",
+            "MANAGE_SETTINGS": "إدارة الإعدادات العامة",
+            "MANAGE_FORMS": "إدارة النماذج",
+            "MANAGE_DECORATIONS_CONTENT": "إدارة محتوى الديكور",
+            "MANAGE_DECORATIONS_LEADS": "إدارة طلبات الديكور",
+            "MANAGE_PLATFORM_FINISHING_PACKAGES": "إدارة باقات تشطيب المنصة",
+            "MANAGE_PLATFORM_FINISHING_LEADS": "إدارة طلبات تشطيب المنصة",
+            "MANAGE_PARTNER_REQUESTS": "إدارة طلبات الانضمام للشركاء",
+            "MANAGE_PLATFORM_PROPERTIES": "إدارة عقارات المنصة",
+            "MANAGE_PLATFORM_PROPERTY_LEADS": "إدارة طلبات عقارات المنصة",
+            "MANAGE_MARKET_PROPERTIES": "إدارة سوق العقارات",
+            "MANAGE_PROPERTY_REQUESTS": "إدارة طلبات عرض العقارات",
+            "MANAGE_PROPERTY_INQUIRIES": "إدارة طلبات البحث العقاري",
+            "MANAGE_CONTACT_REQUESTS": "إدارة رسائل التواصل",
+            "MANAGE_INQUIRY_ROUTING": "إدارة توجيه الاستفسارات",
+            "MANAGE_AUTOMATION": "إدارة الأتمتة",
+            "MANAGE_FINISHING_PARTNERS": "إدارة شركاء التشطيب"
+        },
         "aiEstimatorSettings": {
             "title": "إعدادات مقدر التكلفة",
             "subtitle": "تكوين المراحل والبنود والأسعار الأساسية المستخدمة في مقدر تكلفة التشطيب."
@@ -418,6 +454,9 @@ export const admin = {
             "pending_setup": "تحت التجهيز"
         },
         "roleDescriptions": {
+            "DEVELOPER_PARTNER": "إدارة المشاريع والوحدات العقارية.",
+            "FINISHING_PARTNER": "إدارة معرض الأعمال واستقبال طلبات التشطيب.",
+            "AGENCY_PARTNER": "إدارة العقارات والوساطة.",
             "DECORATION_MANAGER": "إدارة محتوى وطلبات قسم الديكور.",
             "PLATFORM_FINISHING_MANAGER": "إدارة باقات وطلبات التشطيب الخاصة بالمنصة.",
             "FINISHING_MARKET_MANAGER": "إدارة الشركاء والمشاريع المعروضة وعلاقات الشركاء.",
@@ -475,41 +514,5 @@ export const admin = {
                 "plans": "الباقات"
             }
         }
-    },
-    "adminAnalytics": {
-        "title": "التحليلات العامة",
-        "subtitle": "نظرة شاملة على أداء المنصة.",
-        "newLeads": "طلبات جديدة",
-        "newPartners": "شركاء جدد",
-        "newProperties": "عقارات جديدة",
-        "conversionRate": "معدل التحويل",
-        "leadsOverTime": "نمو الطلبات",
-        "requestTypeDistribution": "توزيع أنواع الطلبات",
-        "topPerformingPartners": "الشركاء الأكثر نشاطاً",
-        "topPerformingProperties": "العقارات الأكثر طلباً",
-        "leads": "طلبات",
-        "last7days": "آخر 7 أيام",
-        "last30days": "آخر 30 يوم",
-        "thismonth": "هذا الشهر",
-        "thisyear": "هذا العام"
-    },
-    "adminReports": {
-        "title": "التقارير",
-        "subtitle": "تصدير بيانات مخصصة للتحليل.",
-        "step1": "الخطوة 1: اختر مصدر البيانات",
-        "selectDataSource": "اختر المصدر...",
-        "dataSources": {
-            "leads": "الطلبات (Leads)",
-            "properties": "العقارات",
-            "partners": "الشركاء"
-        },
-        "step2": "الخطوة 2: اختر الأعمدة",
-        "step3": "الخطوة 3: نطاق التاريخ (اختياري)",
-        "startDate": "من تاريخ",
-        "endDate": "إلى تاريخ",
-        "step4": "الخطوة 4: التصدير",
-        "exportCSV": "تصدير CSV",
-        "exportPDF": "تصدير PDF",
-        "noColumnsSelected": "الرجاء اختيار عمود واحد على الأقل."
     }
 };

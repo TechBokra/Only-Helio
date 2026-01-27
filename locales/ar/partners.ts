@@ -1,5 +1,4 @@
 
-
 export const partners = {
     "partnerInfo": {
         "united-development": { "name": "الشركة المتحدة للتطوير", "description": "شريكنا الاستراتيجي في تطوير المشاريع السكنية الفاخرة." },
@@ -33,6 +32,7 @@ export const partners = {
         "requestService": "اطلب الخدمة الآن",
         "galleryTitle": "معرض الأعمال",
         "ourListings": "عقاراتنا",
+        "servicesTitle": "قائمة الخدمات",
         "partnerNotFound": "لم يتم العثور على الشريك",
         "partnerNotFoundText": "عذرًا، لا يمكننا العثور على الشريك الذي تبحث عنه.",
         "backToHome": "العودة للرئيسية",

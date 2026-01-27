@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LoadingFallback from '../shared/LoadingFallback';
@@ -13,6 +14,7 @@ const DashboardLeadsPage = React.lazy(() => import('./DashboardLeadsPage'));
 const DashboardSubscriptionPage = React.lazy(() => import('./DashboardSubscriptionPage'));
 const DashboardFinancePage = React.lazy(() => import('./DashboardFinancePage'));
 const DashboardAnalyticsPage = React.lazy(() => import('./DashboardAnalyticsPage'));
+const DashboardServicesPage = React.lazy(() => import('./DashboardServicesPage')); // New Import
 const PropertyFormPage = React.lazy(() => import('../forms/PropertyFormPage'));
 const ProjectFormPage = React.lazy(() => import('../forms/ProjectFormPage'));
 const PartnerLeadDetailsPage = React.lazy(() => import('./PartnerLeadDetailsPage'));
@@ -25,6 +27,7 @@ const PartnerRoutes: React.FC = () => {
                 <Route index element={<DashboardHomePage />} />
                 <Route path="profile" element={<DashboardProfilePage />} />
                 <Route path="portfolio" element={<DashboardPortfolioPage />} />
+                <Route path="services" element={<DashboardServicesPage />} /> {/* New Route */}
                 <Route path="properties" element={<DashboardPropertiesPage />} />
                 <Route path="properties/new" element={<PropertyFormPage />} />
                 <Route path="properties/edit/:propertyId" element={<PropertyFormPage />} />

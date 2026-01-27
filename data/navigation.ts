@@ -68,6 +68,7 @@ export const partnerNavLinks: NavLinkItem[] = [
   { name: t => t.dashboard.nav.analytics, href: '/dashboard/analytics', icon: ChartBarIcon, permission: Permission.VIEW_PARTNER_DASHBOARD, roles: [Role.DEVELOPER_PARTNER, Role.AGENCY_PARTNER], group: 'Partner' },
   { name: t => t.dashboard.nav.projects, href: '/dashboard/projects', icon: CubeIcon, permission: Permission.MANAGE_OWN_PROJECTS, roles: [Role.DEVELOPER_PARTNER], group: 'Partner' },
   { name: t => t.dashboard.nav.properties, href: '/dashboard/properties', icon: BuildingIcon, permission: Permission.MANAGE_OWN_PROPERTIES, roles: [Role.AGENCY_PARTNER], group: 'Partner' },
+  { name: t => t.dashboard.nav.services, href: '/dashboard/services', icon: WrenchScrewdriverIcon, permission: Permission.MANAGE_OWN_PORTFOLIO, roles: [Role.FINISHING_PARTNER], group: 'Partner' }, // New Link
   { name: t => t.dashboard.nav.portfolio, href: '/dashboard/portfolio', icon: PhotoIcon, permission: Permission.MANAGE_OWN_PORTFOLIO, roles: [Role.FINISHING_PARTNER], group: 'Partner' },
   { name: t => t.dashboard.nav.leads, href: '/dashboard/leads', icon: QuoteIcon, permission: Permission.VIEW_OWN_LEADS, roles: [Role.DEVELOPER_PARTNER, Role.FINISHING_PARTNER, Role.AGENCY_PARTNER], group: 'Partner' },
   { name: t => t.adminDashboard.nav.finance, href: '/dashboard/finance', icon: BanknotesIcon, permission: Permission.MANAGE_OWN_SUBSCRIPTION, roles: [Role.DEVELOPER_PARTNER, Role.FINISHING_PARTNER, Role.AGENCY_PARTNER], group: 'Partner' },

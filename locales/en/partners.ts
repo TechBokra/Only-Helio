@@ -1,5 +1,4 @@
 
-
 export const partners = {
     "partnerInfo": {
         "united-development": { "name": "United Development Co.", "description": "Our strategic partner in developing luxury residential projects." },
@@ -33,6 +32,7 @@ export const partners = {
         "requestService": "Request Service Now",
         "galleryTitle": "Portfolio",
         "ourListings": "Our Properties",
+        "servicesTitle": "Services Menu",
         "partnerNotFound": "Partner Not Found",
         "partnerNotFoundText": "Sorry, we couldn't find the partner you're looking for.",
         "backToHome": "Back to Home",
