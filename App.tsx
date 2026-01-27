@@ -11,11 +11,11 @@ import { useLanguage } from './components/shared/LanguageContext';
 import { adminNavLinks, partnerNavLinks } from './data/navigation';
 import LoadingFallback from './components/shared/LoadingFallback';
 
-// --- Layouts (Static Imports to fix #525) ---
+// --- Layouts (Static Imports to avoid waterfall) ---
 import DashboardLayout from './components/shared/DashboardLayout';
 import PublicLayout from './components/shared/PublicLayout';
 
-// --- Route Groups (Static Imports to fix #525) ---
+// --- Route Groups ---
 import PartnerRoutes from './components/partner-dashboard/PartnerRoutes';
 import AdminRoutes from './components/admin/AdminRoutes';
 

@@ -17,23 +17,28 @@ export default defineConfig({
         },
     },
     define: {
-        // Prevent "process is not defined" error in browser for libraries expecting Node env
         'process.env': {}
     },
     build: {
         target: 'es2022',
+        outDir: 'dist',
+        sourcemap: false, // Disable sourcemaps in production for security/size
         chunkSizeWarningLimit: 1000,
         rollupOptions: {
             output: {
                 manualChunks: {
-                    vendor: ['react', 'react-dom', 'react-router-dom'],
-                    utils: ['react-hook-form', '@tanstack/react-query', 'zod', 'zustand'],
-                    charts: ['chart.js', 'react-chartjs-2'],
-                    pdf: ['jspdf', 'jspdf-autotable'],
-                    // Keep AI separate so it doesn't block main bundle
-                    ai: ['@google/genai']
+                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    'ui-libs': ['framer-motion', 'chart.js', 'react-chartjs-2'],
+                    'data-libs': ['@tanstack/react-query', 'zod', 'react-hook-form', 'zustand'],
+                    'utils': ['jspdf', 'jspdf-autotable'],
+                    'db-client': ['@supabase/supabase-js'],
+                    'ai-sdk': ['@google/genai'] // Keep AI separate as it's heavy and specific
                 },
             },
         },
     },
+    server: {
+        port: 5173,
+        strictPort: true,
+    }
 });

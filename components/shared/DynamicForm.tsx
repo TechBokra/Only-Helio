@@ -29,7 +29,7 @@ interface DynamicFormProps {
     submitButtonText?: string;
     submitButtonIcon?: React.ReactNode;
     hiddenFields?: string[];
-    externalFormMethods?: UseFormReturn<FieldValues>; // Optional: Use parent's form methods
+    externalFormMethods?: UseFormReturn<FieldValues>;
 }
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ 
@@ -52,39 +52,39 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     const { data: formDef, isLoading } = useQuery({
         queryKey: ['form', slug],
         queryFn: () => getFormBySlug(slug),
+        staleTime: 1000 * 60 * 10 // Cache form definition for 10 mins
     });
 
     const localMethods = useForm<FieldValues>({
         defaultValues: defaultValues || {}
     });
 
-    // Use external methods if provided, otherwise use local ones
     const methods = externalFormMethods || localMethods;
-    
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = methods;
 
     const processFiles = async (formData: FieldValues, fields: FormFieldDefinition[]) => {
         const processedData = { ...formData };
         const fileFields = fields.filter(f => f.type === 'file');
         
-        for (const field of fileFields) {
-            const fileList = formData[field.key];
-            if (fileList && fileList.length > 0) {
-                // If it's a FileList, convert. If it's already a string (base64 from previous state), leave it.
-                if (fileList[0] instanceof File) {
-                    processedData[field.key] = await fileToBase64(fileList[0]);
+        await Promise.all(fileFields.map(async (field) => {
+            const fileInput = formData[field.key];
+            if (fileInput && fileInput.length > 0 && fileInput[0] instanceof File) {
+                try {
+                    processedData[field.key] = await fileToBase64(fileInput[0]);
+                } catch (e) {
+                    console.error("File conversion failed", e);
+                    // Decide if we want to fail hard or just omit the file
+                    delete processedData[field.key];
                 }
             } else if (!processedData[field.key]) {
                  delete processedData[field.key];
             }
-        }
+        }));
         return processedData;
     };
 
     const validateFile = (file: File) => {
-        if (file.size > CONFIG.MAX_FILE_SIZE) {
-            return MESSAGES[language].file_too_large;
-        }
+        if (file.size > CONFIG.MAX_FILE_SIZE) return MESSAGES[language].file_too_large;
         return true;
     }
 
@@ -93,6 +93,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             if (!formDef) throw new Error('Form definition not found');
             const destination = formDef.destination as SubmissionDestination;
 
+            // Merge context data (e.g. from parent component) with form data
             const payload = { ...processedData, ...contextData };
 
             const requesterInfo = {
@@ -124,7 +125,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                         payload: { ...payload, status: 'pending' }
                     });
                  case 'email':
-                    // Simulate email sending delay
+                    // Mock email send
                     return new Promise(resolve => setTimeout(resolve, 1000));
                 default:
                      return addRequest(RequestType.PROPERTY_INQUIRY, {
@@ -135,7 +136,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         },
         onSuccess: () => {
             showToast(language === 'ar' ? 'تم الإرسال بنجاح!' : 'Submitted successfully!', 'success');
-            if (!externalFormMethods) reset(); // Only reset if using local methods
+            if (!externalFormMethods) reset();
             if (onSuccess) onSuccess();
         },
         onError: (err) => {
@@ -159,7 +160,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         }
     };
 
-    if (isLoading) return <div className="animate-pulse h-64 bg-gray-100 rounded-lg"></div>;
+    if (isLoading) return <div className="animate-pulse h-64 bg-gray-100 dark:bg-gray-800 rounded-lg"></div>;
     if (!formDef) return <div className="text-red-500">Form not found: {slug}</div>;
     if (!formDef.isActive) return <div className="text-gray-500">This form is currently inactive.</div>;
 
@@ -168,47 +169,30 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             required: field.required ? MESSAGES[language].required : false
         };
 
-        if (field.type === 'email') {
-            rules.pattern = { value: PATTERNS.EMAIL, message: MESSAGES[language].invalid_email };
-        }
-        if (field.type === 'tel') {
-            rules.pattern = { value: /^[0-9+\-\s()]*$/, message: MESSAGES[language].invalid_number }; 
-        }
-        if (field.type === 'number') {
-             rules.min = { value: 0, message: MESSAGES[language].invalid_number };
-        }
-        if (field.type === 'file') {
-            rules.validate = {
-                fileSize: (files: any) => !files || files.length === 0 || validateFile(files[0])
-            }
-        }
+        // Basic Type Validations
+        if (field.type === 'email') rules.pattern = { value: PATTERNS.EMAIL, message: MESSAGES[language].invalid_email };
+        if (field.type === 'tel') rules.pattern = { value: /^[0-9+\-\s()]*$/, message: MESSAGES[language].invalid_number }; 
+        if (field.type === 'number') rules.min = { value: 0, message: MESSAGES[language].invalid_number };
+        if (field.type === 'file') rules.validate = { fileSize: (files: any) => !files || files.length === 0 || validateFile(files[0]) }
 
+        // Extended Custom Validations from Form Definition
         if (field.validation) {
             const { type, pattern, minLength, maxLength, errorMessage } = field.validation;
-            
+            const customMsg = errorMessage?.[language];
+
             if (minLength) rules.minLength = { value: minLength, message: MESSAGES[language].min_length(minLength) };
             if (maxLength) rules.maxLength = { value: maxLength, message: MESSAGES[language].max_length(maxLength) };
 
-            const customMsg = errorMessage?.[language];
-
             switch (type) {
-                case 'email':
-                    rules.pattern = { value: PATTERNS.EMAIL, message: customMsg || MESSAGES[language].invalid_email };
-                    break;
-                case 'phone_eg':
-                    rules.pattern = { value: PATTERNS.EGYPTIAN_PHONE, message: customMsg || MESSAGES[language].invalid_phone };
-                    break;
-                case 'url':
-                    rules.pattern = { value: PATTERNS.URL, message: customMsg || MESSAGES[language].invalid_url };
-                    break;
-                case 'number':
-                    rules.pattern = { value: PATTERNS.NUMBERS_ONLY, message: customMsg || MESSAGES[language].invalid_number };
-                    break;
+                case 'email': rules.pattern = { value: PATTERNS.EMAIL, message: customMsg || MESSAGES[language].invalid_email }; break;
+                case 'phone_eg': rules.pattern = { value: PATTERNS.EGYPTIAN_PHONE, message: customMsg || MESSAGES[language].invalid_phone }; break;
+                case 'url': rules.pattern = { value: PATTERNS.URL, message: customMsg || MESSAGES[language].invalid_url }; break;
+                case 'number': rules.pattern = { value: PATTERNS.NUMBERS_ONLY, message: customMsg || MESSAGES[language].invalid_number }; break;
                 case 'custom':
                     if (pattern) {
                         try {
                             rules.pattern = { value: new RegExp(pattern), message: customMsg || 'Invalid Format' };
-                        } catch (e) { console.error("Invalid Regex", pattern); }
+                        } catch (e) { console.error("Invalid Regex in form def", pattern); }
                     }
                     break;
             }
@@ -219,17 +203,11 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     const renderField = (field: FormFieldDefinition) => {
         const label = field.label[language];
         const validationRules = getValidationRules(field);
-        const isHidden = hiddenFields.includes(field.key);
-
         const commonProps = {
             id: field.id,
             placeholder: field.placeholder?.[language],
             ...register(field.key, validationRules)
         };
-
-        if (isHidden) {
-            return <input type="hidden" {...commonProps} />;
-        }
 
         switch (field.type) {
             case 'textarea':
@@ -240,6 +218,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                     <Select {...commonProps} className={selectClasses}>
                         <option value="">{language === 'ar' ? 'اختر...' : 'Select...'}</option>
                         {options.map(opt => {
+                            // Translate option labels if they exist in translation files, else use value
                             const label = t.formOptions?.[opt as keyof typeof t.formOptions] || opt;
                             return <option key={opt} value={opt}>{label}</option>
                         })}
@@ -278,13 +257,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {formDef.fields.map((field) => {
-                        const isHidden = hiddenFields.includes(field.key);
-                        if (isHidden) {
-                            return <React.Fragment key={field.id}>{renderField(field)}</React.Fragment>;
+                        if (hiddenFields.includes(field.key)) {
+                            return <input key={field.id} type="hidden" {...register(field.key)} />;
                         }
 
                         const isFullWidth = field.width === 'full' || field.type === 'textarea';
-                        const colSpanClass = isFullWidth ? 'md:col-span-2' : 'md:col-span-1';
+                        const colSpanClass = isFullWidth ? 'md:col-span-2' : field.width === 'third' ? 'md:col-span-1 lg:col-span-1' : 'md:col-span-1';
                         
                         return (
                             <div key={field.id} className={colSpanClass}>
