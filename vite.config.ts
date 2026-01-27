@@ -28,7 +28,7 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-                    'ui-libs': ['framer-motion', 'chart.js', 'react-chartjs-2'],
+                    'ui-libs': ['chart.js', 'react-chartjs-2'],
                     'data-libs': ['@tanstack/react-query', 'zod', 'react-hook-form', 'zustand'],
                     'utils': ['jspdf', 'jspdf-autotable'],
                     'db-client': ['@supabase/supabase-js'],
