@@ -10,6 +10,33 @@ export let aiEstimatorConfigData: AIEstimatorConfig = {
         ar: "الأسعار الموضحة هي متوسطات سوقية تقديرية لعام 2025 (القاهرة الجديدة). تشمل التكلفة المواد والمصنعية والنقل. قد تختلف الأسعار الفعلية بنسبة 10-15% بناءً على نوع التشطيب المختار وظروف الموقع.",
         en: "Prices shown are estimated 2025 market averages (New Cairo). Costs include materials, labor, and transport. Actual prices may vary by 10-15% depending on finishing tier and site conditions."
     },
+    // New Tiers Configuration
+    tiers: [
+        {
+            id: 'economy',
+            name: { ar: 'اقتصادي', en: 'Economy' },
+            description: { ar: 'خامات محلية جيدة - أساسيات', en: 'Good local materials - Essentials' },
+            multiplier: 0.85
+        },
+        {
+            id: 'standard',
+            name: { ar: 'سوبر لوكس (قياسي)', en: 'Standard (Super Lux)' },
+            description: { ar: 'المستوى الشائع، توازن بين الجودة والسعر', en: 'Common standard, balance between quality and price' },
+            multiplier: 1.0
+        },
+        {
+            id: 'ultra',
+            name: { ar: 'الترا لوكس', en: 'Ultra Lux' },
+            description: { ar: 'خامات عالية الجودة، بورسلين، جبس بورد كامل', en: 'High quality materials, porcelain, full gypsum board' },
+            multiplier: 1.35
+        },
+        {
+            id: 'vip',
+            name: { ar: 'فندقي / VIP', en: 'VIP / Hotel Class' },
+            description: { ar: 'أعلى مستوى، رخام، مستورد، سمارت هوم', en: 'Top tier, marble, imported, smart home' },
+            multiplier: 1.8
+        }
+    ],
     stages: [
         {
             id: 'stage-foundation',

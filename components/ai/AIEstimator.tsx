@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { Input } from '../ui/Input';
 import { Spinner } from '../ui/Spinner';
+import type { FinishingTier } from '../../types';
 import { 
     CalculatorIcon, 
     CheckCircleIcon, 
@@ -22,7 +23,8 @@ import {
     SparklesIcon,
     UserPlusIcon,
     PhoneIcon,
-    ClipboardDocumentListIcon
+    ClipboardDocumentListIcon,
+    WrenchScrewdriverIcon
 } from '../ui/Icons';
 
 const AIEstimator: React.FC = () => {
@@ -33,7 +35,11 @@ const AIEstimator: React.FC = () => {
     
     const { data: config, isLoading } = useQuery({ queryKey: ['aiEstimatorConfig'], queryFn: getAIEstimatorConfig });
 
-    const [currentStep, setCurrentStep] = useState(0);
+    // Step 0: Tier Selection (New)
+    // Step 1..N: Stages Selection
+    // Step Last: Final Review
+    const [currentStep, setCurrentStep] = useState(0); 
+    const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Record<string, string[]>>({}); // stageId -> itemIds
     const [unitArea, setUnitArea] = useState<number>(100);
     
@@ -56,7 +62,15 @@ const AIEstimator: React.FC = () => {
     }, [currentUser]);
 
     const stages = config?.stages || [];
-    const currentStage = stages[currentStep];
+    const tiers = config?.tiers || [];
+
+    // Calculate effective step index for stages (Step 0 is Tier, so Stage 0 is actually UI Step 1)
+    const isTierSelectionStep = currentStep === 0;
+    const isFinalStep = currentStep === stages.length + 1;
+    const activeStageIndex = currentStep - 1;
+    const currentStage = stages[activeStageIndex];
+
+    const selectedTier = useMemo(() => tiers.find(t => t.id === selectedTierId), [tiers, selectedTierId]);
 
     const handleToggleItem = (stageId: string, itemId: string) => {
         setSelectedItems(prev => {
@@ -69,12 +83,13 @@ const AIEstimator: React.FC = () => {
         });
     };
 
-    // --- New Range Calculation Logic ---
+    // --- Range Calculation Logic with Multiplier ---
     const calculateTotals = useMemo(() => {
         if (!config) return { min: 0, max: 0, supervisionMin: 0, supervisionMax: 0, grandTotalMin: 0, grandTotalMax: 0 };
         
         let totalMin = 0;
         let totalMax = 0;
+        const multiplier = selectedTier?.multiplier || 1.0;
         
         stages.forEach(stage => {
             const selectedInStage = selectedItems[stage.id] || [];
@@ -84,10 +99,13 @@ const AIEstimator: React.FC = () => {
                 const item = allItems.find(i => i.id === itemId);
                 if (item) {
                     const isPerMeter = item.unit.en === 'm²' || item.unit.ar === 'م²' || item.unit.en === 'm' || item.unit.ar === 'م.ط';
-                    const qty = isPerMeter ? unitArea : 1; // Default to 1 for points/pieces
+                    const qty = isPerMeter ? unitArea : 1; 
                     
-                    totalMin += (item.minPrice || 0) * qty;
-                    totalMax += (item.maxPrice || 0) * qty;
+                    // Apply Multiplier to Material Cost only? Or Total? 
+                    // Usually labor increases slightly with quality but material increases more. 
+                    // For simplicity in MVP, we apply multiplier to the TOTAL Item Cost range.
+                    totalMin += (item.minPrice * multiplier) * qty;
+                    totalMax += (item.maxPrice * multiplier) * qty;
                 }
             });
         });
@@ -97,14 +115,14 @@ const AIEstimator: React.FC = () => {
         const supervisionMax = Math.round(totalMax * (supervisionRate / 100));
 
         return {
-            min: totalMin,
-            max: totalMax,
+            min: Math.round(totalMin),
+            max: Math.round(totalMax),
             supervisionMin,
             supervisionMax,
-            grandTotalMin: totalMin + supervisionMin,
-            grandTotalMax: totalMax + supervisionMax
+            grandTotalMin: Math.round(totalMin + supervisionMin),
+            grandTotalMax: Math.round(totalMax + supervisionMax)
         };
-    }, [config, selectedItems, unitArea, stages]);
+    }, [config, selectedItems, unitArea, stages, selectedTier]);
 
     const handleRunAIAnalysis = async () => {
         setIsAnalyzing(true);
@@ -117,9 +135,13 @@ const AIEstimator: React.FC = () => {
                     if (selectedInStage.includes(item.id)) selectedNames.push(item.name[language]);
                 });
             });
+            
+            // Add Context to AI about Tier
+            const tierContext = selectedTier ? `Quality Level: ${selectedTier.name.en}` : '';
+            const promptNames = [...selectedNames, tierContext];
 
             // We still call AI for insights, but use our deterministic calc for the base numbers
-            const result = await generateFinishingAnalysis(unitArea, selectedNames, language);
+            const result = await generateFinishingAnalysis(unitArea, promptNames, language);
             
             // Override with our precise deterministic calculations
             setAiResult({
@@ -128,12 +150,11 @@ const AIEstimator: React.FC = () => {
                 highEstimate: calculateTotals.grandTotalMax
             });
         } catch (e) {
-            // Fallback if AI fails: Just show our calculated numbers
              setAiResult({
                 lowEstimate: calculateTotals.grandTotalMin,
                 highEstimate: calculateTotals.grandTotalMax,
                 currency: "EGP",
-                laborPercentage: 40, // rough estimate
+                laborPercentage: 40,
                 materialPercentage: 60,
                 tips: [],
                 marketInsight: config?.globalNotes?.[language] || ""
@@ -153,14 +174,14 @@ const AIEstimator: React.FC = () => {
     });
 
     const handleSubmit = () => {
-         const details = `Estimate: ${calculateTotals.grandTotalMin} - ${calculateTotals.grandTotalMax} EGP. Area: ${unitArea}m. Items: ${JSON.stringify(selectedItems)}`;
+         const details = `Tier: ${selectedTier?.name.en}. Estimate: ${calculateTotals.grandTotalMin} - ${calculateTotals.grandTotalMax} EGP. Area: ${unitArea}m. Items: ${JSON.stringify(selectedItems)}`;
          mutation.mutate({
             partnerId: 'admin-user',
             serviceType: 'finishing',
             customerName: contactForm.name,
             customerPhone: contactForm.phone,
             contactTime: 'Any time',
-            serviceTitle: `Finishing Estimate Request (${unitArea}m)`,
+            serviceTitle: `Finishing Estimate (${selectedTier?.name.en || 'Standard'}) - ${unitArea}m`,
             customerNotes: details,
             managerId: 'platform-finishing-manager-1'
         });
@@ -169,10 +190,12 @@ const AIEstimator: React.FC = () => {
     if (isLoading) return <div className="p-8 flex justify-center"><Spinner size="lg" /></div>;
     if (!config || stages.length === 0) return <div className="p-8 text-center">Config missing.</div>;
 
-    const progress = ((currentStep + 1) / (stages.length + 1)) * 100;
+    const progress = ((currentStep + 1) / (stages.length + 2)) * 100;
 
     // Helper to render the breakdown table
     const renderBreakdown = () => {
+        const multiplier = selectedTier?.multiplier || 1.0;
+
         return (
             <div className="space-y-4 animate-fadeIn">
                 <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-lg border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -206,8 +229,8 @@ const AIEstimator: React.FC = () => {
                                         {activeItems.map(item => {
                                             const isPerMeter = item.unit.en === 'm²' || item.unit.ar === 'م²' || item.unit.en === 'm' || item.unit.ar === 'م.ط';
                                             const qty = isPerMeter ? unitArea : 1;
-                                            const minCost = (item.minPrice || 0) * qty;
-                                            const maxCost = (item.maxPrice || 0) * qty;
+                                            const minCost = Math.round((item.minPrice * multiplier) * qty);
+                                            const maxCost = Math.round((item.maxPrice * multiplier) * qty);
                                             
                                             return (
                                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
@@ -233,6 +256,38 @@ const AIEstimator: React.FC = () => {
         );
     };
 
+    const TierSelectionStep = () => (
+        <div className="animate-fadeIn space-y-6">
+            <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold mb-2">{language === 'ar' ? 'اختر مستوى التشطيب' : 'Select Finishing Quality'}</h3>
+                <p className="text-gray-500">{language === 'ar' ? 'يؤثر مستوى التشطيب بشكل مباشر على جودة الخامات وأسعار المصنعية.' : 'The finishing tier directly impacts material quality and labor costs.'}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tiers.map(tier => (
+                    <div 
+                        key={tier.id}
+                        onClick={() => setSelectedTierId(tier.id)}
+                        className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${selectedTierId === tier.id ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-500' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-amber-300'}`}
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                             <h4 className={`text-lg font-bold ${selectedTierId === tier.id ? 'text-amber-700 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}>
+                                {tier.name[language]}
+                            </h4>
+                            {selectedTierId === tier.id && <CheckCircleIcon className="w-6 h-6 text-amber-500" />}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 h-10">
+                            {tier.description[language]}
+                        </p>
+                         <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded w-fit">
+                            <WrenchScrewdriverIcon className="w-3 h-3" />
+                            {language === 'ar' ? `معامل التكلفة: ${tier.multiplier}x` : `Cost Factor: ${tier.multiplier}x`}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className="py-20 bg-gray-50 dark:bg-gray-800">
             <div className="container mx-auto px-6">
@@ -250,10 +305,12 @@ const AIEstimator: React.FC = () => {
                     </CardHeader>
                     
                     <CardContent className="p-8 min-h-[400px]">
-                        {currentStep < stages.length ? (
+                        {isTierSelectionStep ? (
+                            <TierSelectionStep />
+                        ) : (!isFinalStep ? (
                             <div className="animate-fadeIn">
                                 <h3 className="text-2xl font-bold text-center mb-2">{currentStage.name[language]}</h3>
-                                <p className="text-center text-gray-500 mb-8">{language === 'ar' ? 'خطوة' : 'Step'} {currentStep + 1} {language === 'ar' ? 'من' : 'of'} {stages.length}</p>
+                                <p className="text-center text-gray-500 mb-8">{language === 'ar' ? 'مرحلة' : 'Stage'} {activeStageIndex + 1} {language === 'ar' ? 'من' : 'of'} {stages.length}</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                      {['basicItems', 'optionalItems'].map((type) => (
@@ -272,15 +329,9 @@ const AIEstimator: React.FC = () => {
                                                     <div className="flex-grow">
                                                         <div className="flex justify-between">
                                                             <span className="font-medium text-gray-900 dark:text-white">{item.name[language]}</span>
-                                                            <span className="text-xs font-bold text-amber-600 dark:text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded">
-                                                                {item.minPrice}-{item.maxPrice}
-                                                            </span>
                                                         </div>
                                                         <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                             <span>/{item.unit[language]}</span>
-                                                            {item.minLabor > 0 && (
-                                                                <span>{language === 'ar' ? 'مصنعية:' : 'Labor:'} {item.minLabor}-{item.maxLabor}</span>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 </label>
@@ -313,6 +364,9 @@ const AIEstimator: React.FC = () => {
                                             <h4 className="text-amber-800 dark:text-amber-300 font-semibold mb-4 flex items-center gap-2">
                                                 <BanknotesIcon className="w-5 h-5" />
                                                 {language === 'ar' ? 'ملخص التكلفة التقديرية' : 'Cost Summary'}
+                                                <span className="text-xs bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full mx-2">
+                                                    {selectedTier?.name[language]}
+                                                </span>
                                             </h4>
                                             
                                             <div className="space-y-3">
@@ -368,7 +422,7 @@ const AIEstimator: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                        )}
+                        ))}
                     </CardContent>
 
                     <CardFooter className="p-6 bg-gray-50 dark:bg-gray-900 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
@@ -376,8 +430,8 @@ const AIEstimator: React.FC = () => {
                             <ChevronLeftIcon className="w-5 h-5 mr-2"/>
                             {language === 'ar' ? 'السابق' : 'Back'}
                         </Button>
-                        {currentStep < stages.length && (
-                            <Button onClick={() => setCurrentStep(s => s + 1)}>
+                        {currentStep <= stages.length && (
+                            <Button onClick={() => setCurrentStep(s => s + 1)} disabled={isTierSelectionStep && !selectedTierId}>
                                 {language === 'ar' ? 'التالي' : 'Next'}
                                 <ChevronRightIcon className="w-5 h-5 ml-2"/>
                             </Button>

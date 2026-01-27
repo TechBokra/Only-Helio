@@ -7,11 +7,12 @@ import { useToast } from '../shared/ToastContext';
 import { getAIEstimatorConfig, updateAIEstimatorConfig } from '../../services/aiConfig';
 import { updateEstimatorPricesWithAI } from '../../services/aiService';
 import { inputClasses } from '../ui/FormField';
-import { TrashIcon, ArrowUpIcon, ArrowDownIcon, CalculatorIcon, SparklesIcon, CheckCircleIcon } from '../ui/Icons';
+import { TrashIcon, ArrowUpIcon, ArrowDownIcon, CalculatorIcon, SparklesIcon, CheckCircleIcon, WrenchScrewdriverIcon } from '../ui/Icons';
 import { useLanguage } from '../shared/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 
+// ... ItemRow and StageEditor components (unchanged) ...
 const ItemRow: React.FC<{
     control: Control<AIEstimatorConfig>;
     register: UseFormRegister<AIEstimatorConfig>;
@@ -115,10 +116,11 @@ const AdminAIEstimatorPage: React.FC = () => {
     const [isUpdatingWithAI, setIsUpdatingWithAI] = useState(false);
 
     const { control, register, handleSubmit, reset, getValues, formState: { isSubmitting, isDirty } } = useForm<AIEstimatorConfig>({
-        defaultValues: { stages: [], supervisionRate: 15, globalNotes: { ar: '', en: '' } }
+        defaultValues: { stages: [], supervisionRate: 15, globalNotes: { ar: '', en: '' }, tiers: [] }
     });
 
     const { fields: stageFields, append, remove, swap } = useFieldArray({ control, name: "stages" });
+    const { fields: tierFields, append: appendTier, remove: removeTier } = useFieldArray({ control, name: "tiers" });
 
     useEffect(() => {
         if (config) {
@@ -142,7 +144,6 @@ const AdminAIEstimatorPage: React.FC = () => {
             
             console.log("Updated config from AI:", updatedConfig);
             
-            // Hard reset with deep clone to force React Hook Form to re-render all fields
             const newValues = JSON.parse(JSON.stringify(updatedConfig));
             reset(newValues);
             
@@ -204,6 +205,36 @@ const AdminAIEstimatorPage: React.FC = () => {
                                 <textarea {...register('globalNotes.en')} className={inputClasses} rows={3} dir="ltr" />
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Finishing Tiers Management */}
+                <Card>
+                     <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle className="flex items-center gap-2"><WrenchScrewdriverIcon className="w-5 h-5 text-amber-500"/> Finishing Tiers (Quality Levels)</CardTitle>
+                             <button type="button" onClick={() => appendTier({ id: `tier-${Date.now()}`, name: { ar: '', en: '' }, description: { ar: '', en: '' }, multiplier: 1.0 })} className="text-sm bg-amber-500 text-white px-3 py-1 rounded font-bold hover:bg-amber-600 shadow-sm">+ Add Tier</button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {tierFields.map((field, index) => (
+                             <div key={field.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 relative">
+                                <button type="button" onClick={() => removeTier(index)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                    <div><input {...register(`tiers.${index}.name.ar`)} placeholder="Name (AR)" className={inputClasses} dir="rtl" /></div>
+                                    <div><input {...register(`tiers.${index}.name.en`)} placeholder="Name (EN)" className={inputClasses} dir="ltr" /></div>
+                                    <div>
+                                         <label className="text-xs text-gray-500 font-bold uppercase mb-1 block">Multiplier (1.0 = Base)</label>
+                                         <input type="number" step="0.05" {...register(`tiers.${index}.multiplier`, { valueAsNumber: true })} className={inputClasses} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     <input {...register(`tiers.${index}.description.ar`)} placeholder="Description (AR)" className={inputClasses} dir="rtl" />
+                                     <input {...register(`tiers.${index}.description.en`)} placeholder="Description (EN)" className={inputClasses} dir="ltr" />
+                                </div>
+                            </div>
+                        ))}
+                        {tierFields.length === 0 && <p className="text-center text-gray-500 italic">No tiers defined. Base prices will be used.</p>}
                     </CardContent>
                 </Card>
 

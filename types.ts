@@ -2,6 +2,8 @@
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark';
 
+// ... (Keep existing Enums: Role, Permission, PartnerType) ...
+
 export enum Role {
     SUPER_ADMIN = 'SUPER_ADMIN',
     DEVELOPER_PARTNER = 'DEVELOPER_PARTNER',
@@ -56,6 +58,7 @@ export enum Permission {
     MANAGE_FINISHING_PARTNERS = 'MANAGE_FINISHING_PARTNERS'
 }
 
+// ... (Keep existing Types: Partner, Property, etc.) ...
 export type PartnerType = 'developer' | 'finishing' | 'agency' | 'admin' | 'decoration_manager' | 'platform_finishing_manager' | 'finishing_market_manager' | 'platform_real_estate_manager' | 'real_estate_market_manager' | 'partner_relations_manager' | 'content_manager' | 'service_manager' | 'customer_relations_manager' | 'listings_manager';
 
 export type PartnerStatus = 'active' | 'pending' | 'disabled' | 'pending_setup';
@@ -348,26 +351,32 @@ export interface SubscriptionPlanDetails {
     commissionRate?: number;
 }
 
+// AI Estimator Types Updated
 export interface AIEstimatorItem {
     id: string;
     name: { ar: string; en: string };
     unit: { ar: string; en: string };
-    // Pricing Range (Total Unit Cost)
     minPrice: number;
     maxPrice: number;
-    // Labor Cost Portion (Range)
     minLabor: number;
     maxLabor: number;
+}
+
+export interface FinishingTier {
+    id: string;
+    name: { ar: string; en: string };
+    description: { ar: string; en: string };
+    multiplier: number; // 1.0 = Base, 1.5 = 50% more expensive
 }
 
 export interface AIEstimatorConfig {
     model: string;
     prompt: string;
     options: any;
-    // Global Settings
-    supervisionRate: number; // percentage (e.g. 15)
-    globalNotes: { ar: string; en: string }; // Pre-written disclaimer/notes
-    lastUpdated?: string; // Timestamp of last AI update
+    supervisionRate: number;
+    globalNotes: { ar: string; en: string };
+    lastUpdated?: string;
+    tiers: FinishingTier[]; // Added Tiers
     stages: {
         id: string;
         name: { ar: string; en: string };
