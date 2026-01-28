@@ -81,8 +81,8 @@ const SystemFieldsSection: React.FC = () => {
                             <p className="font-semibold text-gray-800 dark:text-gray-200">{language === 'ar' ? field.ar : field.en}</p>
                             <p className="text-xs text-gray-500 mt-1">{field.type}</p>
                         </div>
-                        <div className="mt-3 flex justify-end">
-                            <LockClosedIcon className="w-4 h-4 text-gray-400" title="System Field" />
+                        <div className="mt-3 flex justify-end" title="System Field">
+                            <LockClosedIcon className="w-4 h-4 text-gray-400" />
                         </div>
                     </div>
                 ))}

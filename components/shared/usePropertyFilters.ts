@@ -1,3 +1,4 @@
+
 import { useSearchParams } from 'react-router-dom';
 import { useMemo, useCallback } from 'react';
 
@@ -5,11 +6,14 @@ export const usePropertyFilters = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const filters = useMemo(() => ({
+        view: searchParams.get('view') || 'grid',
         status: searchParams.get('status') || 'all',
         type: searchParams.get('type') || 'all',
         query: searchParams.get('q') || '',
         minPrice: searchParams.get('minPrice') || '',
         maxPrice: searchParams.get('maxPrice') || '',
+        minArea: searchParams.get('minArea') || '',
+        maxArea: searchParams.get('maxArea') || '',
         project: searchParams.get('project') || 'all',
         finishing: searchParams.get('finishing') || 'all',
         installments: searchParams.get('installments') || 'all',

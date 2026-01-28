@@ -12,6 +12,8 @@ export const usePropertyFilters = () => {
         query: searchParams.get('q') || '',
         minPrice: searchParams.get('minPrice') || '',
         maxPrice: searchParams.get('maxPrice') || '',
+        minArea: searchParams.get('minArea') || '',
+        maxArea: searchParams.get('maxArea') || '',
         project: searchParams.get('project') || 'all',
         finishing: searchParams.get('finishing') || 'all',
         installments: searchParams.get('installments') || 'all',
@@ -27,44 +29,48 @@ export const usePropertyFilters = () => {
     const page = useMemo(() => parseInt(searchParams.get('page') || '1', 10), [searchParams]);
 
     const setFilter = useCallback((filterName: string, value: string | string[]) => {
-        const newParams = new URLSearchParams(searchParams);
-        
-        if (Array.isArray(value)) {
-             if (value.length > 0) {
-                newParams.set(filterName, value.join(','));
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            if (Array.isArray(value)) {
+                 if (value.length > 0) {
+                    newParams.set(filterName, value.join(','));
+                } else {
+                    newParams.delete(filterName);
+                }
             } else {
-                newParams.delete(filterName);
+                if (value === 'all' || !value) {
+                    newParams.delete(filterName);
+                } else {
+                    newParams.set(filterName, value);
+                }
             }
-        } else {
-            if (value === 'all' || !value) {
-                newParams.delete(filterName);
-            } else {
-                newParams.set(filterName, value);
+            // Always reset to page 1 when a filter is changed, except for the 'view' filter
+            if (filterName !== 'view') {
+                newParams.delete('page');
             }
-        }
-        // Always reset to page 1 when a filter is changed, except for the 'view' filter
-        if (filterName !== 'view') {
-            newParams.delete('page');
-        }
-        
-        setSearchParams(newParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+            return newParams;
+        }, { replace: true });
+    }, [setSearchParams]);
     
     const setPage = useCallback((newPage: number) => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set('page', String(newPage));
-        setSearchParams(newParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('page', String(newPage));
+            return newParams;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     const resetFilters = useCallback(() => {
         // Preserve the current view when resetting other filters
-        const currentView = searchParams.get('view');
-        const newParams = new URLSearchParams();
-        if (currentView) {
-            newParams.set('view', currentView);
-        }
-        setSearchParams(newParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+        setSearchParams(prev => {
+            const currentView = prev.get('view');
+            const newParams = new URLSearchParams();
+            if (currentView) {
+                newParams.set('view', currentView);
+            }
+            return newParams;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     return useMemo(() => ({
         ...filters,
