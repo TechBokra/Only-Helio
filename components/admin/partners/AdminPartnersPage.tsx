@@ -95,7 +95,7 @@ const AdminPartnersPage: React.FC = () => {
         setSearchTerm,
         filters,
         setFilter,
-    } = useAdminTable({
+    } = useAdminTable<AdminPartner>({
         data: partners,
         itemsPerPage: ITEMS_PER_PAGE,
         initialSort: { key: 'createdAt', direction: 'descending' },

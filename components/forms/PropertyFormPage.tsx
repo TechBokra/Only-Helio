@@ -52,6 +52,8 @@ export interface PropertyFormData {
     amenities: { en: string[], ar: string[] };
     location: { lat: number; lng: number };
     listingStatus: string;
+    listingStartDate?: string;
+    listingEndDate?: string;
     isInCompound: string;
     realEstateFinanceAvailable: string;
     installmentsAvailable: string;
@@ -99,6 +101,7 @@ const PropertyFormPage: React.FC = () => {
     const handleNavigationSuccess = (property?: Property) => {
         queryClient.invalidateQueries({ queryKey: ['allProperties'] });
         queryClient.invalidateQueries({ queryKey: [`partner-properties-${currentUser?.id}`] });
+        queryClient.invalidateQueries({ queryKey: ['allPropertiesAdmin'] }); // Invalidate admin list too
         if (propertyId) {
             queryClient.invalidateQueries({ queryKey: [`property-${propertyId}`] });
         }
@@ -150,6 +153,9 @@ const PropertyFormPage: React.FC = () => {
                     installments: prop.installments || { downPayment: 0, monthlyInstallment: 0, years: 0 },
                     contactMethod: prop.contactMethod || 'platform',
                     ownerPhone: prop.ownerPhone || '',
+                    // Ensure dates are strings or empty strings for input[type="date"]
+                    listingStartDate: prop.listingStartDate ? prop.listingStartDate.split('T')[0] : '',
+                    listingEndDate: prop.listingEndDate ? prop.listingEndDate.split('T')[0] : '',
                 } as any);
                 setMainImage(prop.imageUrl);
                 setGalleryImages(prop.gallery);
@@ -172,6 +178,7 @@ const PropertyFormPage: React.FC = () => {
                 installments: { downPayment: 0, monthlyInstallment: 0, years: 0 },
                 contactMethod: 'platform', ownerPhone: '',
                 listingStatus: 'active',
+                listingStartDate: new Date().toISOString().split('T')[0],
                 priceNumeric: 0,
                 title: { ar: '', en: '' }, description: { ar: '', en: '' }, address: { ar: '', en: '' }
             });
@@ -246,7 +253,11 @@ const PropertyFormPage: React.FC = () => {
             pricePerMeter,
             imageUrl: mainImage,
             gallery: galleryImages,
-            listingStatus: formData.listingStatus as any,
+            // Handle listing status carefully - if hidden (undefined), don't send it to avoid overwriting with null
+            listingStatus: formData.listingStatus ? formData.listingStatus as any : undefined,
+            // Handle empty date strings from input[type="date"]
+            listingStartDate: formData.listingStartDate ? formData.listingStartDate : undefined,
+            listingEndDate: formData.listingEndDate ? formData.listingEndDate : undefined,
             type: { en: formData.type.en as any, ar: formData.type.ar },
             beds: formData.beds || 0,
             baths: formData.baths || 0,
@@ -258,6 +269,10 @@ const PropertyFormPage: React.FC = () => {
         if (propertyId) {
             updateMutation.mutate({ propertyId, updates: propertyData });
         } else {
+            // For new properties, ensure a default status if admin field wasn't visible
+            if (!propertyData.listingStatus) {
+                 propertyData.listingStatus = 'active'; 
+            }
             addMutation.mutate(propertyData);
         }
     };
@@ -296,7 +311,7 @@ const PropertyFormPage: React.FC = () => {
                         propertyTypes={propertyTypes || []}
                         finishingStatuses={finishingStatuses || []}
                         amenities={amenities || []}
-                        isAdmin={true} // Allow admin/partners to see Listing Status
+                        isAdmin={isAdmin} // Pass admin flag to show listing status/dates
                     />
 
                     <PropertyFinancials />

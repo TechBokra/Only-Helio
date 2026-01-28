@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -102,17 +103,31 @@ const PaymentPage: React.FC = () => {
                     // 2. Property Listings (Paid Listing)
                     else if (type === 'listing_fee') {
                         const { requesterInfo, payload } = contextData;
-                        // payload contains propertyDetails and images
+                        
+                        // Handle multilingual description correctly to avoid [object Object]
+                        const currentDesc = payload.propertyDetails.description;
+                        let newDescription;
+
+                        if (typeof currentDesc === 'object' && currentDesc !== null) {
+                            // If it's a multilingual object, append to both fields
+                            newDescription = {
+                                ar: (currentDesc.ar || '') + paymentNote,
+                                en: (currentDesc.en || '') + paymentNote
+                            };
+                        } else {
+                            // If it's a simple string (legacy)
+                            newDescription = (currentDesc || '') + paymentNote;
+                        }
+
                         const updatedPayload = {
                             ...payload,
                             paymentStatus: paymentStatus,
-                            // Append payment note to property description or internal field if available, 
-                            // here we assume propertyDetails is an object we can modify
                             propertyDetails: {
                                 ...payload.propertyDetails,
-                                description: (payload.propertyDetails.description || '') + paymentNote
+                                description: newDescription
                             }
                         };
+
                         await addRequest(RequestType.PROPERTY_LISTING_REQUEST, {
                             requesterInfo,
                             payload: updatedPayload

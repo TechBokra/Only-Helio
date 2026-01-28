@@ -18,6 +18,7 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
     const { language, t } = useLanguage();
     const tp = t.propertiesPage;
     const t_prop = t.propertyDetailsPage;
+    const t_admin = t.adminDashboard;
 
     const watchType = watch('type');
     const watchStatus = watch('status');
@@ -162,19 +163,32 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                         <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} placeholder="0" />
                     </FormField>
                 )}
-                
-                {/* Listing Status - Only for Admins/Partners Dashboard */}
-                {isAdmin && (
-                    <FormField label="Listing Status" id="listingStatus" required>
-                        <select {...register("listingStatus")} className={selectClasses} >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="draft">Draft</option>
-                            <option value="sold">Sold/Rented</option>
-                        </select>
-                    </FormField>
-                )}
             </div>
+            
+            {/* Listing Status & Dates - Only for Admins/Partners Dashboard */}
+            {isAdmin && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-800/30">
+                    <h3 className="text-sm font-bold text-amber-700 dark:text-amber-500 mb-3 uppercase tracking-wider">
+                        {language === 'ar' ? 'إعدادات النشر (للإدارة)' : 'Listing Settings (Admin)'}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <FormField label={t_admin.partnerTable.status} id="listingStatus" required>
+                            <select {...register("listingStatus")} className={selectClasses} >
+                                <option value="active">{t_admin.manageBanners.active}</option>
+                                <option value="inactive">{t_admin.manageBanners.inactive}</option>
+                                <option value="draft">Draft (مسودة)</option>
+                                <option value="sold">Sold/Rented</option>
+                            </select>
+                        </FormField>
+                        <FormField label={t_admin.editPropertyModal.listingStartDate} id="listingStartDate">
+                             <input type="date" {...register("listingStartDate")} className={inputClasses} />
+                        </FormField>
+                        <FormField label={t_admin.editPropertyModal.listingEndDate} id="listingEndDate">
+                             <input type="date" {...register("listingEndDate")} className={inputClasses} />
+                        </FormField>
+                    </div>
+                </div>
+            )}
 
             <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">{tp.amenities}</label>

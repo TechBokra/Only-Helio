@@ -107,6 +107,7 @@ const mapDbToProperty = (row: PropertyRow): Property => {
         
         listingStatus: row.listingStatus || 'active',
         listingStartDate: row.listingStartDate || row.createdAt,
+        listingEndDate: row.listingEndDate || undefined,
         
         amenities: {
             en: Array.isArray(row.amenities) ? row.amenities : [], // Assuming array of strings
@@ -169,14 +170,24 @@ export const getPaginatedProperties = async (options: {
             project:Project!Property_projectId_fkey(name_en, name_ar)
         `, { count: 'exact' });
 
-    // 1. Basic Filters
-    // Always filter for active listings in public view (unless overridden, but usually handled by calling context)
-    // For now, we assume this function is used for public listings mainly.
-    query = query.eq('listingStatus', 'active');
-
-    if (filters.status && filters.status !== 'all') {
-        // Map frontend status to DB status if needed, or assume direct match
-        query = query.eq('status', filters.status);
+    // 1. Basic Filters (Status Logic Logic)
+    
+    if (filters.view === 'admin') {
+         // --- ADMIN MODE ---
+         // Do NOT force active status.
+         // If a specific status is requested (e.g. 'draft', 'active'), filter by 'listingStatus'.
+         if (filters.status && filters.status !== 'all') {
+             query = query.eq('listingStatus', filters.status);
+         }
+    } else {
+         // --- PUBLIC MODE ---
+         // Force Active Listings Only
+         query = query.eq('listingStatus', 'active');
+         
+         // Filter by Purpose (Sale/Rent) if requested
+         if (filters.status && filters.status !== 'all') {
+            query = query.eq('status', filters.status);
+         }
     }
 
     if (filters.type && filters.type !== 'all') {
@@ -412,7 +423,14 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
     }
 
     // Remove undefined keys to avoid over-writing with nulls
-    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+    // Also remove empty strings for dates to prevent DB type errors
+    Object.keys(dbUpdates).forEach(key => {
+        if (dbUpdates[key] === undefined) {
+            delete dbUpdates[key];
+        } else if ((key === 'listingStartDate' || key === 'listingEndDate') && dbUpdates[key] === '') {
+            dbUpdates[key] = null; // Convert empty date string to null
+        }
+    });
 
     const { data, error } = await supabase
         .from('Property')
