@@ -12,7 +12,7 @@ import { useLanguage } from '../shared/LanguageContext';
 import { Checkbox } from '../ui/Checkbox';
 
 interface FilterItemFormModalProps {
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity';
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity' | 'projectType';
     itemToEdit?: FilterOption;
     onClose: () => void;
     onSave: () => void;
@@ -27,7 +27,7 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
     const { data: propertyTypes } = useQuery({ 
         queryKey: ['propertyTypes'], 
         queryFn: getAllPropertyTypes,
-        enabled: dataType !== 'propertyType' 
+        enabled: dataType !== 'propertyType' && dataType !== 'projectType'
     });
 
     const [formData, setFormData] = useState({
@@ -40,10 +40,9 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
         mutationFn: (data: { en: string; ar: string; applicableTo?: string[] }) => {
             const payload = { 
                 ...data,
-                // If applicableTo is empty or not needed (propertyType), we can either send undefined or empty array. 
+                // If applicableTo is empty or not needed (propertyType/projectType), we can either send undefined or empty array. 
                 // Logic downstream usually treats empty array as "Applicable to All" or "None" depending on implementation.
-                // Here, for propertyType, we exclude it. For others, we send it.
-                applicableTo: dataType === 'propertyType' ? undefined : data.applicableTo 
+                applicableTo: (dataType === 'propertyType' || dataType === 'projectType') ? undefined : data.applicableTo 
             };
 
             if (itemToEdit) {
@@ -82,12 +81,20 @@ const FilterItemFormModal: React.FC<FilterItemFormModalProps> = ({ dataType, ite
         mutation.mutate(formData);
     };
 
-    const isApplicableSectionVisible = dataType !== 'propertyType' && propertyTypes && propertyTypes.length > 0;
+    const isApplicableSectionVisible = dataType !== 'propertyType' && dataType !== 'projectType' && propertyTypes && propertyTypes.length > 0;
+    
+    let titleType = '';
+    switch(dataType) {
+        case 'amenity': titleType = 'Amenity'; break;
+        case 'finishingStatus': titleType = 'Finishing Status'; break;
+        case 'propertyType': titleType = 'Property Type'; break;
+        case 'projectType': titleType = 'Project Type'; break;
+    }
 
     return (
         <Modal isOpen={true} onClose={onClose} aria-labelledby="filter-form-title">
             <ModalHeader onClose={onClose} id="filter-form-title">
-                {itemToEdit ? t_shared.edit : t_shared.add} {dataType === 'amenity' ? 'Amenity' : dataType === 'finishingStatus' ? 'Finishing Status' : 'Property Type'}
+                {itemToEdit ? t_shared.edit : t_shared.add} {titleType}
             </ModalHeader>
             <form onSubmit={handleSubmit}>
                 <ModalContent className="space-y-6 pt-2">

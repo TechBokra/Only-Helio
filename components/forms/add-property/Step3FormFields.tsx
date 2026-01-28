@@ -56,6 +56,7 @@ export const Step3FormFields: React.FC<Step3FormFieldsProps> = (props) => {
                  propertyTypes={propertyTypes || []} 
                  finishingStatuses={finishingStatuses || []} 
                  amenities={amenities || []}
+                 isAdmin={false} // Hide admin fields like Listing Status
              />
 
              {/* 3. Financials (Price, Installments) */}

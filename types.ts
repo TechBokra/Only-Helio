@@ -502,6 +502,8 @@ export type PropertyFiltersType = {
     query: string;
     minPrice: string;
     maxPrice: string;
+    minArea?: string; // NEW
+    maxArea?: string; // NEW
     project: string;
     finishing: string;
     installments: string;

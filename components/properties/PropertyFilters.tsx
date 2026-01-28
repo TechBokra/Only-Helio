@@ -29,6 +29,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     const { language, t: translations } = useLanguage();
     const t = translations.propertiesPage;
     const t_card = translations.propertyCard;
+    const t_forms = translations.forms;
     
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
@@ -36,7 +37,9 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         setFilter, 
         resetFilters,
         status: statusFilter, type: typeFilter, query: queryFilter, 
-        minPrice: minPriceFilter, maxPrice: maxPriceFilter, project: projectFilter, 
+        minPrice: minPriceFilter, maxPrice: maxPriceFilter, 
+        minArea: minAreaFilter, maxArea: maxAreaFilter,
+        project: projectFilter, 
         finishing: finishingFilter, installments: installmentsFilter, floor: floorFilter, 
         compound: compoundFilter, delivery: deliveryFilter, amenities: amenitiesFilter,
         beds: bedsFilter, baths: bathsFilter, realEstateFinance: realEstateFinanceFilter,
@@ -49,6 +52,8 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
         if (queryFilter !== '') count++;
         if (minPriceFilter !== '') count++;
         if (maxPriceFilter !== '') count++;
+        if (minAreaFilter !== '') count++;
+        if (maxAreaFilter !== '') count++;
         if (projectFilter !== 'all') count++;
         if (finishingFilter !== 'all') count++;
         if (installmentsFilter !== 'all') count++;
@@ -78,8 +83,12 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     const availableAmenities = useMemo(() => amenities.filter(isApplicable), [amenities, typeFilter]);
     const availableFinishingStatuses = useMemo(() => finishingStatuses.filter(isApplicable), [finishingStatuses, typeFilter]);
 
-    // Logic to hide fields for Land
+    // Logic to hide fields based on type
     const isLand = typeFilter === 'Land';
+    const isCommercial = typeFilter === 'Commercial';
+    
+    // Beds & Baths only show for Residential (Apartment, Villa) or All, but hide for Land/Commercial
+    const showBedBath = !isLand && !isCommercial;
 
     return (
         <div className="space-y-6">
@@ -147,10 +156,18 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">{t.priceRange}</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t.priceRange} ({language === 'ar' ? 'ج.م' : 'EGP'})</label>
                                 <div className="flex gap-2">
                                     <Input type="number" placeholder={t.minPricePlaceholder} value={minPriceFilter} onChange={e => setFilter('minPrice', e.target.value)} className="w-full" />
                                     <Input type="number" placeholder={t.maxPricePlaceholder} value={maxPriceFilter} onChange={e => setFilter('maxPrice', e.target.value)} className="w-full" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">{t_forms.area} (m²)</label>
+                                <div className="flex gap-2">
+                                    <Input type="number" placeholder="Min" value={minAreaFilter} onChange={e => setFilter('minArea', e.target.value)} className="w-full" />
+                                    <Input type="number" placeholder="Max" value={maxAreaFilter} onChange={e => setFilter('maxArea', e.target.value)} className="w-full" />
                                 </div>
                             </div>
                             
@@ -171,21 +188,10 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name[language]}</option>)}
                                 </Select>
                             </div>
-                            
-                            {!isLand && (
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
-                                    <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)} className="w-full">
-                                        <option value="all">{t.allCompound}</option>
-                                        <option value="yes">{t.compoundYes}</option>
-                                        <option value="no">{t.compoundNo}</option>
-                                    </Select>
-                                </div>
-                            )}
                         </div>
 
                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                             {!isLand && (
+                             {showBedBath && (
                                  <>
                                      <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-500 uppercase">{t_card.beds}</label>
@@ -195,11 +201,13 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                         <label className="text-xs font-bold text-gray-500 uppercase">{t_card.baths}</label>
                                         <Input type="number" value={bathsFilter} onChange={e => setFilter('baths', e.target.value)} placeholder="0+" className="w-full" />
                                     </div>
-                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
-                                        <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" className="w-full" />
-                                    </div>
                                 </>
+                             )}
+                             {!isLand && (
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t.floor}</label>
+                                    <Input type="number" value={floorFilter} onChange={e => setFilter('floor', e.target.value)} placeholder="Any" className="w-full" />
+                                </div>
                              )}
                              <div className="space-y-1 col-span-2 sm:col-span-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.delivery}</label>
@@ -216,6 +224,18 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                                     <option value="no">{t.installmentsNo}</option>
                                 </Select>
                             </div>
+                            
+                            {!isLand && (
+                                <div className="space-y-1 col-span-2 sm:col-span-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t.inCompound}</label>
+                                    <Select value={compoundFilter} onChange={e => setFilter('compound', e.target.value)} className="w-full">
+                                        <option value="all">{t.allCompound}</option>
+                                        <option value="yes">{t.compoundYes}</option>
+                                        <option value="no">{t.compoundNo}</option>
+                                    </Select>
+                                </div>
+                            )}
+
                              <div className="space-y-1 col-span-2 sm:col-span-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase">{t.realEstateFinance}</label>
                                 <Select value={realEstateFinanceFilter} onChange={e => setFilter('realEstateFinance', e.target.value)} className="w-full">
@@ -229,7 +249,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                         <div className="space-y-2">
                              <label className="text-xs font-bold text-gray-500 uppercase block">{t.amenities}</label>
                              {availableAmenities.length > 0 ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg max-h-48 overflow-y-auto">
                                     {availableAmenities.map(amenity => (
                                         <label key={amenity.id} className="flex items-center gap-2 cursor-pointer hover:text-amber-600 transition-colors">
                                             <Checkbox 

@@ -10,9 +10,10 @@ interface PropertySpecsProps {
     propertyTypes: FilterOption[];
     finishingStatuses: FilterOption[];
     amenities: FilterOption[];
+    isAdmin?: boolean; // New prop to control visibility of admin-only fields like Listing Status
 }
 
-const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingStatuses, amenities }) => {
+const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingStatuses, amenities, isAdmin = false }) => {
     const { register, watch, setValue } = useFormContext();
     const { language, t } = useLanguage();
     const tp = t.propertiesPage;
@@ -25,16 +26,21 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
 
     const isLand = watchType?.en === 'Land';
     const isCommercial = watchType?.en === 'Commercial';
+    
+    // Show Beds & Baths only for Residential types (Not Land AND Not Commercial)
+    const showBedBath = !isLand && !isCommercial;
 
-    // Reset irrelevant fields when type changes to Land
+    // Reset irrelevant fields when type changes
     useEffect(() => {
-        if (isLand) {
+        if (!showBedBath) {
             setValue('beds', 0);
             setValue('baths', 0);
+        }
+        if (isLand) {
             setValue('floor', 0);
             setValue('finishingStatus', undefined);
         }
-    }, [isLand, setValue]);
+    }, [isLand, showBedBath, setValue]);
 
     const handleComplexChange = (field: 'status' | 'type' | 'finishingStatus', valueEn: string) => {
         let valueAr = '';
@@ -138,31 +144,36 @@ const PropertySpecs: React.FC<PropertySpecsProps> = ({ propertyTypes, finishingS
                     </FormField>
                 )}
                 
-                {/* Conditional Fields based on Type */}
-                {!isLand && (
+                {/* Conditional Fields based on Type (Hidden for Land AND Commercial) */}
+                {showBedBath && (
                     <>
                         <FormField label={t_prop.bedrooms} id="beds">
-                            <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} placeholder={isCommercial ? "Optional" : "0"} />
+                            <input type="number" {...register("beds", { valueAsNumber: true })} className={inputClasses} placeholder="0" />
                         </FormField>
                         <FormField label={t_prop.bathrooms} id="baths">
-                            <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} placeholder={isCommercial ? "Optional" : "0"} />
+                            <input type="number" {...register("baths", { valueAsNumber: true })} className={inputClasses} placeholder="0" />
                         </FormField>
-                        {watchType?.en !== 'Villa' && (
-                            <FormField label={t_prop.floor} id="floor">
-                                <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} />
-                            </FormField>
-                        )}
                     </>
                 )}
+
+                {/* Floor is hidden for Land and Villa, but kept for Commercial/Apartment */}
+                {!isLand && watchType?.en !== 'Villa' && (
+                    <FormField label={t_prop.floor} id="floor">
+                        <input type="number" {...register("floor", { valueAsNumber: true })} className={inputClasses} placeholder="0" />
+                    </FormField>
+                )}
                 
-                <FormField label="Listing Status" id="listingStatus" required>
-                    <select {...register("listingStatus")} className={selectClasses} >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="draft">Draft</option>
-                        <option value="sold">Sold/Rented</option>
-                    </select>
-                </FormField>
+                {/* Listing Status - Only for Admins/Partners Dashboard */}
+                {isAdmin && (
+                    <FormField label="Listing Status" id="listingStatus" required>
+                        <select {...register("listingStatus")} className={selectClasses} >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="draft">Draft</option>
+                            <option value="sold">Sold/Rented</option>
+                        </select>
+                    </FormField>
+                )}
             </div>
 
             <div className="pt-4 border-t border-gray-100 dark:border-gray-700">

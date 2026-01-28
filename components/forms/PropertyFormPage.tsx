@@ -296,6 +296,7 @@ const PropertyFormPage: React.FC = () => {
                         propertyTypes={propertyTypes || []}
                         finishingStatuses={finishingStatuses || []}
                         amenities={amenities || []}
+                        isAdmin={true} // Allow admin/partners to see Listing Status
                     />
 
                     <PropertyFinancials />

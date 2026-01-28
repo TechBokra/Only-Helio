@@ -27,6 +27,19 @@ export const getAllPropertyTypes = async (): Promise<FilterOption[]> => {
     return data.map(mapRowToOption);
 };
 
+export const getAllProjectTypes = async (): Promise<FilterOption[]> => {
+    const { data, error } = await supabase
+        .from('ProjectTypeDefinition')
+        .select('*')
+        .order('name_en');
+
+    if (error) {
+        console.error('Error fetching ProjectTypeDefinition:', error);
+        return [];
+    }
+    return data.map(mapRowToOption);
+};
+
 export const getAllFinishingStatuses = async (): Promise<FilterOption[]> => {
     const { data, error } = await supabase
         .from('FinishingStatus')
@@ -56,7 +69,7 @@ export const getAllAmenities = async (): Promise<FilterOption[]> => {
 // --- WRITE OPERATIONS (Admin Dashboard) ---
 
 export const addFilterOption = async (
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity', 
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity' | 'projectType', 
     item: Omit<FilterOption, 'id'>
 ): Promise<FilterOption> => {
     
@@ -65,6 +78,7 @@ export const addFilterOption = async (
         case 'propertyType': tableName = 'PropertyType'; break;
         case 'finishingStatus': tableName = 'FinishingStatus'; break;
         case 'amenity': tableName = 'Amenity'; break;
+        case 'projectType': tableName = 'ProjectTypeDefinition'; break;
     }
 
     const payload: any = {
@@ -73,7 +87,7 @@ export const addFilterOption = async (
     };
 
     // Only add applicableTo for types that support it
-    if (dataType !== 'propertyType' && item.applicableTo) {
+    if (dataType !== 'propertyType' && dataType !== 'projectType' && item.applicableTo) {
         payload.applicableTo = item.applicableTo;
     }
 
@@ -85,7 +99,7 @@ export const addFilterOption = async (
 };
 
 export const updateFilterOption = async (
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity', 
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity' | 'projectType', 
     item: FilterOption
 ): Promise<FilterOption | null> => {
     
@@ -94,6 +108,7 @@ export const updateFilterOption = async (
         case 'propertyType': tableName = 'PropertyType'; break;
         case 'finishingStatus': tableName = 'FinishingStatus'; break;
         case 'amenity': tableName = 'Amenity'; break;
+        case 'projectType': tableName = 'ProjectTypeDefinition'; break;
     }
 
     const updates: any = {
@@ -102,7 +117,7 @@ export const updateFilterOption = async (
     };
 
     // Fix: properly include applicableTo for updates
-    if (dataType !== 'propertyType') {
+    if (dataType !== 'propertyType' && dataType !== 'projectType') {
         updates.applicableTo = item.applicableTo;
     }
 
@@ -121,7 +136,7 @@ export const updateFilterOption = async (
 };
 
 export const deleteFilterOption = async (
-    dataType: 'propertyType' | 'finishingStatus' | 'amenity', 
+    dataType: 'propertyType' | 'finishingStatus' | 'amenity' | 'projectType', 
     itemId: string
 ): Promise<boolean> => {
     
@@ -130,6 +145,7 @@ export const deleteFilterOption = async (
         case 'propertyType': tableName = 'PropertyType'; break;
         case 'finishingStatus': tableName = 'FinishingStatus'; break;
         case 'amenity': tableName = 'Amenity'; break;
+        case 'projectType': tableName = 'ProjectTypeDefinition'; break;
     }
 
     const { error } = await supabase.from(tableName).delete().eq('id', itemId);

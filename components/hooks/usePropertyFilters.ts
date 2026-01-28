@@ -12,6 +12,8 @@ export const usePropertyFilters = () => {
         query: searchParams.get('q') || '',
         minPrice: searchParams.get('minPrice') || '',
         maxPrice: searchParams.get('maxPrice') || '',
+        minArea: searchParams.get('minArea') || '',
+        maxArea: searchParams.get('maxArea') || '',
         project: searchParams.get('project') || 'all',
         finishing: searchParams.get('finishing') || 'all',
         installments: searchParams.get('installments') || 'all',

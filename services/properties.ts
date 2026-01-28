@@ -191,6 +191,9 @@ export const getPaginatedProperties = async (options: {
     if (filters.minPrice) query = query.gte('price', filters.minPrice);
     if (filters.maxPrice) query = query.lte('price', filters.maxPrice);
     
+    if (filters.minArea) query = query.gte('area', filters.minArea);
+    if (filters.maxArea) query = query.lte('area', filters.maxArea);
+    
     if (filters.beds) query = query.gte('beds', filters.beds);
     if (filters.baths) query = query.gte('baths', filters.baths);
     

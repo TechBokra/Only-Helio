@@ -17,6 +17,10 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
         const minPrice = parseInt(filters.minPrice, 10);
         const maxPrice = parseInt(filters.maxPrice, 10);
         const priceMatch = (!minPrice || p.priceNumeric >= minPrice) && (!maxPrice || p.priceNumeric <= maxPrice);
+        
+        const minArea = parseInt(filters.minArea || '0', 10);
+        const maxArea = parseInt(filters.maxArea || '0', 10);
+        const areaMatch = (!minArea || p.area >= minArea) && (!maxArea || p.area <= maxArea);
 
         const finishingMatch = filters.finishing === 'all' || p.finishingStatus?.en === filters.finishing;
 
@@ -42,6 +46,6 @@ export const filterProperties = (properties: Property[], filters: PropertyFilter
         const bedsMatch = !filters.beds || p.beds >= parseInt(filters.beds, 10);
         const bathsMatch = !filters.baths || p.baths >= parseInt(filters.baths, 10);
 
-        return statusMatch && typeMatch && queryMatch && priceMatch && finishingMatch && installmentsMatch && realEstateFinanceMatch && floorMatch && compoundMatch && deliveryMatch && amenitiesMatch && projectMatch && bedsMatch && bathsMatch;
+        return statusMatch && typeMatch && queryMatch && priceMatch && areaMatch && finishingMatch && installmentsMatch && realEstateFinanceMatch && floorMatch && compoundMatch && deliveryMatch && amenitiesMatch && projectMatch && bedsMatch && bathsMatch;
     });
 };

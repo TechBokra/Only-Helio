@@ -7,6 +7,7 @@ import type { Project, ProjectType } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { addProject, updateProject, getAllProjects } from '../../services/projects';
+import { getAllProjectTypes } from '../../services/filters'; // New import
 import { Role, Permission } from '../../types';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
@@ -21,6 +22,7 @@ const ProjectFormPage: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser, hasPermission } = useAuth();
     const { data: projects, isLoading: projectsLoading } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
+    const { data: projectTypes, isLoading: typesLoading } = useQuery({ queryKey: ['projectTypes'], queryFn: getAllProjectTypes }); // Fetch types
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const t_form = t.projectDashboard.projectForm;
@@ -114,8 +116,6 @@ const ProjectFormPage: React.FC = () => {
     
     const isSubmitting = addMutation.isPending || updateMutation.isPending;
 
-    const projectTypes: ProjectType[] = ['Compound', 'Commercial_Mall', 'Residential_Building', 'Mixed_Use'];
-
     return (
         <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
@@ -132,10 +132,10 @@ const ProjectFormPage: React.FC = () => {
                 </div>
 
                 <FormField label={language === 'ar' ? 'نوع المشروع' : 'Project Type'} id="projectType">
-                    <select {...register("projectType", { required: true })} className={selectClasses}>
+                    <select {...register("projectType", { required: true })} className={selectClasses} disabled={typesLoading}>
                         <option value="">{language === 'ar' ? 'اختر النوع...' : 'Select Type...'}</option>
-                        {projectTypes.map(type => (
-                            <option key={type} value={type}>{type.replace('_', ' ')}</option>
+                        {(projectTypes || []).map(type => (
+                            <option key={type.id} value={type.en}>{type[language]}</option>
                         ))}
                     </select>
                 </FormField>
