@@ -1,66 +1,75 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    getAllContactRequests,
-    updateContactRequestStatus,
-    deleteContactRequest,
-} from '../../../services/contactRequests';
+import { getAllContactRequests, updateContactRequestStatus, deleteContactRequest } from '../../../services/contactRequests';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import Pagination from '../../shared/Pagination';
 import type { ContactRequest, RequestStatus } from '../../../types';
 import { Select } from '../../ui/Select';
+import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
-
-const statusColors: { [key in RequestStatus]: string } = {
-    new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    reviewed: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
-    assigned: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
-    'in-progress': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-};
+import { useToast } from '../../shared/ToastContext';
 
 const AdminContactRequestsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
+    const t_shared = t.adminShared;
     const queryClient = useQueryClient();
-    const [requestToDelete, setRequestToDelete] = React.useState<string | null>(null);
+    const { showToast } = useToast();
+    
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
 
-    const { data: requests, isLoading } = useQuery({
-        queryKey: ['contactRequests'],
-        queryFn: getAllContactRequests,
-    });
+    const { data: requests, isLoading } = useQuery({ queryKey: ['contactRequests'], queryFn: getAllContactRequests });
 
     const mutation = useMutation({
         mutationFn: ({ id, status }: { id: string; status: RequestStatus }) => updateContactRequestStatus(id, status),
         onSuccess: () => {
+            showToast('Status updated successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['contactRequests'] });
         },
+        onError: () => showToast('Failed to update status', 'error')
     });
 
     const deleteMutation = useMutation({
         mutationFn: deleteContactRequest,
         onSuccess: () => {
+            showToast('Request deleted', 'success');
             queryClient.invalidateQueries({ queryKey: ['contactRequests'] });
             setRequestToDelete(null);
         },
     });
 
-    const { paginatedItems, totalPages, currentPage, setCurrentPage } = useAdminTable({
-        data: requests,
+    const filteredRequests = useMemo(() => {
+        if (!requests) return [];
+        if (activeTab === 'pending') {
+            return requests.filter(r => r.status === 'pending' || r.status === 'new');
+        } else {
+            return requests.filter(r => r.status !== 'pending' && r.status !== 'new');
+        }
+    }, [requests, activeTab]);
+
+    const { paginatedItems, totalPages, currentPage, setCurrentPage, searchTerm, setSearchTerm, requestSort, getSortIcon } = useAdminTable({
+        data: filteredRequests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (item: ContactRequest, term: string) => item.name.toLowerCase().includes(term) || item.phone.includes(term),
-        filterFns: {},
+        filterFns: {
+             dateRange: (item: ContactRequest) => {
+                if (!dateRange.start && !dateRange.end) return true;
+                const date = new Date(item.createdAt).getTime();
+                const start = dateRange.start ? new Date(dateRange.start).getTime() : 0;
+                const end = dateRange.end ? new Date(dateRange.end).setHours(23,59,59,999) : Infinity;
+                return date >= start && date <= end;
+            }
+        },
     });
 
     const renderTable = (items: ContactRequest[]) => (
@@ -68,20 +77,16 @@ const AdminContactRequestsPage: React.FC = () => {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{t_admin.table.requester}</TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('name')}>{t_admin.table.requester} {getSortIcon('name')}</TableHead>
                         <TableHead>{t_admin.table.message}</TableHead>
-                        <TableHead>{t_admin.table.date}</TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('createdAt')}>{t_admin.table.date} {getSortIcon('createdAt')}</TableHead>
                         <TableHead>{t_admin.table.status}</TableHead>
                         <TableHead>{t_admin.table.actions}</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {isLoading ? (
-                        <TableRow>
-                            <TableCell colSpan={5} className="text-center p-8">
-                                Loading...
-                            </TableCell>
-                        </TableRow>
+                        <TableRow><TableCell colSpan={5} className="text-center p-8">Loading...</TableCell></TableRow>
                     ) : items.length > 0 ? (
                         items.map((req) => (
                             <TableRow key={req.id}>
@@ -89,53 +94,31 @@ const AdminContactRequestsPage: React.FC = () => {
                                     <div className="font-medium text-gray-900 dark:text-white">{req.name}</div>
                                     <div className="text-sm text-gray-500">{req.phone}</div>
                                 </TableCell>
-                                <TableCell className="max-w-sm truncate" title={req.message}>
-                                    {req.message}
-                                </TableCell>
+                                <TableCell className="max-w-sm truncate" title={req.message}>{req.message}</TableCell>
                                 <TableCell>{new Date(req.createdAt).toLocaleDateString(language)}</TableCell>
                                 <TableCell>
-                                    <Select
+                                     <Select
                                         value={req.status}
-                                        onChange={(e) =>
-                                            mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })
-                                        }
-                                        className={`text-xs font-medium w-32 ${statusColors[req.status]}`}
+                                        onChange={(e) => mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })}
+                                        className="w-32 h-8 py-1 text-xs"
                                     >
                                         {Object.entries(t_admin.requestStatus).map(([key, value]) => (
-                                            <option
-                                                key={key}
-                                                value={key}
-                                                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                            >
-                                                {value as string}
-                                            </option>
+                                            <option key={key} value={key}>{value as string}</option>
                                         ))}
                                     </Select>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex gap-2">
                                         <Link to={`/admin/contact-requests/${req.id}`}>
-                                            <Button variant="outline" size="sm">
-                                                {t_admin.table.details}
-                                            </Button>
+                                            <Button variant="outline" size="sm">{t_admin.table.details}</Button>
                                         </Link>
-                                        <Button
-                                            variant="link"
-                                            className="text-red-500"
-                                            onClick={() => setRequestToDelete(req.id)}
-                                        >
-                                            {t_admin.table.delete}
-                                        </Button>
+                                        <Button variant="link" className="text-red-500" onClick={() => setRequestToDelete(req.id)}>{t_admin.table.delete}</Button>
                                     </div>
                                 </TableCell>
                             </TableRow>
                         ))
                     ) : (
-                        <TableRow>
-                            <TableCell colSpan={5} className="text-center p-8">
-                                {t_admin.noContactRequests}
-                            </TableCell>
-                        </TableRow>
+                        <TableRow><TableCell colSpan={5} className="text-center p-8">{t_admin.noContactRequests}</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
@@ -152,58 +135,62 @@ const AdminContactRequestsPage: React.FC = () => {
                     </div>
                     <span className="text-xs text-gray-400">{new Date(req.createdAt).toLocaleDateString(language)}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3 bg-gray-50 dark:bg-gray-800 p-2 rounded">{req.message}</p>
-            </CardContent>
-            <CardFooter className="p-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <Select
-                    value={req.status}
-                    onChange={(e) =>
-                        mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })
-                    }
-                    className={`text-xs font-medium w-32 h-8 py-1 ${statusColors[req.status]}`}
-                >
-                    {Object.entries(t_admin.requestStatus).map(([key, value]) => (
-                        <option
-                            key={key}
-                            value={key}
-                            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        >
-                            {value as string}
-                        </option>
-                    ))}
-                </Select>
-                <div className="flex gap-2">
-                    <Link to={`/admin/contact-requests/${req.id}`}>
-                        <Button variant="ghost" size="sm" className="text-amber-600 hover:bg-amber-50">
-                            View
-                        </Button>
-                    </Link>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        onClick={() => setRequestToDelete(req.id)}
+                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 bg-gray-50 dark:bg-gray-800 p-2 rounded">{req.message}</p>
+                 <div className="pt-2">
+                    <Select
+                        value={req.status}
+                        onChange={(e) => mutation.mutate({ id: req.id, status: e.target.value as RequestStatus })}
+                        className="w-full h-9 py-1 text-sm"
                     >
-                        {t_admin.table.delete}
-                    </Button>
+                        {Object.entries(t_admin.requestStatus).map(([key, value]) => (
+                            <option key={key} value={key}>{value as string}</option>
+                        ))}
+                    </Select>
                 </div>
+            </CardContent>
+            <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+                 <Link to={`/admin/contact-requests/${req.id}`} className="w-full">
+                    <Button variant="ghost" size="sm" className="w-full">{t_admin.table.details}</Button>
+                </Link>
+                 <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setRequestToDelete(req.id)}>{t_admin.table.delete}</Button>
             </CardFooter>
         </Card>
     );
 
     return (
-        <div>
+        <div className="space-y-6">
             {requestToDelete && (
                 <ConfirmationModal
                     isOpen={!!requestToDelete}
                     onClose={() => setRequestToDelete(null)}
                     onConfirm={() => deleteMutation.mutate(requestToDelete)}
-                    title={t.adminShared.delete}
+                    title={t_shared.delete}
                     message={t_admin.confirmDelete}
                 />
             )}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.contactRequestsTitle}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t_admin.contactRequestsSubtitle}</p>
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.contactRequestsTitle}</h1>
+                <p className="text-gray-500 dark:text-gray-400">{t_admin.contactRequestsSubtitle}</p>
+            </div>
+
+             {/* Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
+                <button onClick={() => { setActiveTab('pending'); setCurrentPage(1); }} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pending' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                    {language === 'ar' ? 'قيد الانتظار' : 'Pending'}
+                </button>
+                <button onClick={() => { setActiveTab('history'); setCurrentPage(1); }} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'history' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                    {language === 'ar' ? 'الأرشيف' : 'Archive'}
+                </button>
+            </div>
+
+            {/* Filters */}
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                <div className="md:col-span-2">
+                    <Input placeholder={t.adminDashboard.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                <Input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} />
+                <Input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} />
+            </div>
 
             <ResponsiveList
                 items={paginatedItems}

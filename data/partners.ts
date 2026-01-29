@@ -20,15 +20,15 @@ export let partnersData: (Omit<Partner, 'name' | 'description' | 'role'> & { pas
         },
         createdAt: '2023-01-01T00:00:00Z',
     },
-    // 2. Individual Listings Account (Platform)
+    // 2. Platform Listings Account (ONLY HELIO)
     {
         id: 'individual-listings',
-        imageUrl: 'https://ui-avatars.com/api/?name=Indiv&background=333&color=fff',
+        imageUrl: 'https://ui-avatars.com/api/?name=Only+Helio&background=F59E0B&color=fff&bold=true',
         email: 'listings@onlyhelio.com',
         password: 'password', 
         type: 'agency', 
         status: 'active', 
-        subscriptionPlan: 'basic',
+        subscriptionPlan: 'elite', // Upgraded to elite
         subscriptionEndDate: '2099-12-31T00:00:00Z', 
         displayType: 'standard',
         contactMethods: { 

@@ -13,7 +13,7 @@ export const partners = {
         "artistic-touch-decor": { "name": "لمسة فنية للديكور", "description": "متخصصون في تنفيذ أعمال الديكور والتشطيبات الفاخرة." },
         "ebdaa-integrated-finishes": { "name": "إبداع للتشطيبات المتكاملة", "description": "نقدم حلول تشطيب مبتكرة ومتكاملة للمساحات." },
         "future-real-estate": { "name": "المستقبل للتسويق العقاري", "description": "يتولون تسويق مشاريعنا العقارية بخطط مبتكرة." },
-        "individual-listings": { "name": "عقارات الأفراد", "description": "عقارات معروضة مباشرة من الملاك." },
+        "individual-listings": { "name": "أونلي هيليو", "description": "العقارات المدارة بواسطة المنصة وعقارات الملاك الأفراد." },
         "finishing-partner-1": { "name": "شركة تشطيبات النخبة", "description": "خدمات تشطيب وتصميم داخلي راقية." },
         
         "admin-user": { "name": "المدير العام", "description": "يمتلك صلاحيات كاملة على المنصة." },

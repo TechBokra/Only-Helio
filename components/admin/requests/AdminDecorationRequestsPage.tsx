@@ -1,18 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { deleteLead as apiDeleteLead, getAllLeads } from '../../../services/leads';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { updateLead, deleteLead as apiDeleteLead, getAllLeads } from '../../../services/leads';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Lead, LeadStatus } from '../../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import Pagination from '../../shared/Pagination';
 import { Button } from '../../ui/Button';
+import { Select } from '../../ui/Select';
+import { Input } from '../../ui/Input';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
 import { useToast } from '../../shared/ToastContext';
-import { inputClasses } from '../../ui/FormField';
 
 const statusColors: { [key in LeadStatus]: string } = {
     new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -29,15 +30,26 @@ const AdminDecorationRequestsPage: React.FC = () => {
     const t = i18n.adminDashboard;
     const t_dash = i18n.dashboard;
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
+    
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
     const { 
         data: allLeads, 
         isLoading, 
-        refetch 
     } = useQuery({ 
         queryKey: ['allLeads'], 
         queryFn: getAllLeads
+    });
+    
+    const statusMutation = useMutation({
+        mutationFn: ({ id, status }: { id: string; status: LeadStatus }) => updateLead(id, { status }),
+        onSuccess: () => {
+             showToast('Status updated successfully', 'success');
+             queryClient.invalidateQueries({ queryKey: ['allLeads'] });
+        },
+        onError: () => showToast('Failed to update status', 'error')
     });
 
     const decorationLeads = useMemo(() => {
@@ -59,6 +71,8 @@ const AdminDecorationRequestsPage: React.FC = () => {
         setCurrentPage,
         searchTerm,
         setSearchTerm,
+        requestSort,
+        getSortIcon
     } = useAdminTable({
         data: decorationLeads,
         itemsPerPage: 10,
@@ -67,14 +81,22 @@ const AdminDecorationRequestsPage: React.FC = () => {
             (item.customerName || '').toLowerCase().includes(term) || 
             (item.customerPhone || '').includes(term) ||
             (item.serviceTitle || '').toLowerCase().includes(term),
-        filterFns: {}
+        filterFns: {
+             dateRange: (item: Lead) => {
+                if (!dateRange.start && !dateRange.end) return true;
+                const date = new Date(item.createdAt).getTime();
+                const start = dateRange.start ? new Date(dateRange.start).getTime() : 0;
+                const end = dateRange.end ? new Date(dateRange.end).setHours(23,59,59,999) : Infinity;
+                return date >= start && date <= end;
+            }
+        }
     });
 
     const handleDelete = async (id: string) => {
         if (window.confirm(i18n.adminShared.confirmDelete)) {
             await apiDeleteLead(id);
             showToast('Request deleted successfully', 'success');
-            refetch();
+            queryClient.invalidateQueries({ queryKey: ['allLeads'] });
         }
     };
 
@@ -83,9 +105,9 @@ const AdminDecorationRequestsPage: React.FC = () => {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{t_dash.leadTable.customer}</TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('customerName')}>{t_dash.leadTable.customer} {getSortIcon('customerName')}</TableHead>
                         <TableHead>{t_dash.leadTable.service}</TableHead>
-                        <TableHead>{t_dash.leadTable.date}</TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('createdAt')}>{t_dash.leadTable.date} {getSortIcon('createdAt')}</TableHead>
                         <TableHead>{t_dash.leadTable.status}</TableHead>
                         <TableHead>{t_dash.leadTable.actions}</TableHead>
                     </TableRow>
@@ -103,9 +125,15 @@ const AdminDecorationRequestsPage: React.FC = () => {
                                 <TableCell className="max-w-xs truncate" title={lead.serviceTitle}>{lead.serviceTitle}</TableCell>
                                 <TableCell>{new Date(lead.createdAt).toLocaleDateString(language)}</TableCell>
                                 <TableCell>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${statusColors[lead.status]}`}>
-                                        {t_dash.leadStatus[lead.status] || lead.status}
-                                    </span>
+                                     <Select
+                                        value={lead.status}
+                                        onChange={(e) => statusMutation.mutate({ id: lead.id, status: e.target.value as LeadStatus })}
+                                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[lead.status]}`}
+                                    >
+                                        {Object.entries(t_dash.leadStatus).map(([key, value]) => (
+                                            <option key={key} value={key} className="bg-white text-gray-900">{value as string}</option>
+                                        ))}
+                                    </Select>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex gap-2">
@@ -133,12 +161,20 @@ const AdminDecorationRequestsPage: React.FC = () => {
                         <h3 className="font-bold text-gray-900 dark:text-white">{lead.customerName}</h3>
                         <p className="text-sm text-gray-500">{lead.customerPhone}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${statusColors[lead.status]}`}>
-                        {t_dash.leadStatus[lead.status] || lead.status}
-                    </span>
+                    <span className="text-xs text-gray-400">{new Date(lead.createdAt).toLocaleDateString(language)}</span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{lead.serviceTitle}</p>
-                <p className="text-xs text-gray-400 text-right">{new Date(lead.createdAt).toLocaleDateString(language)}</p>
+                 <div className="pt-2">
+                    <Select
+                        value={lead.status}
+                        onChange={(e) => statusMutation.mutate({ id: lead.id, status: e.target.value as LeadStatus })}
+                        className={`w-full text-xs font-medium px-2 py-1 rounded ${statusColors[lead.status]}`}
+                    >
+                        {Object.entries(t_dash.leadStatus).map(([key, value]) => (
+                            <option key={key} value={key} className="bg-white text-gray-900">{value as string}</option>
+                        ))}
+                    </Select>
+                </div>
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between">
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(lead.id)} className="text-red-500">{i18n.adminShared.delete}</Button>
@@ -150,41 +186,28 @@ const AdminDecorationRequestsPage: React.FC = () => {
     );
 
     return (
-        <div className="animate-fadeIn">
-            <div className="mb-6">
+        <div className="space-y-6 animate-fadeIn">
+            <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{i18n.adminDashboard.nav.decorationsRequests}</h1>
                 <p className="text-gray-500 dark:text-gray-400">Manage all decoration and art requests.</p>
             </div>
 
-            <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
-                <button
-                    onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                        activeTab === 'pending'
-                            ? 'border-amber-500 text-amber-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                    }`}
-                >
+            {/* Tabs */}
+             <div className="flex border-b border-gray-200 dark:border-gray-700">
+                <button onClick={() => { setActiveTab('pending'); setCurrentPage(1); }} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pending' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
                     {language === 'ar' ? 'قيد الانتظار' : 'Pending Requests'}
                 </button>
-                <button
-                    onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                        activeTab === 'history'
-                            ? 'border-amber-500 text-amber-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                    }`}
-                >
-                    {language === 'ar' ? 'الأرشيف' : 'Archive (History)'}
+                <button onClick={() => { setActiveTab('history'); setCurrentPage(1); }} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'history' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                    {language === 'ar' ? 'الأرشيف' : 'History'}
                 </button>
             </div>
 
-            <div className="my-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-1">
-                        <input type="text" placeholder={i18n.adminDashboard.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClasses} />
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                <div className="md:col-span-2">
+                    <Input placeholder={i18n.adminDashboard.filter.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
+                <Input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} />
+                <Input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} />
             </div>
 
             <ResponsiveList

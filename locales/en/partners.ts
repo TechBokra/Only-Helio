@@ -13,7 +13,7 @@ export const partners = {
         "artistic-touch-decor": { "name": "Artistic Touch Decor", "description": "Specialists in executing luxury decor and finishing works." },
         "ebdaa-integrated-finishes": { "name": "Ebdaa Integrated Finishes", "description": "Offering innovative and integrated finishing solutions for spaces." },
         "future-real-estate": { "name": "Future Real Estate Marketing", "description": "Handling the marketing of our real estate projects with innovative plans." },
-        "individual-listings": { "name": "Individual Listings", "description": "Properties listed directly by owners." },
+        "individual-listings": { "name": "ONLY HELIO", "description": "Platform managed properties and individual listings." },
         "finishing-partner-1": { "name": "Elite Finishing Co.", "description": "High-end finishing and interior design services." },
 
         "admin-user": { "name": "Super Admin", "description": "Has full access to the platform." },

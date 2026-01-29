@@ -93,15 +93,15 @@ VALUES
     'individual-listings', 
     'listings@onlyhelio.com', 
     'password', 
-    'Individual Listings', 
-    'عقارات الأفراد', 
+    'ONLY HELIO', 
+    'أونلي هيليو', 
     'agency', 
     'AGENCY_PARTNER', 
     'active', 
-    'basic', 
-    'https://via.placeholder.com/150',
-    'Platform account for individual owner listings.',
-    'حساب المنصة لعقارات الملاك الأفراد.',
+    'elite', 
+    'https://ui-avatars.com/api/?name=Only+Helio&background=F59E0B&color=fff&bold=true',
+    'Platform managed properties and individual listings.',
+    'العقارات المدارة بواسطة المنصة وعقارات الملاك الأفراد.',
     '{"whatsapp": {"enabled": false}, "phone": {"enabled": false}, "form": {"enabled": true}}'
 );
 
@@ -146,13 +146,13 @@ VALUES
     NOW()
 );
 
--- Prop 2: Standalone (Agency)
+-- Prop 2: Standalone (Platform Managed)
 INSERT INTO "Property" 
 ("id", "partnerId", "title_en", "title_ar", "description_en", "description_ar", "address_en", "address_ar", "price", "price_en", "price_ar", "area", "type_en", "type_ar", "status", "listingStatus", "imageUrl", "beds", "baths", "finishingStatus_en", "finishingStatus_ar", "isInCompound", "location", "createdAt")
 VALUES 
 (
     'prop-2', 
-    'agency-partner-1', 
+    'individual-listings', 
     'Standalone Villa for Resale', 
     'فيلا مستقلة إعادة بيع', 
     'Spacious villa with private pool.', 
@@ -167,7 +167,7 @@ VALUES
     NOW()
 );
 
--- Prop 3: Commercial (Individual)
+-- Prop 3: Commercial (Individual / Platform)
 INSERT INTO "Property" 
 ("id", "partnerId", "title_en", "title_ar", "description_en", "description_ar", "address_en", "address_ar", "price", "price_en", "price_ar", "area", "type_en", "type_ar", "status", "listingStatus", "imageUrl", "finishingStatus_en", "finishingStatus_ar", "isInCompound", "location", "createdAt")
 VALUES 
@@ -176,8 +176,8 @@ VALUES
     'individual-listings', 
     'Prime Commercial Space', 
     'مساحة تجارية مميزة', 
-    'Ideally located shop on the main street.', 
-    'محل بموقع مثالي على الشارع الرئيسي.', 
+    'Ideally located shop on the main street. Platform Managed.', 
+    'محل بموقع مثالي على الشارع الرئيسي. تحت إدارة المنصة.', 
     'Central Axis', 
     'المحور المركزي', 
     5000000, '5,000,000 EGP', '5,000,000 ج.م', 

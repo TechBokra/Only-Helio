@@ -1,28 +1,49 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getAllPartnerRequests } from '../../../services/partnerRequests';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getAllPartnerRequests, updatePartnerRequestStatus } from '../../../services/partnerRequests';
 import { useAdminTable } from '../../hooks/useAdminTable';
 import { useLanguage } from '../../shared/LanguageContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/Table';
 import Pagination from '../../shared/Pagination';
 import type { PartnerRequest } from '../../../types';
 import { Button } from '../../ui/Button';
+import { Select } from '../../ui/Select';
+import { Input } from '../../ui/Input';
 import { ResponsiveList } from '../../shared/ResponsiveList';
 import { Card, CardContent, CardFooter } from '../../ui/Card';
+import { useToast } from '../../shared/ToastContext';
 
 const AdminPartnerRequestsPage: React.FC = () => {
     const { language, t } = useLanguage();
     const t_admin = t.adminDashboard.adminRequests;
-    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const t_shared = t.adminShared;
+    const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+    // Fetch Data
     const { data: requests, isLoading } = useQuery({ 
         queryKey: ['partnerRequests'], 
         queryFn: getAllPartnerRequests 
     });
 
-    const filteredRequests = useMemo(() => {
+    // Mutation for Inline Status Update
+    const statusMutation = useMutation({
+        mutationFn: ({ id, status }: { id: string; status: 'approved' | 'rejected' }) => 
+            updatePartnerRequestStatus(id, status),
+        onSuccess: () => {
+            showToast('Status updated successfully', 'success');
+            queryClient.invalidateQueries({ queryKey: ['partnerRequests'] });
+        },
+        onError: () => showToast('Failed to update status', 'error')
+    });
+
+    // Filter by Tab (Pending vs History)
+    const tabFilteredRequests = useMemo(() => {
         if (!requests) return [];
         if (activeTab === 'pending') {
             return requests.filter(r => r.status === 'pending');
@@ -31,14 +52,33 @@ const AdminPartnerRequestsPage: React.FC = () => {
         }
     }, [requests, activeTab]);
 
-    const { paginatedItems, totalPages, currentPage, setCurrentPage } = useAdminTable({
-        data: filteredRequests,
+    // Admin Table Hook with Sorting and Filtering
+    const { 
+        paginatedItems, 
+        totalPages, 
+        currentPage, 
+        setCurrentPage, 
+        searchTerm, 
+        setSearchTerm,
+        requestSort,
+        getSortIcon
+    } = useAdminTable({
+        data: tabFilteredRequests,
         itemsPerPage: 10,
         initialSort: { key: 'createdAt', direction: 'descending' },
         searchFn: (item: PartnerRequest, term: string) => 
             item.companyName.toLowerCase().includes(term) || 
-            item.contactName.toLowerCase().includes(term),
-        filterFns: {},
+            item.contactName.toLowerCase().includes(term) ||
+            item.contactPhone.includes(term),
+        filterFns: {
+            dateRange: (item: PartnerRequest) => {
+                if (!dateRange.start && !dateRange.end) return true;
+                const date = new Date(item.createdAt).getTime();
+                const start = dateRange.start ? new Date(dateRange.start).getTime() : 0;
+                const end = dateRange.end ? new Date(dateRange.end).setHours(23,59,59,999) : Infinity;
+                return date >= start && date <= end;
+            }
+        },
     });
 
     const renderTable = (items: PartnerRequest[]) => (
@@ -46,9 +86,15 @@ const AdminPartnerRequestsPage: React.FC = () => {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{t_admin.table.companyInfo}</TableHead>
-                        <TableHead>{t_admin.table.primaryContact}</TableHead>
-                        <TableHead>{t_admin.table.date}</TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('companyName')}>
+                            {t_admin.table.companyInfo} {getSortIcon('companyName')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('contactName')}>
+                            {t_admin.table.primaryContact} {getSortIcon('contactName')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => requestSort('createdAt')}>
+                            {t_admin.table.date} {getSortIcon('createdAt')}
+                        </TableHead>
                         <TableHead>{t_admin.table.status}</TableHead>
                         <TableHead>{t_admin.table.actions}</TableHead>
                     </TableRow>
@@ -69,13 +115,31 @@ const AdminPartnerRequestsPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>{new Date(req.createdAt).toLocaleDateString(language)}</TableCell>
                                 <TableCell>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                                        req.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                        req.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                        'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                        {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus]}
-                                    </span>
+                                    {activeTab === 'pending' ? (
+                                        <div className="flex gap-2">
+                                            <Button 
+                                                size="sm" 
+                                                className="bg-green-600 hover:bg-green-700 text-white h-7 px-2 text-xs"
+                                                onClick={() => statusMutation.mutate({ id: req.id, status: 'approved' })}
+                                            >
+                                                {t_shared.approve}
+                                            </Button>
+                                            <Button 
+                                                size="sm" 
+                                                variant="danger" 
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => statusMutation.mutate({ id: req.id, status: 'rejected' })}
+                                            >
+                                                {t_shared.reject}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                            req.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {req.status}
+                                        </span>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <Link to={`/admin/partner-requests/${req.id}`}>
@@ -102,19 +166,23 @@ const AdminPartnerRequestsPage: React.FC = () => {
                         <h3 className="font-bold text-gray-900 dark:text-white">{req.companyName}</h3>
                         <p className="text-sm text-gray-500 capitalize">{req.companyType}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                        req.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        req.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                    }`}>
-                         {t_admin.requestStatus[req.status as keyof typeof t_admin.requestStatus] || req.status}
-                    </span>
+                    <span className="text-xs text-gray-400">{new Date(req.createdAt).toLocaleDateString(language)}</span>
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-300">
                     <p><span className="font-semibold">Contact:</span> {req.contactName}</p>
                     <p className="text-gray-500">{req.contactPhone}</p>
                 </div>
-                <p className="text-xs text-gray-400 text-right">{new Date(req.createdAt).toLocaleDateString(language)}</p>
+                
+                 {activeTab === 'pending' ? (
+                     <div className="flex gap-2 pt-2">
+                        <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => statusMutation.mutate({ id: req.id, status: 'approved' })}>{t_shared.approve}</Button>
+                        <Button size="sm" variant="danger" className="flex-1" onClick={() => statusMutation.mutate({ id: req.id, status: 'rejected' })}>{t_shared.reject}</Button>
+                    </div>
+                 ) : (
+                    <div className={`text-center py-1 rounded text-xs font-bold ${req.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {req.status.toUpperCase()}
+                    </div>
+                 )}
             </CardContent>
             <CardFooter className="p-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
                  <Link to={`/admin/partner-requests/${req.id}`} className="w-full">
@@ -125,11 +193,17 @@ const AdminPartnerRequestsPage: React.FC = () => {
     );
 
     return (
-        <div>
-            <div className="mb-6 flex space-x-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_admin.partnerRequestsTitle}</h1>
+                <p className="text-gray-500 dark:text-gray-400">{t_admin.partnerRequestsSubtitle}</p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'pending'
                             ? 'border-amber-500 text-amber-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -139,16 +213,37 @@ const AdminPartnerRequestsPage: React.FC = () => {
                 </button>
                 <button
                     onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'history'
                             ? 'border-amber-500 text-amber-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
                     }`}
                 >
-                    {language === 'ar' ? 'الأرشيف' : 'Archive (History)'}
+                    {language === 'ar' ? 'الأرشيف' : 'Request Archive'}
                 </button>
             </div>
             
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+                <div className="md:col-span-2">
+                    <Input 
+                        placeholder={t.adminDashboard.filter.search} 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                    />
+                </div>
+                <Input 
+                    type="date" 
+                    value={dateRange.start} 
+                    onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} 
+                />
+                <Input 
+                    type="date" 
+                    value={dateRange.end} 
+                    onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} 
+                />
+            </div>
+
             <ResponsiveList
                 items={paginatedItems}
                 renderTable={renderTable}

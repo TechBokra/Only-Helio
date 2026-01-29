@@ -55,14 +55,14 @@ export let propertiesData: Property[] = [
     },
     {
         id: 'prop-2',
-        partnerId: 'agency-partner-1',
+        partnerId: 'individual-listings', // CHANGED: Assigned to Platform
         title: {
             en: 'Standalone Villa for Resale',
             ar: 'فيلا مستقلة إعادة بيع'
         },
         description: {
-            en: 'Spacious villa with private pool and garden in a quiet neighborhood. Immediate delivery.',
-            ar: 'فيلا واسعة مع حمام سباحة خاص وحديقة في حي هادئ. استلام فوري.'
+            en: 'Spacious villa with private pool and garden in a quiet neighborhood. Immediate delivery. Platform Verified.',
+            ar: 'فيلا واسعة مع حمام سباحة خاص وحديقة في حي هادئ. استلام فوري. موثقة من المنصة.'
         },
         address: {
             en: 'District 3, New Heliopolis',
