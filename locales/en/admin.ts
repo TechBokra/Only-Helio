@@ -406,7 +406,20 @@ export const admin = {
                 "finishing": "Finishing Companies",
                 "sale": "Sale (Individuals)",
                 "rent": "Rent (Individuals)"
-            }
+            },
+            "limitsTitle": "Plan Limits & Quotas",
+            "limitsSubtitle": "Define strict limits for this plan. Leave empty for unlimited.",
+            "limits": {
+                "projects": "Max Projects (Compounds)",
+                "units": "Max Units (In Projects)",
+                "propertiesTotal": "Max Properties (Total)",
+                "propertiesSale": "Max 'For Sale' Properties",
+                "propertiesRent": "Max 'For Rent' Properties",
+                "portfolio": "Max Portfolio Items"
+            },
+            "financialsTitle": "Financial Settings",
+            "commissionSale": "Sale Commission (%)",
+            "commissionRent": "Rent Commission (Value or %)"
         },
         "userManagement": {
             "title": "Internal User Management",

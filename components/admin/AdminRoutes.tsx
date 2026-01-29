@@ -2,73 +2,74 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoadingFallback from '../shared/LoadingFallback';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-// --- Admin Dashboard Pages (Lazy Loaded) ---
-const AdminHomePage = React.lazy(() => import('./AdminHomePage'));
-const AdminAnalyticsPage = React.lazy(() => import('./AdminAnalyticsPage'));
-const AdminReportsPage = React.lazy(() => import('./AdminReportsPage'));
-const AdminUsersPage = React.lazy(() => import('./users/AdminUsersPage'));
-const AdminUserFormPage = React.lazy(() => import('./users/AdminUserFormPage'));
-const AdminRolesPage = React.lazy(() => import('./users/AdminRolesPage'));
-const AdminPlansPage = React.lazy(() => import('./AdminPlansPage'));
-const AdminPlanEditPage = React.lazy(() => import('./AdminPlanEditPage'));
-const AdminFilterManagementPage = React.lazy(() => import('./AdminFilterManagementPage'));
-const AdminBannersPage = React.lazy(() => import('./banners/AdminBannersPage'));
-const AdminBannerFormPage = React.lazy(() => import('./content/AdminBannerFormPage'));
-const AdminSettingsPage = React.lazy(() => import('./AdminSettingsPage'));
-const AdminProfilePage = React.lazy(() => import('./AdminProfilePage'));
-const PropertyFormPage = React.lazy(() => import('../forms/PropertyFormPage'));
-const ProjectFormPage = React.lazy(() => import('../forms/ProjectFormPage'));
-const AdminPlatformPropertiesPage = React.lazy(() => import('./platform-ops/AdminPlatformPropertiesPage'));
-const AdminPlatformFinishingPage = React.lazy(() => import('./platform-ops/AdminPlatformFinishingPage'));
-const AdminPlatformDecorationsPage = React.lazy(() => import('./platform-ops/AdminPlatformDecorationsPage'));
+// --- Admin Dashboard Pages (Lazy Loaded with Retry) ---
+const AdminHomePage = lazyWithRetry(() => import('./AdminHomePage'));
+const AdminAnalyticsPage = lazyWithRetry(() => import('./AdminAnalyticsPage'));
+const AdminReportsPage = lazyWithRetry(() => import('./AdminReportsPage'));
+const AdminUsersPage = lazyWithRetry(() => import('./users/AdminUsersPage'));
+const AdminUserFormPage = lazyWithRetry(() => import('./users/AdminUserFormPage'));
+const AdminRolesPage = lazyWithRetry(() => import('./users/AdminRolesPage'));
+const AdminPlansPage = lazyWithRetry(() => import('./AdminPlansPage'));
+const AdminPlanEditPage = lazyWithRetry(() => import('./AdminPlanEditPage'));
+const AdminFilterManagementPage = lazyWithRetry(() => import('./AdminFilterManagementPage'));
+const AdminBannersPage = lazyWithRetry(() => import('./banners/AdminBannersPage'));
+const AdminBannerFormPage = lazyWithRetry(() => import('./content/AdminBannerFormPage'));
+const AdminSettingsPage = lazyWithRetry(() => import('./AdminSettingsPage'));
+const AdminProfilePage = lazyWithRetry(() => import('./AdminProfilePage'));
+const PropertyFormPage = lazyWithRetry(() => import('../forms/PropertyFormPage'));
+const ProjectFormPage = lazyWithRetry(() => import('../forms/ProjectFormPage'));
+const AdminPlatformPropertiesPage = lazyWithRetry(() => import('./platform-ops/AdminPlatformPropertiesPage'));
+const AdminPlatformFinishingPage = lazyWithRetry(() => import('./platform-ops/AdminPlatformFinishingPage'));
+const AdminPlatformDecorationsPage = lazyWithRetry(() => import('./platform-ops/AdminPlatformDecorationsPage'));
 
 // --- Specific Request Pages (Separated) ---
-const AdminPartnerRequestsPage = React.lazy(() => import('./requests/AdminPartnerRequestsPage'));
-const AdminPropertyRequestsPage = React.lazy(() => import('./requests/AdminPropertyRequestsPage'));
-const AdminPropertyInquiriesPage = React.lazy(() => import('./requests/AdminPropertyInquiriesPage'));
-const AdminContactRequestsPage = React.lazy(() => import('./requests/AdminContactRequestsPage'));
-const AdminFinishingRequestsPage = React.lazy(() => import('./requests/AdminFinishingRequestsPage'));
-const AdminDecorationRequestsPage = React.lazy(() => import('./requests/AdminDecorationRequestsPage'));
+const AdminPartnerRequestsPage = lazyWithRetry(() => import('./requests/AdminPartnerRequestsPage'));
+const AdminPropertyRequestsPage = lazyWithRetry(() => import('./requests/AdminPropertyRequestsPage'));
+const AdminPropertyInquiriesPage = lazyWithRetry(() => import('./requests/AdminPropertyInquiriesPage'));
+const AdminContactRequestsPage = lazyWithRetry(() => import('./requests/AdminContactRequestsPage'));
+const AdminFinishingRequestsPage = lazyWithRetry(() => import('./requests/AdminFinishingRequestsPage'));
+const AdminDecorationRequestsPage = lazyWithRetry(() => import('./requests/AdminDecorationRequestsPage'));
 
-const AdminPartnerRequestDetailsPage = React.lazy(() => import('./requests/AdminPartnerRequestDetailsPage'));
-const AdminPropertyRequestDetailsPage = React.lazy(() => import('./requests/AdminPropertyRequestDetailsPage'));
-const AdminRequestDetailsPage = React.lazy(() => import('./requests/AdminRequestDetailsPage')); // Generic fallback for mixed lists
-const AdminDecorationRequestDetailsPage = React.lazy(() => import('./requests/AdminDecorationRequestDetailsPage')); // Specific for decorations
-const AdminCreateRequestPage = React.lazy(() => import('./requests/AdminCreateRequestPage'));
+const AdminPartnerRequestDetailsPage = lazyWithRetry(() => import('./requests/AdminPartnerRequestDetailsPage'));
+const AdminPropertyRequestDetailsPage = lazyWithRetry(() => import('./requests/AdminPropertyRequestDetailsPage'));
+const AdminRequestDetailsPage = lazyWithRetry(() => import('./requests/AdminRequestDetailsPage')); // Generic fallback
+const AdminDecorationRequestDetailsPage = lazyWithRetry(() => import('./requests/AdminDecorationRequestDetailsPage')); 
+const AdminCreateRequestPage = lazyWithRetry(() => import('./requests/AdminCreateRequestPage'));
 
-const AdminPartnersLayout = React.lazy(() => import('./partners/AdminPartnersLayout'));
-const AdminPartnersDashboard = React.lazy(() => import('./partners/AdminPartnersDashboard'));
-const AdminPartnersPage = React.lazy(() => import('./partners/AdminPartnersPage'));
-const AdminPartnerFormPage = React.lazy(() => import('./partners/AdminPartnerFormPage'));
-const AdminProjectsPage = React.lazy(() => import('./partners/AdminProjectsPage'));
-const AdminInquiryManagementPage = React.lazy(() => import('./inquiryManagement/AdminInquiryManagementPage'));
-const AdminPropertiesLayout = React.lazy(() => import('./properties/AdminPropertiesLayout'));
-const AdminPropertiesDashboard = React.lazy(() => import('./properties/AdminPropertiesDashboard'));
-const AdminPropertiesListPage = React.lazy(() => import('./properties/AdminPropertiesListPage'));
-const AdminContentLayout = React.lazy(() => import('./content/AdminContentLayout'));
-const ContentHeroPage = React.lazy(() => import('./content/ContentHeroPage'));
-const ContentWhyUsPage = React.lazy(() => import('./content/ContentWhyUsPage'));
-const ContentServicesPage = React.lazy(() => import('./content/ContentServicesPage'));
-const ContentPartnersPage = React.lazy(() => import('./content/ContentPartnersPage'));
-const ContentTestimonialsPage = React.lazy(() => import('./content/ContentTestimonialsPage'));
-const ContentSocialProofPage = React.lazy(() => import('./content/ContentSocialProofPage'));
-const ContentWhyNewHeliopolisPage = React.lazy(() => import('./content/ContentWhyNewHeliopolisPage'));
-const ContentQuotesPage = React.lazy(() => import('./content/ContentQuotesPage'));
-const ContentFooterPage = React.lazy(() => import('./content/ContentFooterPage'));
-const ContentProjectsPage = React.lazy(() => import('./content/ContentProjectsPage'));
-const ContentFinishingPage = React.lazy(() => import('./content/ContentFinishingPage'));
-const ContentDecorationsPage = React.lazy(() => import('./content/ContentDecorationsPage'));
-const ContentCTAPage = React.lazy(() => import('./content/ContentCTAPage'));
-const ContentHomeListingsPage = React.lazy(() => import('./content/ContentHomeListingsPage'));
-const ContentPrivacyPolicyPage = React.lazy(() => import('./content/ContentPrivacyPolicyPage'));
-const ContentTermsOfUsePage = React.lazy(() => import('./content/ContentTermsOfUsePage'));
-const RoutingRulesPage = React.lazy(() => import('./automation/RoutingRulesPage'));
-const AllNotificationsPage = React.lazy(() => import('../shared/AllNotificationsPage'));
-const AdminFinancePage = React.lazy(() => import('./finance/AdminFinancePage'));
-const AdminFormsPage = React.lazy(() => import('./forms/AdminFormsPage'));
-const AdminPortfolioFormPage = React.lazy(() => import('./decorations/AdminPortfolioFormPage'));
-const AdminAIEstimatorPage = React.lazy(() => import('./AdminAIEstimatorPage'));
+const AdminPartnersLayout = lazyWithRetry(() => import('./partners/AdminPartnersLayout'));
+const AdminPartnersDashboard = lazyWithRetry(() => import('./partners/AdminPartnersDashboard'));
+const AdminPartnersPage = lazyWithRetry(() => import('./partners/AdminPartnersPage'));
+const AdminPartnerFormPage = lazyWithRetry(() => import('./partners/AdminPartnerFormPage'));
+const AdminProjectsPage = lazyWithRetry(() => import('./partners/AdminProjectsPage'));
+const AdminInquiryManagementPage = lazyWithRetry(() => import('./inquiryManagement/AdminInquiryManagementPage'));
+const AdminPropertiesLayout = lazyWithRetry(() => import('./properties/AdminPropertiesLayout'));
+const AdminPropertiesDashboard = lazyWithRetry(() => import('./properties/AdminPropertiesDashboard'));
+const AdminPropertiesListPage = lazyWithRetry(() => import('./properties/AdminPropertiesListPage'));
+const AdminContentLayout = lazyWithRetry(() => import('./content/AdminContentLayout'));
+const ContentHeroPage = lazyWithRetry(() => import('./content/ContentHeroPage'));
+const ContentWhyUsPage = lazyWithRetry(() => import('./content/ContentWhyUsPage'));
+const ContentServicesPage = lazyWithRetry(() => import('./content/ContentServicesPage'));
+const ContentPartnersPage = lazyWithRetry(() => import('./content/ContentPartnersPage'));
+const ContentTestimonialsPage = lazyWithRetry(() => import('./content/ContentTestimonialsPage'));
+const ContentSocialProofPage = lazyWithRetry(() => import('./content/ContentSocialProofPage'));
+const ContentWhyNewHeliopolisPage = lazyWithRetry(() => import('./content/ContentWhyNewHeliopolisPage'));
+const ContentQuotesPage = lazyWithRetry(() => import('./content/ContentQuotesPage'));
+const ContentFooterPage = lazyWithRetry(() => import('./content/ContentFooterPage'));
+const ContentProjectsPage = lazyWithRetry(() => import('./content/ContentProjectsPage'));
+const ContentFinishingPage = lazyWithRetry(() => import('./content/ContentFinishingPage'));
+const ContentDecorationsPage = lazyWithRetry(() => import('./content/ContentDecorationsPage'));
+const ContentCTAPage = lazyWithRetry(() => import('./content/ContentCTAPage'));
+const ContentHomeListingsPage = lazyWithRetry(() => import('./content/ContentHomeListingsPage'));
+const ContentPrivacyPolicyPage = lazyWithRetry(() => import('./content/ContentPrivacyPolicyPage'));
+const ContentTermsOfUsePage = lazyWithRetry(() => import('./content/ContentTermsOfUsePage'));
+const RoutingRulesPage = lazyWithRetry(() => import('./automation/RoutingRulesPage'));
+const AllNotificationsPage = lazyWithRetry(() => import('../shared/AllNotificationsPage'));
+const AdminFinancePage = lazyWithRetry(() => import('./finance/AdminFinancePage'));
+const AdminFormsPage = lazyWithRetry(() => import('./forms/AdminFormsPage'));
+const AdminPortfolioFormPage = lazyWithRetry(() => import('./decorations/AdminPortfolioFormPage'));
+const AdminAIEstimatorPage = lazyWithRetry(() => import('./AdminAIEstimatorPage'));
 
 const AdminRoutes: React.FC = () => {
     return (

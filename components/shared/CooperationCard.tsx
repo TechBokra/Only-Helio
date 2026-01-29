@@ -15,6 +15,9 @@ const CooperationCard: React.FC<CooperationCardProps> = ({ planDetails, isSelect
     const { language, t } = useLanguage();
     const t_page = t.addPropertyPage;
     
+    // Display either sale or rent commission if available
+    const commission = planDetails.commissionRateSale ?? planDetails.commissionRateRent;
+
     return (
         <Card
             onClick={onSelect}
@@ -28,9 +31,9 @@ const CooperationCard: React.FC<CooperationCardProps> = ({ planDetails, isSelect
                 <p className="text-gray-500 my-4 flex-grow">{planDetails.description}</p>
                 <p className="text-xl font-bold text-gray-800 mb-4">{planDetails.price}</p>
                 
-                {planDetails?.commissionRate != null && (
+                {commission != null && (
                         <p className="text-lg font-semibold text-gray-700 mb-4">
-                        {t.adminDashboard.plans.commissionRate.replace('(%)', '')}: {planDetails.commissionRate}%
+                        {t.adminDashboard.plans.commissionRate.replace('(%)', '')}: {commission}%
                     </p>
                 )}
                 

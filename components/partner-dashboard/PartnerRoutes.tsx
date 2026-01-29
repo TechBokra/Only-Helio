@@ -2,23 +2,24 @@
 import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LoadingFallback from '../shared/LoadingFallback';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-// --- Partner Dashboard Pages (Lazy Loaded) ---
-const DashboardHomePage = React.lazy(() => import('./DashboardHomePage'));
-const DashboardProfilePage = React.lazy(() => import('./DashboardProfilePage'));
-const DashboardPortfolioPage = React.lazy(() => import('./DashboardPortfolioPage'));
-const DashboardPropertiesPage = React.lazy(() => import('./DashboardPropertiesPage'));
-const DashboardProjectsPage = React.lazy(() => import('./DashboardProjectsPage'));
-const DashboardProjectDetailsPage = React.lazy(() => import('./DashboardProjectDetailsPage'));
-const DashboardLeadsPage = React.lazy(() => import('./DashboardLeadsPage'));
-const DashboardSubscriptionPage = React.lazy(() => import('./DashboardSubscriptionPage'));
-const DashboardFinancePage = React.lazy(() => import('./DashboardFinancePage'));
-const DashboardAnalyticsPage = React.lazy(() => import('./DashboardAnalyticsPage'));
-const DashboardServicesPage = React.lazy(() => import('./DashboardServicesPage')); // New Import
-const PropertyFormPage = React.lazy(() => import('../forms/PropertyFormPage'));
-const ProjectFormPage = React.lazy(() => import('../forms/ProjectFormPage'));
-const PartnerLeadDetailsPage = React.lazy(() => import('./PartnerLeadDetailsPage'));
-const AllNotificationsPage = React.lazy(() => import('../shared/AllNotificationsPage'));
+// --- Partner Dashboard Pages (Lazy Loaded with Retry) ---
+const DashboardHomePage = lazyWithRetry(() => import('./DashboardHomePage'));
+const DashboardProfilePage = lazyWithRetry(() => import('./DashboardProfilePage'));
+const DashboardPortfolioPage = lazyWithRetry(() => import('./DashboardPortfolioPage'));
+const DashboardPropertiesPage = lazyWithRetry(() => import('./DashboardPropertiesPage'));
+const DashboardProjectsPage = lazyWithRetry(() => import('./DashboardProjectsPage'));
+const DashboardProjectDetailsPage = lazyWithRetry(() => import('./DashboardProjectDetailsPage'));
+const DashboardLeadsPage = lazyWithRetry(() => import('./DashboardLeadsPage'));
+const DashboardSubscriptionPage = lazyWithRetry(() => import('./DashboardSubscriptionPage'));
+const DashboardFinancePage = lazyWithRetry(() => import('./DashboardFinancePage'));
+const DashboardAnalyticsPage = lazyWithRetry(() => import('./DashboardAnalyticsPage'));
+const DashboardServicesPage = lazyWithRetry(() => import('./DashboardServicesPage'));
+const PropertyFormPage = lazyWithRetry(() => import('../forms/PropertyFormPage'));
+const ProjectFormPage = lazyWithRetry(() => import('../forms/ProjectFormPage'));
+const PartnerLeadDetailsPage = lazyWithRetry(() => import('./PartnerLeadDetailsPage'));
+const AllNotificationsPage = lazyWithRetry(() => import('../shared/AllNotificationsPage'));
 
 const PartnerRoutes: React.FC = () => {
     return (
@@ -27,7 +28,7 @@ const PartnerRoutes: React.FC = () => {
                 <Route index element={<DashboardHomePage />} />
                 <Route path="profile" element={<DashboardProfilePage />} />
                 <Route path="portfolio" element={<DashboardPortfolioPage />} />
-                <Route path="services" element={<DashboardServicesPage />} /> {/* New Route */}
+                <Route path="services" element={<DashboardServicesPage />} /> 
                 <Route path="properties" element={<DashboardPropertiesPage />} />
                 <Route path="properties/new" element={<PropertyFormPage />} />
                 <Route path="properties/edit/:propertyId" element={<PropertyFormPage />} />

@@ -27,8 +27,9 @@ const PropertiesPage: React.FC = () => {
     
     const filterControls = usePropertyFilters();
     const { 
-        page, view, status, type, query, minPrice, maxPrice, project, 
-        finishing, installments, realEstateFinance, floor, compound, delivery, 
+        page, view, status, type, query, minPrice, maxPrice, 
+        minArea, maxArea, // Added minArea and maxArea here
+        project, finishing, installments, realEstateFinance, floor, compound, delivery, 
         amenities: amenitiesFilter, beds, baths, setFilter, setPage
     } = filterControls;
     
@@ -42,12 +43,16 @@ const PropertiesPage: React.FC = () => {
     // Memoize filters to prevent unnecessary query refetches
     const queryFilters = useMemo(() => ({
         view, // Include view property
-        status, type, query, minPrice, maxPrice, project, finishing, 
+        status, type, query, minPrice, maxPrice, 
+        minArea, maxArea, // Include minArea and maxArea here
+        project, finishing, 
         installments, realEstateFinance, floor, compound, delivery, 
         amenities: amenitiesFilter, beds, baths
     }), [
         view,
-        status, type, query, minPrice, maxPrice, project, finishing, 
+        status, type, query, minPrice, maxPrice, 
+        minArea, maxArea, // Add dependency here
+        project, finishing, 
         installments, realEstateFinance, floor, compound, delivery, 
         amenitiesFilter, beds, baths
     ]);

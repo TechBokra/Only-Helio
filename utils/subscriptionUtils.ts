@@ -1,32 +1,35 @@
-import type { SubscriptionPlan, PartnerType } from '../types';
 
-const limitsByType = {
-    agency: {
-        properties: { basic: 3, professional: 15, elite: Infinity, commission: 0, paid_listing: 1 },
-    },
-    developer: { 
-        projects: { basic: 1, professional: 5, elite: Infinity },
-        units: { basic: 10, professional: 50, elite: Infinity },
-    },
-    finishing: {
-        portfolio: { commission: 10, professional: 50, elite: Infinity },
-    },
-};
+import type { SubscriptionPlan, PartnerType, SubscriptionPlanDetails } from '../types';
 
-type LimitType = 'properties' | 'projects' | 'units' | 'portfolio';
-
-export const getPlanLimit = (partnerType: PartnerType, plan: SubscriptionPlan, limitType: LimitType): number => {
-    // For developers, both 'properties' and 'units' refer to the 'units' limit.
-    const effectiveLimitType = (partnerType === 'developer' && (limitType === 'properties' || limitType === 'units')) ? 'units' : limitType;
-
-    const typeKey = partnerType as keyof typeof limitsByType;
-    if (
-        limitsByType[typeKey] && 
-        (limitsByType[typeKey] as any)[effectiveLimitType] && 
-        (limitsByType[typeKey] as any)[effectiveLimitType][plan] !== undefined
-    ) {
-        return (limitsByType[typeKey] as any)[effectiveLimitType][plan];
+/**
+ * Gets the limit for a specific usage type based on the Plan Details object.
+ * This effectively delegates the logic to the Database config loaded into the `planDetails` object.
+ */
+export const getLimitFromPlan = (
+    planDetails: SubscriptionPlanDetails | undefined,
+    usageType: 'projects' | 'units' | 'properties' | 'portfolio' | 'propertiesSale' | 'propertiesRent'
+): number => {
+    if (!planDetails || !planDetails.limits) {
+        return Infinity; // Fallback to unlimited if no config found (safe default for MVP, or restrict to 0 based on business need)
     }
-    // Default to unlimited if a specific limit isn't found for that combination
-    return Infinity;
+
+    const { limits } = planDetails;
+
+    switch (usageType) {
+        case 'projects':
+            return limits.projects ?? Infinity;
+        case 'units':
+            return limits.units ?? Infinity;
+        case 'properties':
+             // If a generic total is set, use it. Otherwise rely on specific sub-limits.
+            return limits.propertiesTotal ?? Infinity;
+        case 'propertiesSale':
+            return limits.propertiesSale ?? Infinity;
+        case 'propertiesRent':
+            return limits.propertiesRent ?? Infinity;
+        case 'portfolio':
+            return limits.portfolio ?? Infinity;
+        default:
+            return Infinity;
+    }
 };

@@ -1,10 +1,11 @@
+
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getAllProperties } from '../../../services/properties';
 import { getAllPartnersForAdmin } from '../../../services/partners';
 import { useLanguage } from '../../shared/LanguageContext';
-import { BuildingIcon, InboxIcon, UsersIcon } from '../../ui/Icons';
+import { BuildingIcon, InboxIcon, UsersIcon, CheckCircleIcon } from '../../ui/Icons';
 import StatCard from '../../shared/StatCard';
 import RequestList from '../../shared/RequestList';
 import { isListingActive } from '../../../utils/propertyUtils';
@@ -30,6 +31,7 @@ const AdminPropertiesDashboard: React.FC = () => {
         
         const stats = {
             active: activeProperties.length,
+            draft: properties.filter(p => p.listingStatus === 'draft').length,
             forSale: activeProperties.filter(p => p.status.en === 'For Sale').length,
             forRent: activeProperties.filter(p => p.status.en === 'For Rent').length,
         };
@@ -99,8 +101,9 @@ const AdminPropertiesDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_dash.title}</h1>
             <p className="text-gray-500 dark:text-gray-400">{t_dash.subtitle}</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard title={t_dash.activeProperties} value={dashboardData.stats.active} icon={BuildingIcon} linkTo="/admin/properties/list" />
+                <StatCard title={language === 'ar' ? 'بانتظار المراجعة' : 'Pending Review'} value={dashboardData.stats.draft} icon={CheckCircleIcon} linkTo="/admin/properties/list?status=draft" />
                 <StatCard title={t_dash.propertiesForSale} value={dashboardData.stats.forSale} icon={BuildingIcon} linkTo="/admin/properties/list?status=For+Sale" />
                 <StatCard title={t_dash.propertiesForRent} value={dashboardData.stats.forRent} icon={BuildingIcon} linkTo="/admin/properties/list?status=For+Rent" />
             </div>

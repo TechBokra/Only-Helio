@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails } from '../../types';
 import FormField, { inputClasses } from '../ui/FormField';
@@ -47,7 +44,9 @@ const AdminPlanEditModal: React.FC<AdminPlanEditModalProps> = ({ planType, planK
                 description: typedPlan.en.description,
                 features: typedPlan.en.features.join('\n'),
             });
-            setCommissionRate(String(typedPlan.en.commissionRate || ''));
+            // Handle split commission rates or prefer Sale if generic
+            const comm = subCategory === 'rent' ? typedPlan.en.commissionRateRent : typedPlan.en.commissionRateSale;
+            setCommissionRate(String(comm !== undefined ? comm : ''));
         }
     }, [planType, planKey, subCategory, plans]);
 
@@ -55,19 +54,25 @@ const AdminPlanEditModal: React.FC<AdminPlanEditModalProps> = ({ planType, planK
         e.preventDefault();
         setLoading(true);
         const rate = commissionRate ? parseFloat(commissionRate) : undefined;
+        
+        // Construct commissions object based on subCategory/context
+        const commissions: { sale?: number, rent?: number } = {};
+        if (subCategory === 'rent') commissions.rent = rate;
+        else commissions.sale = rate;
+
         await apiUpdatePlan(planType, planKey, {
             ar: {
                 price: arData.price,
                 description: arData.description,
                 features: arData.features.split('\n').filter(f => f.trim() !== ''),
-                commissionRate: rate,
             },
             en: {
                 price: enData.price,
                 description: enData.description,
                 features: enData.features.split('\n').filter(f => f.trim() !== ''),
-                commissionRate: rate,
-            }
+            },
+            limits: undefined, // Preserved in service if undefined
+            commissions: commissions
         }, subCategory);
         setLoading(false);
         onSave();

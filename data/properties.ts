@@ -50,6 +50,7 @@ export let propertiesData: Property[] = [
             monthlyInstallment: 25000,
             years: 5
         },
+        contactMethod: 'platform',
         createdAt: new Date().toISOString()
     },
     {
@@ -92,6 +93,7 @@ export let propertiesData: Property[] = [
             en: ['Private Garden', 'Swimming Pool', 'Private Garage', 'Maid\'s Room'],
             ar: []
         },
+        contactMethod: 'platform',
         createdAt: new Date().toISOString()
     },
     {
@@ -132,6 +134,7 @@ export let propertiesData: Property[] = [
             en: ['Frontage on a Main Street', 'Parking'],
             ar: []
         },
+        contactMethod: 'platform',
         createdAt: new Date().toISOString()
     }
 ];

@@ -12,35 +12,38 @@ const buildPlansObject = (rows: any[]) => {
         const subCat = row.subCategory;
 
         if (!plans[cat]) plans[cat] = {};
+        
+        // Parse Limits JSONB or default to Infinity (Unlimited) if not set
+        const limits = typeof row.limits === 'string' ? JSON.parse(row.limits) : (row.limits || {});
 
-        const planDetails = {
+        const planDetails: SubscriptionPlanDetails = {
             name: row.name_en, 
             price: row.price_en,
             description: row.description_en,
             features: row.features_en || [],
-            commissionRate: row.commissionRate,
-            // Structure for bilingual support in UI
-            ar: {
-                name: row.name_ar,
-                price: row.price_ar,
-                description: row.description_ar,
-                features: row.features_ar || [],
-                commissionRate: row.commissionRate
+            commissionRateSale: row.commissionRateSale,
+            commissionRateRent: row.commissionRateRent,
+            limits: {
+                projects: limits.projects !== undefined ? limits.projects : -1,
+                units: limits.units !== undefined ? limits.units : -1,
+                propertiesTotal: limits.propertiesTotal !== undefined ? limits.propertiesTotal : -1,
+                propertiesSale: limits.propertiesSale !== undefined ? limits.propertiesSale : -1,
+                propertiesRent: limits.propertiesRent !== undefined ? limits.propertiesRent : -1,
+                portfolio: limits.portfolio !== undefined ? limits.portfolio : -1,
             },
-            en: {
-                name: row.name_en,
-                price: row.price_en,
-                description: row.description_en,
-                features: row.features_en || [],
-                commissionRate: row.commissionRate
-            }
         };
+
+        // Attach localized versions for UI consumption
+        const arDetails = { ...planDetails, name: row.name_ar, price: row.price_ar, description: row.description_ar, features: row.features_ar || [] };
+        const enDetails = { ...planDetails, name: row.name_en, price: row.price_en, description: row.description_en, features: row.features_en || [] };
+
+        const composite = { ar: arDetails, en: enDetails };
 
         if (subCat) {
             if (!plans[cat][subCat]) plans[cat][subCat] = {};
-            plans[cat][subCat][tier] = planDetails;
+            plans[cat][subCat][tier] = composite;
         } else {
-            plans[cat][tier] = planDetails;
+            plans[cat][tier] = composite;
         }
     });
 
@@ -65,7 +68,12 @@ export const getPlans = async (): Promise<Record<PlanCategory, any>> => {
 export const updatePlan = async (
     planType: PlanCategory, 
     planKey: SubscriptionPlan, 
-    updates: { ar: Partial<SubscriptionPlanDetails>, en: Partial<SubscriptionPlanDetails> }, 
+    updates: { 
+        ar: Partial<SubscriptionPlanDetails>, 
+        en: Partial<SubscriptionPlanDetails>,
+        limits: any,
+        commissions: { sale?: number, rent?: number }
+    }, 
     subCategory?: 'sale' | 'rent'
 ): Promise<boolean> => {
     
@@ -81,22 +89,34 @@ export const updatePlan = async (
     if (updates.en.description) dbUpdates.description_en = updates.en.description;
     if (updates.en.features) dbUpdates.features_en = updates.en.features;
     
-    // Shared
-    if (updates.en.commissionRate !== undefined) dbUpdates.commissionRate = updates.en.commissionRate;
+    // Shared Technical Configs
+    if (updates.commissions.sale !== undefined) dbUpdates.commissionRateSale = updates.commissions.sale;
+    if (updates.commissions.rent !== undefined) dbUpdates.commissionRateRent = updates.commissions.rent;
+    
+    // Ensure limits are stored as JSONB
+    dbUpdates.limits = updates.limits;
 
     let query = supabase.from('PlanConfiguration').update(dbUpdates).eq('category', planType).eq('tier', planKey);
     
+    // Handle subCategory strictly (NULL vs Empty String)
     if (subCategory) {
         query = query.eq('subCategory', subCategory);
     } else {
         query = query.is('subCategory', null);
     }
 
-    const { error } = await query;
+    const { data, error } = await query.select();
 
     if (error) {
         console.error("Error updating plan:", error);
         return false;
     }
+    
+    // Check if any row was actually updated
+    if (!data || data.length === 0) {
+        console.warn("No plan row found to update. Check category/tier match.");
+        return false;
+    }
+
     return true;
 };

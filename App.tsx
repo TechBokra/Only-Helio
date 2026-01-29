@@ -10,6 +10,7 @@ import BackToTopButton from './components/shared/BackToTopButton';
 import { useLanguage } from './components/shared/LanguageContext';
 import { adminNavLinks, partnerNavLinks } from './data/navigation';
 import LoadingFallback from './components/shared/LoadingFallback';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 // --- Layouts (Static Imports to avoid waterfall) ---
 import DashboardLayout from './components/shared/DashboardLayout';
@@ -19,26 +20,26 @@ import PublicLayout from './components/shared/PublicLayout';
 import PartnerRoutes from './components/partner-dashboard/PartnerRoutes';
 import AdminRoutes from './components/admin/AdminRoutes';
 
-// --- Public Pages (Lazy Loaded) ---
-const HomePage = React.lazy(() => import('./components/home/HomePage'));
-const PropertiesPage = React.lazy(() => import('./components/properties/PropertiesPage'));
-const ProjectsPage = React.lazy(() => import('./components/projects/ProjectsPage'));
-const PropertyDetailsPage = React.lazy(() => import('./components/properties/PropertyDetailsPage'));
-const ProjectDetailsPage = React.lazy(() => import('./components/projects/ProjectDetailsPage'));
-const FinishingPage = React.lazy(() => import('./components/finishing/FinishingPage'));
-const DecorationsPage = React.lazy(() => import('./components/decorations/DecorationsPage'));
-const ContactPage = React.lazy(() => import('./components/contact/ContactPage'));
-const FavoritesPage = React.lazy(() => import('./components/favorites/FavoritesPage'));
-const PartnerProfilePage = React.lazy(() => import('./components/partners/PartnerProfilePage'));
-const AddPropertyPage = React.lazy(() => import('./components/forms/AddPropertyPage'));
-const ServiceRequestPage = React.lazy(() => import('./components/forms/ServiceRequestPage'));
-const LoginPage = React.lazy(() => import('./components/auth/LoginPage'));
-const RegisterPage = React.lazy(() => import('./components/auth/RegisterPage'));
-const PaymentPage = React.lazy(() => import('./components/finance/PaymentPage'));
-const PrivacyPolicyPage = React.lazy(() => import('./components/legal/PrivacyPolicyPage'));
-const TermsOfUsePage = React.lazy(() => import('./components/legal/TermsOfUsePage'));
-const NotFoundPage = React.lazy(() => import('./components/shared/NotFoundPage'));
-const AIEstimatorPage = React.lazy(() => import('./components/tools/AIEstimatorPage'));
+// --- Public Pages (Lazy Loaded with Retry) ---
+const HomePage = lazyWithRetry(() => import('./components/home/HomePage'));
+const PropertiesPage = lazyWithRetry(() => import('./components/properties/PropertiesPage'));
+const ProjectsPage = lazyWithRetry(() => import('./components/projects/ProjectsPage'));
+const PropertyDetailsPage = lazyWithRetry(() => import('./components/properties/PropertyDetailsPage'));
+const ProjectDetailsPage = lazyWithRetry(() => import('./components/projects/ProjectDetailsPage'));
+const FinishingPage = lazyWithRetry(() => import('./components/finishing/FinishingPage'));
+const DecorationsPage = lazyWithRetry(() => import('./components/decorations/DecorationsPage'));
+const ContactPage = lazyWithRetry(() => import('./components/contact/ContactPage'));
+const FavoritesPage = lazyWithRetry(() => import('./components/favorites/FavoritesPage'));
+const PartnerProfilePage = lazyWithRetry(() => import('./components/partners/PartnerProfilePage'));
+const AddPropertyPage = lazyWithRetry(() => import('./components/forms/AddPropertyPage'));
+const ServiceRequestPage = lazyWithRetry(() => import('./components/forms/ServiceRequestPage'));
+const LoginPage = lazyWithRetry(() => import('./components/auth/LoginPage'));
+const RegisterPage = lazyWithRetry(() => import('./components/auth/RegisterPage'));
+const PaymentPage = lazyWithRetry(() => import('./components/finance/PaymentPage'));
+const PrivacyPolicyPage = lazyWithRetry(() => import('./components/legal/PrivacyPolicyPage'));
+const TermsOfUsePage = lazyWithRetry(() => import('./components/legal/TermsOfUsePage'));
+const NotFoundPage = lazyWithRetry(() => import('./components/shared/NotFoundPage'));
+const AIEstimatorPage = lazyWithRetry(() => import('./components/tools/AIEstimatorPage'));
 
 
 const App: React.FC = () => {

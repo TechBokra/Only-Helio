@@ -7,7 +7,7 @@ import type { Project, ProjectType } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
 import { addProject, updateProject, getAllProjects } from '../../services/projects';
-import { getAllProjectTypes } from '../../services/filters'; // New import
+import { getAllProjectTypes } from '../../services/filters'; 
 import { Role, Permission } from '../../types';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import UpgradeNotice from '../shared/UpgradeNotice';
@@ -22,7 +22,7 @@ const ProjectFormPage: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser, hasPermission } = useAuth();
     const { data: projects, isLoading: projectsLoading } = useQuery({ queryKey: ['allProjects'], queryFn: getAllProjects });
-    const { data: projectTypes, isLoading: typesLoading } = useQuery({ queryKey: ['projectTypes'], queryFn: getAllProjectTypes }); // Fetch types
+    const { data: projectTypes, isLoading: typesLoading } = useQuery({ queryKey: ['projectTypes'], queryFn: getAllProjectTypes });
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const t_form = t.projectDashboard.projectForm;
@@ -30,7 +30,6 @@ const ProjectFormPage: React.FC = () => {
     const { isLimitReached } = useSubscriptionUsage('projects');
     const { register, handleSubmit, reset, formState: { isSubmitting: isFormSubmitting } } = useForm<Project>();
     
-    // Explicitly manage image state to ensure it persists
     const [image, setImage] = useState<string>('');
 
     useEffect(() => {
@@ -40,7 +39,6 @@ const ProjectFormPage: React.FC = () => {
                 reset(project);
                 setImage(project.imageUrl);
             } else if (!projectsLoading) {
-                // Determine redirect path safely
                 const redirectPath = hasPermission(Permission.VIEW_ADMIN_DASHBOARD) ? '/admin/projects' : '/dashboard/projects';
                 navigate(redirectPath);
             }
@@ -48,7 +46,6 @@ const ProjectFormPage: React.FC = () => {
     }, [projectId, currentUser, navigate, projects, projectsLoading, hasPermission, reset]);
 
     const handleSuccess = () => {
-        // Invalidate ALL relevant queries to force re-fetch
         queryClient.invalidateQueries({ queryKey: ['allProjects'] });
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         
@@ -91,13 +88,20 @@ const ProjectFormPage: React.FC = () => {
             showToast('Please upload a project image.', 'error');
             return;
         }
-
+        
+        // Correctly determine partnerId:
+        // 1. If updating, keep existing partnerId.
+        // 2. If adding, use currentUser.id (for developers) OR if admin, it might need selection (simplified here to current user for now).
         const existingProject = projectId ? projects?.find(p => p.id === projectId) : undefined;
+        const targetPartnerId = existingProject?.partnerId || currentUser.id;
+
         const projectData = {
             ...formData,
             imageUrl: image,
-            partnerId: existingProject?.partnerId || currentUser.id,
-            features: existingProject?.features || [],
+            partnerId: targetPartnerId,
+            features: existingProject?.features || [], // Maintain existing features on update or empty on create
+            // Ensure projectType is sent even if it's new
+            projectType: formData.projectType, 
         };
 
         if (projectId) {

@@ -406,7 +406,20 @@ export const admin = {
                 "finishing": "شركات التشطيب",
                 "sale": "بيع (أفراد)",
                 "rent": "إيجار (أفراد)"
-            }
+            },
+            "limitsTitle": "حدود وحصص الباقة",
+            "limitsSubtitle": "حدد قيود صارمة لهذه الباقة. اتركه فارغاً لجعله غير محدود.",
+            "limits": {
+                "projects": "أقصى عدد مشاريع (مجمعات)",
+                "units": "أقصى عدد وحدات (داخل المشاريع)",
+                "propertiesTotal": "أقصى عدد عقارات (إجمالي)",
+                "propertiesSale": "أقصى عدد عقارات للبيع",
+                "propertiesRent": "أقصى عدد عقارات للإيجار",
+                "portfolio": "أقصى عدد أعمال في المعرض"
+            },
+            "financialsTitle": "الإعدادات المالية",
+            "commissionSale": "عمولة البيع (%)",
+            "commissionRent": "عمولة الإيجار (قيمة أو %)"
         },
         "userManagement": {
             "title": "إدارة المستخدمين الداخليين",

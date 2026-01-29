@@ -1,20 +1,26 @@
 
 import { useMemo, useCallback } from 'react';
-import type { Property, Project, PortfolioItem } from '../types';
-import { useAuthStore } from '../store/useAuthStore'; // Corrected import to use store
-import { getPlanLimit } from '../utils/subscriptionUtils';
+import type { Property, Project, PortfolioItem, SubscriptionPlanDetails } from '../types';
+import { useAuthStore } from '../store/useAuthStore';
+import { getLimitFromPlan } from '../utils/subscriptionUtils';
 import { useQuery } from '@tanstack/react-query';
 import { getPropertiesByPartnerId } from '../services/properties';
 import { getProjectsByPartnerId } from '../services/projects';
 import { getPortfolioByPartnerId } from '../services/portfolio';
+import { getPlans } from '../services/plans';
+import { useLanguage } from '../components/shared/LanguageContext';
 
 type UsageType = 'properties' | 'projects' | 'units' | 'portfolio';
 
 export const useSubscriptionUsage = (usageType: UsageType) => {
+    const { language } = useLanguage();
     const currentUser = useAuthStore((state) => state.currentUser);
     const userId = currentUser?.id || '';
 
-    // Fetch Partner Specific Data (DB Optimized)
+    // 1. Fetch Plans Config
+    const { data: allPlans, isLoading: isLoadingPlans } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
+
+    // 2. Fetch User Data
     const { 
         data: partnerProperties, 
         isLoading: isLoadingProperties, 
@@ -48,7 +54,7 @@ export const useSubscriptionUsage = (usageType: UsageType) => {
         enabled: !!userId && usageType === 'portfolio'
     });
 
-    const isLoading = isLoadingProperties || isLoadingProjects || isLoadingPortfolio;
+    const isLoading = isLoadingProperties || isLoadingProjects || isLoadingPortfolio || isLoadingPlans;
     const isError = isErrorProperties || isErrorProjects || isErrorPortfolio;
 
     const refetchAll = useCallback(() => {
@@ -57,40 +63,76 @@ export const useSubscriptionUsage = (usageType: UsageType) => {
         if (usageType === 'portfolio') refetchPortfolio();
     }, [refetchProperties, refetchProjects, refetchPortfolio, usageType]);
 
-    const data = useMemo(() => {
-        if (!currentUser) return [];
-        switch (usageType) {
-            case 'properties':
-            case 'units':
-                return partnerProperties || [];
-            case 'projects':
-                return partnerProjects || [];
-            case 'portfolio':
-                return partnerPortfolio || [];
-            default:
-                return [];
+    // 3. Determine Current Plan Details
+    const currentPlanDetails = useMemo(() => {
+        if (!currentUser || !allPlans) return undefined;
+        // Logic to find the plan object based on user type/role
+        // Assumes structure: allPlans[category][tier] or allPlans[category][subCategory][tier]
+        // For simple partners:
+        const planCategory = currentUser.type; // developer, agency, finishing
+        if (allPlans[planCategory]) {
+            return allPlans[planCategory][currentUser.subscriptionPlan]?.[language];
         }
-    }, [partnerProperties, partnerProjects, partnerPortfolio, currentUser, usageType]);
+        return undefined;
+    }, [currentUser, allPlans, language]);
 
-    const usageCount = useMemo(() => data.length, [data]);
+    // 4. Calculate Usage & Limits
+    const usageData = useMemo(() => {
+        if (!currentUser) return { count: 0, saleCount: 0, rentCount: 0 };
+        
+        let rawData: any[] = [];
+        if (usageType === 'properties' || usageType === 'units') rawData = partnerProperties || [];
+        else if (usageType === 'projects') rawData = partnerProjects || [];
+        else if (usageType === 'portfolio') rawData = partnerPortfolio || [];
 
-    const limit = useMemo(() => {
-        if (!currentUser || !('type' in currentUser)) return Infinity;
-        return getPlanLimit(currentUser.type, currentUser.subscriptionPlan, usageType);
-    }, [currentUser, usageType]);
+        // Count split for properties
+        const saleCount = rawData.filter(i => (i as Property).status?.en === 'For Sale').length;
+        const rentCount = rawData.filter(i => (i as Property).status?.en === 'For Rent').length;
+        
+        return { count: rawData.length, saleCount, rentCount, rawData };
 
+    }, [partnerProperties, partnerProjects, partnerPortfolio, usageType, currentUser]);
+
+
+    const limits = useMemo(() => {
+        if (!currentPlanDetails) return { total: Infinity, sale: Infinity, rent: Infinity };
+        
+        return {
+            total: getLimitFromPlan(currentPlanDetails, usageType),
+            sale: usageType === 'properties' ? getLimitFromPlan(currentPlanDetails, 'propertiesSale') : Infinity,
+            rent: usageType === 'properties' ? getLimitFromPlan(currentPlanDetails, 'propertiesRent') : Infinity,
+        };
+    }, [currentPlanDetails, usageType]);
+
+    // 5. Determine Checks
     const isLimitReached = useMemo(() => {
-        if (limit === Infinity) return false;
-        return usageCount >= limit;
-    }, [usageCount, limit]);
+        if (limits.total === -1) return false; // Unlimited
+        return usageData.count >= limits.total;
+    }, [usageData.count, limits.total]);
+
+    const isSaleLimitReached = useMemo(() => {
+        if (limits.sale === -1) return false;
+        return usageData.saleCount >= limits.sale;
+    }, [usageData.saleCount, limits.sale]);
+
+    const isRentLimitReached = useMemo(() => {
+        if (limits.rent === -1) return false;
+        return usageData.rentCount >= limits.rent;
+    }, [usageData.rentCount, limits.rent]);
 
     return {
-        data: data as (Property[] | Project[] | PortfolioItem[]),
+        data: usageData.rawData as (Property[] | Project[] | PortfolioItem[]),
         isLoading,
         isError,
-        usageCount,
-        limit,
+        usageCount: usageData.count,
+        limit: limits.total,
         isLimitReached,
+        // New Granular Checks
+        limits,
+        counts: { total: usageData.count, sale: usageData.saleCount, rent: usageData.rentCount },
+        canAddSale: !isLimitReached && !isSaleLimitReached,
+        canAddRent: !isLimitReached && !isRentLimitReached,
         refetch: refetchAll,
+        currentPlanDetails
     };
 };

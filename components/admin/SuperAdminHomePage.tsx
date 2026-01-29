@@ -9,7 +9,7 @@ import { getAllPartnersForAdmin } from '../../services/partners';
 import { getAllProperties } from '../../services/properties';
 import { getAllProjects } from '../../services/projects';
 import { getAllLeads } from '../../services/leads';
-import { UserPlusIcon, ClipboardDocumentListIcon, InboxIcon, UsersIcon, BuildingIcon, CubeIcon, ChartBarIcon } from '../ui/Icons';
+import { UserPlusIcon, ClipboardDocumentListIcon, InboxIcon, UsersIcon, BuildingIcon, CubeIcon, ChartBarIcon, CheckCircleIcon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
 import StatCard from '../shared/StatCard';
 import { useLanguage } from '../shared/LanguageContext';
@@ -20,17 +20,17 @@ import { Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const ActionCard: React.FC<{ title: string; count: number; linkTo: string; icon: React.FC<{className?: string}>; t: any }> = ({ title, count, linkTo, icon: Icon, t }) => (
-    <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 p-0">
+const ActionCard: React.FC<{ title: string; count: number; linkTo: string; icon: React.FC<{className?: string}>; t: any; color?: string }> = ({ title, count, linkTo, icon: Icon, t, color = 'amber' }) => (
+    <Card className={`bg-${color}-50 dark:bg-${color}-900/20 border-${color}-200 dark:border-${color}-800 p-0`}>
         <CardContent className="p-6 flex flex-col justify-between h-full">
             <div className="flex items-start justify-between">
                 <div className="space-y-1">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
-                    <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">{count}</p>
+                    <p className={`text-4xl font-bold text-${color}-600 dark:text-${color}-400`}>{count}</p>
                 </div>
-                <Icon className="w-8 h-8 text-amber-500" />
+                <Icon className={`w-8 h-8 text-${color}-500`} />
             </div>
-            <Link to={linkTo} className="mt-4 text-center font-semibold text-amber-600 dark:text-amber-500 bg-amber-200/50 dark:bg-amber-500/10 hover:bg-amber-200 dark:hover:bg-amber-500/20 rounded-md py-2 transition-colors">
+            <Link to={linkTo} className={`mt-4 text-center font-semibold text-${color}-600 dark:text-${color}-500 bg-${color}-200/50 dark:bg-${color}-500/10 hover:bg-${color}-200 dark:hover:bg-${color}-500/20 rounded-md py-2 transition-colors`}>
                 {t.adminDashboard.home.review}
             </Link>
         </CardContent>
@@ -62,6 +62,10 @@ const SuperAdminHomePage: React.FC = () => {
         ).length;
 
         const activePropertiesCount = (properties || []).filter(isListingActive).length;
+        
+        // NEW: Count properties in 'draft' status (Pending Review from Partners)
+        const pendingPropertyReviews = (properties || []).filter(p => p.listingStatus === 'draft').length;
+        
         const totalProjectsCount = (projects || []).length;
         const totalLeadsCount = (leads || []).length;
 
@@ -87,7 +91,7 @@ const SuperAdminHomePage: React.FC = () => {
         
 
         return {
-            pendingPartners, pendingProperties, newContacts,
+            pendingPartners, pendingProperties, newContacts, pendingPropertyReviews,
             activePartnersCount, activePropertiesCount, totalProjectsCount, totalLeadsCount,
             topPartners, topProperties
         };
@@ -98,7 +102,7 @@ const SuperAdminHomePage: React.FC = () => {
     }
 
     const { 
-        pendingPartners, pendingProperties, newContacts, activePartnersCount, 
+        pendingPartners, pendingProperties, newContacts, pendingPropertyReviews, activePartnersCount, 
         activePropertiesCount, totalProjectsCount, totalLeadsCount, topPartners, topProperties 
     } = memoizedData;
     
@@ -142,11 +146,11 @@ const SuperAdminHomePage: React.FC = () => {
             
             <div className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">{t_home.actionableItems}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Explicitly pointing to decoupled routes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <ActionCard title={t_home.pendingPartnerRequests} count={pendingPartners} linkTo="/admin/partner-requests" icon={UserPlusIcon} t={t} />
                     <ActionCard title={t_home.pendingPropertyRequests} count={pendingProperties} linkTo="/admin/property-requests" icon={ClipboardDocumentListIcon} t={t} />
-                    <ActionCard title={t_home.newContactMessages} count={newContacts} linkTo="/admin/contact-requests" icon={InboxIcon} t={t} />
+                    <ActionCard title={language === 'ar' ? 'عقارات للمراجعة' : 'Pending Property Reviews'} count={pendingPropertyReviews} linkTo="/admin/properties/list?status=draft" icon={CheckCircleIcon} t={t} color="purple" />
+                    <ActionCard title={t_home.newContactMessages} count={newContacts} linkTo="/admin/contact-requests" icon={InboxIcon} t={t} color="gray" />
                 </div>
             </div>
 

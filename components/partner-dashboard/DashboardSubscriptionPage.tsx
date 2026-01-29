@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import type { Language, SubscriptionPlan, SubscriptionPlanDetails } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { CheckCircleIcon } from '../ui/Icons';
-import { getPlanLimit } from '../../utils/subscriptionUtils';
 import { useSubscriptionUsage } from '../shared/useSubscriptionUsage';
 import { useLanguage } from '../shared/LanguageContext';
 

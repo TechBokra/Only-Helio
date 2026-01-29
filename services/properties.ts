@@ -374,7 +374,8 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
         contactMethod: updates.contactMethod,
         ownerPhone: updates.ownerPhone,
         location: updates.location,
-        installments: updates.installments
+        installments: updates.installments,
+        projectId: updates.projectId, // Correctly pass projectId to DB
     };
     
     // Map Nested Objects to DB Columns explicitly
@@ -429,6 +430,8 @@ export const updateProperty = async (propertyId: string, updates: Partial<Proper
             delete dbUpdates[key];
         } else if ((key === 'listingStartDate' || key === 'listingEndDate') && dbUpdates[key] === '') {
             dbUpdates[key] = null; // Convert empty date string to null
+        } else if (key === 'projectId' && dbUpdates[key] === '') {
+             dbUpdates[key] = null; // Handle unlinking project (empty string -> null)
         }
     });
 

@@ -26,9 +26,9 @@ const PlanCard: React.FC<{
             <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400">{plan.name}</h3>
             <p className="text-3xl font-extrabold text-gray-900 dark:text-white my-4">{plan.price}</p>
             
-            {plan.commissionRate !== undefined && (
+            {plan.commissionRateSale !== undefined && (
                 <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 my-2">
-                   {t.adminDashboard.plans.commissionRate.replace('(%)', '')}: {plan.commissionRate}%
+                   {t.adminDashboard.plans.commissionRate.replace('(%)', '')}: {plan.commissionRateSale}%
                 </p>
             )}
 

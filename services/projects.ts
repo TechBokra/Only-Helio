@@ -82,7 +82,7 @@ export const getProjectsByPartnerId = async (partnerId: string): Promise<Project
 export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
     const newId = crypto.randomUUID();
 
-    const dbPayload = {
+    const dbPayload: any = {
         id: newId,
         partnerId: project.partnerId,
         name_en: project.name.en,
@@ -96,7 +96,18 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt'>): Pr
         createdAt: new Date().toISOString()
     };
 
-    const { data, error } = await supabase.from('Project').insert(dbPayload).select().single();
+    // Attempt insert
+    let { data, error } = await supabase.from('Project').insert(dbPayload).select().single();
+    
+    // Fallback: If projectType missing in DB schema, try inserting without it
+    if (error && error.code === 'PGRST204' && dbPayload.projectType) {
+        console.warn("Schema mismatch: 'projectType' column missing. Retrying insert without it.");
+        delete dbPayload.projectType;
+        const retry = await supabase.from('Project').insert(dbPayload).select().single();
+        data = retry.data;
+        error = retry.error;
+    }
+
     if (error) throw error;
     return mapDbToProject(data as ProjectRow);
 };
@@ -119,7 +130,20 @@ export const updateProject = async (projectId: string, updates: Partial<Project>
     if (updates.features) dbUpdates.features = updates.features;
     if (updates.projectType) dbUpdates.projectType = updates.projectType;
 
-    const { data, error } = await supabase.from('Project').update(dbUpdates).eq('id', projectId).select().single();
+    const performUpdate = async (payload: any) => {
+        return await supabase.from('Project').update(payload).eq('id', projectId).select().single();
+    };
+
+    let { data, error } = await performUpdate(dbUpdates);
+    
+    // Fallback: If projectType caused the error (Schema Cache stale or column missing), retry without it
+    if (error && error.code === 'PGRST204' && dbUpdates.projectType) {
+        console.warn("Schema mismatch: 'projectType' column missing in DB. Retrying update without it to save other fields.");
+        const { projectType, ...fallbackUpdates } = dbUpdates;
+        const retry = await performUpdate(fallbackUpdates);
+        data = retry.data;
+        error = retry.error;
+    }
     
     if (error) { 
         console.error('Error updating project:', error); 

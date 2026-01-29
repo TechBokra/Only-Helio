@@ -22,7 +22,25 @@ const fallbackContent: SiteContent = {
       feedbackText: { ar: 'إرسال ملاحظات', en: 'Send Feedback' }
   },
   services: { enabled: true, ar: { title: 'خدماتنا', description: '', features: [] }, en: { title: 'Our Services', description: '', features: [] } },
-  partners: { enabled: true, ar: { title: 'شركاء النجاح', description: '' }, en: { title: 'Success Partners', description: '' } },
+  partners: { 
+      enabled: true, 
+      ar: { 
+          title: 'شركاء النجاح', description: '',
+          mega_projects_title: 'كبار المطورين',
+          developers_title: 'المطورون',
+          finishing_companies_title: 'شركات التشطيب',
+          agencies_title: 'المكاتب العقارية',
+          investor_partners_title: 'المستثمرون'
+      }, 
+      en: { 
+          title: 'Success Partners', description: '',
+          mega_projects_title: 'Major Developers',
+          developers_title: 'Developers',
+          finishing_companies_title: 'Finishing Companies',
+          agencies_title: 'Real Estate Agencies',
+          investor_partners_title: 'Investors'
+      } 
+  },
   whyNewHeliopolis: { enabled: true, ar: { title: 'لماذا هليوبوليس؟', location: { title: '', description: '', stats: [] } }, en: { title: 'Why New Heliopolis?', location: { title: '', description: '', stats: [] } }, images: [] },
   whyUs: { enabled: true, ar: { title: 'لماذا نحن؟', description: '', features: [] }, en: { title: 'Why Us?', description: '', features: [] } },
   testimonials: { enabled: true, ar: { title: 'آراء العملاء', subtitle: '' }, en: { title: 'Testimonials', subtitle: '' }, items: [] },
@@ -84,7 +102,9 @@ const fallbackContent: SiteContent = {
               { title: "6. Governing Law", content: "These terms are governed by the laws of the Arab Republic of Egypt." }
           ]
       }
-  }
+  },
+  finishingServices: [],
+  quotes: []
 };
 
 export const getContent = async (): Promise<SiteContent> => {

@@ -106,7 +106,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                 case 'crm_messages':
                     return addRequest(RequestType.CONTACT_MESSAGE, {
                         requesterInfo,
-                        payload: { ...payload, inquiryType: 'client' }
+                        payload: { ...payload, inquiryType: 'client', message: payload.message as string } as any
                     });
                 case 'crm_leads':
                      return addRequest(RequestType.LEAD, {
@@ -117,12 +117,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                             serviceType: (payload.serviceType as any) || 'general',
                             serviceTitle: (payload.serviceTitle as string) || `${formDef.title.en} Submission`,
                             ...payload
-                        }
+                        } as any
                     });
                 case 'crm_partners':
                     return addRequest(RequestType.PARTNER_APPLICATION, {
                         requesterInfo,
-                        payload: { ...payload, status: 'pending' }
+                        payload: { ...payload, status: 'pending' } as any
                     });
                  case 'email':
                     // Mock email send
@@ -130,7 +130,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                 default:
                      return addRequest(RequestType.PROPERTY_INQUIRY, {
                         requesterInfo,
-                        payload
+                        payload: payload as any
                     });
             }
         },
