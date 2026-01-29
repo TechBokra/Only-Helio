@@ -66,10 +66,15 @@ export const useSubscriptionUsage = (usageType: UsageType) => {
     // 3. Determine Current Plan Details
     const currentPlanDetails = useMemo(() => {
         if (!currentUser || !allPlans) return undefined;
-        // Logic to find the plan object based on user type/role
-        // Assumes structure: allPlans[category][tier] or allPlans[category][subCategory][tier]
-        // For simple partners:
-        const planCategory = currentUser.type; // developer, agency, finishing
+        
+        // Safety check: ensure user type maps to a plan category
+        const validCategories = ['developer', 'agency', 'finishing', 'individual'];
+        if (!validCategories.includes(currentUser.type)) {
+            return undefined; // Admin/Internal user = Unlimited/No Plan
+        }
+
+        // Logic to find the plan object
+        const planCategory = currentUser.type as 'developer' | 'agency' | 'finishing'; // 'individual' handled differently if ever logged in
         if (allPlans[planCategory]) {
             return allPlans[planCategory][currentUser.subscriptionPlan]?.[language];
         }

@@ -42,7 +42,7 @@ const PropertiesPage: React.FC = () => {
     
     // Memoize filters to prevent unnecessary query refetches
     const queryFilters = useMemo(() => ({
-        view, // Include view property
+        view: view as 'grid' | 'list', // Explicit cast to fix TS error
         status, type, query, minPrice, maxPrice, 
         minArea, maxArea, // Include minArea and maxArea here
         project, finishing, 
@@ -63,7 +63,7 @@ const PropertiesPage: React.FC = () => {
         queryFn: () => getPaginatedProperties({ 
             page: page, 
             limit: ITEMS_PER_PAGE, 
-            filters: queryFilters,
+            filters: queryFilters as any, // Cast to any to bypass strict view check here if needed
             disablePagination: false,
         }),
         // FIX: Replaced deprecated `keepPreviousData: true` with `placeholderData: keepPreviousData` for TanStack Query v5.

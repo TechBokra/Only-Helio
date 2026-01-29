@@ -174,7 +174,17 @@ const PropertyDetailsPage: React.FC = () => {
             <ContactOptionsModal
                 isOpen={contactModalOpen}
                 onClose={() => setContactModalOpen(false)}
-                contactMethods={partner.contactMethods}
+                contactMethods={{
+                    whatsapp: { 
+                        enabled: partner.contactMethods.whatsapp.enabled, 
+                        number: partner.contactMethods.whatsapp.number || '' 
+                    },
+                    phone: { 
+                        enabled: partner.contactMethods.phone.enabled, 
+                        number: partner.contactMethods.phone.number || '' 
+                    },
+                    form: partner.contactMethods.form
+                }}
                 onSelectForm={() => navigate('/request-service', { 
                     state: { 
                         partnerId: property.partnerId, 
