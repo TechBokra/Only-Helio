@@ -7,5 +7,13 @@
 -- This allows us to use "LeadMessage" table for PropertyRequests, PartnerRequests, etc.
 ALTER TABLE "LeadMessage" DROP CONSTRAINT IF EXISTS "LeadMessage_leadId_fkey";
 
--- 2. Optional: Rename column for clarity (Not strictly necessary for logic, keeping it 'leadId' to minimize code changes)
--- ALTER TABLE "LeadMessage" RENAME COLUMN "leadId" TO "requestId";
+-- 2. Ensure "LeadMessage" exists (if not already)
+CREATE TABLE IF NOT EXISTS "LeadMessage" (
+    "id" UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    "leadId" TEXT NOT NULL, -- Generic ID reference
+    "sender" TEXT NOT NULL,
+    "senderId" TEXT,
+    "type" TEXT DEFAULT 'note',
+    "content" TEXT,
+    "timestamp" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

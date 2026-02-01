@@ -36,6 +36,9 @@ const ServiceRequestPage: React.FC = () => {
 
     const isPaymentFlow = isBooking || isPurchase;
     
+    // Safety fallback for DB not-null constraint
+    const safeServiceType = serviceType || 'general';
+    
     const formSlug = useMemo(() => {
         // Map types to specific form slugs defined in database/forms.ts
         if (serviceType === 'property_inquiry') return 'property-inquiry';
@@ -117,7 +120,7 @@ const ServiceRequestPage: React.FC = () => {
                     userName: formData.customerName,
                     data: {
                         ...submissionData,
-                        serviceType: serviceType,
+                        serviceType: safeServiceType,
                         serviceTitle: bookingTitle,
                         partnerId: partnerId,
                         managerId: 'platform-finishing-manager-1',
@@ -137,7 +140,7 @@ const ServiceRequestPage: React.FC = () => {
                     userName: formData.customerName,
                     data: {
                         ...submissionData,
-                        serviceType: serviceType,
+                        serviceType: safeServiceType,
                         serviceTitle: `Order: ${workItem.title[language]}`,
                         partnerId: partnerId,
                         managerId: 'decoration-manager-1', 
@@ -157,8 +160,9 @@ const ServiceRequestPage: React.FC = () => {
             }).then(() => {
                  showToast(t_modal.successMessage, 'success');
                  setTimeout(() => navigate(-1), 2000);
-            }).catch(() => {
-                showToast('Submission failed. Please try again.', 'error');
+            }).catch((e: any) => {
+                const msg = e.message || 'Submission failed. Please try again.';
+                showToast(msg, 'error');
             });
         } else {
             // Standard Lead Submission
@@ -171,14 +175,16 @@ const ServiceRequestPage: React.FC = () => {
                     serviceTitle: serviceTitle,
                     managerId: managerId,
                     propertyId: propertyId,
-                    serviceType: serviceType,
+                    serviceType: safeServiceType, // Use safe fallback here
                     referenceImage: formData.referenceImage
                 } as any
             }).then(() => {
                  showToast(t_modal.successMessage, 'success');
                  setTimeout(() => navigate(-1), 2000);
-            }).catch(() => {
-                showToast('Submission failed. Please try again.', 'error');
+            }).catch((e: any) => {
+                console.error("Submission error:", e);
+                const msg = e.message || (language === 'ar' ? 'فشل الإرسال. يرجى المحاولة مرة أخرى.' : 'Submission failed. Please try again.');
+                showToast(msg, 'error');
             });
         }
     };

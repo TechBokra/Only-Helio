@@ -84,10 +84,16 @@ const PartnerProfilePage: React.FC = () => {
         if (!partnerInfo || !displayData) return;
         const title = serviceTitle ? `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}: ${serviceTitle}` : `${t.partnerProfilePage.serviceRequestFor} ${displayData.name}`;
         
+        // Determine service type based on partner type
+        let type = 'general';
+        if (partnerInfo.type === 'finishing') type = 'finishing';
+        else if (partnerInfo.type === 'developer' || partnerInfo.type === 'agency') type = 'property';
+
         navigate('/request-service', {
             state: {
                 serviceTitle: title,
                 partnerId: partnerInfo.id,
+                serviceType: type, 
             }
         });
     };

@@ -37,6 +37,12 @@ interface LeadRow {
     messages?: LeadMessageRow[];
 }
 
+// Helper to sanitize IDs (empty string -> null)
+const sanitizeId = (id?: string | null) => {
+    if (!id || id.trim() === '') return null;
+    return id;
+};
+
 // Helper to map DB row to Lead
 const mapDbToLead = (row: LeadRow): Lead => ({
     id: row.id,
@@ -176,16 +182,21 @@ export const getPaginatedLeads = async (
 
 export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Lead> => {
     const now = new Date().toISOString();
+    
+    // Safety check: ensure serviceType has a default value if missing
+    const safeServiceType = leadData.serviceType || 'general';
+
     const newLead = {
-        partnerId: leadData.partnerId,
-        managerId: leadData.managerId,
-        propertyId: leadData.propertyId,
-        serviceType: leadData.serviceType,
+        partnerId: sanitizeId(leadData.partnerId),
+        managerId: sanitizeId(leadData.managerId),
+        propertyId: sanitizeId(leadData.propertyId),
+        serviceType: safeServiceType,
         customerName: leadData.customerName,
         customerPhone: leadData.customerPhone,
         serviceTitle: leadData.serviceTitle,
         contactTime: leadData.contactTime,
         notes: leadData.customerNotes,
+        referenceImage: leadData.referenceImage || null,
         status: 'new',
         createdAt: now,
         updatedAt: now
@@ -203,14 +214,17 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'status' | 'createdAt'
         ? (leadData.serviceType === 'finishing' ? '/admin/finishing-requests' : '/admin/decoration-requests')
         : '/dashboard/leads';
 
-    addNotification({
-        userId: targetUserId || 'admin-user', // Fallback
-        message: {
-            ar: `لديك طلب عميل جديد من "${leadData.customerName}".`,
-            en: `New lead from "${leadData.customerName}".`,
-        },
-        link: link,
-    });
+    // Fire and forget notification to avoid blocking
+    if (targetUserId) {
+        addNotification({
+            userId: targetUserId, 
+            message: {
+                ar: `لديك طلب عميل جديد من "${leadData.customerName}".`,
+                en: `New lead from "${leadData.customerName}".`,
+            },
+            link: link,
+        }).catch(err => console.warn("Failed to send notification:", err));
+    }
 
     return mapDbToLead(data as unknown as LeadRow);
 };
