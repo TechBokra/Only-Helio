@@ -159,3 +159,9 @@ export const ClockIcon: React.FC<IconProps> = ({ className }) => (
 export const InformationCircleIcon: React.FC<IconProps> = ({ className }) => (
     <svg {...defaultSvgProps} className={className} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
 );
+export const BriefcaseIcon: React.FC<IconProps> = ({ className }) => (
+    <svg {...defaultSvgProps} className={className} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.111 48.111 0 00-3.413-.387m4.5 2.622V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v2.375m15 0c.34.055.68.114 1.022.175m-1.022-.176c-.324.053-.652.103-.984.15m-13.5-.15c.332.047.66.097.984.15M3.75 6.75v1.516c0 1.25.967 2.29 2.21 2.376 3.993.264 8.087.264 12.08 0 1.243-.086 2.21-1.126 2.21-2.376V6.75m-15 0a2.25 2.25 0 012.25-2.25h9a2.25 2.25 0 012.25 2.25m-12 0h12" /></svg>
+);
+export const PencilSquareIcon: React.FC<IconProps> = ({ className }) => (
+    <svg {...defaultSvgProps} className={className} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+);

@@ -20,6 +20,7 @@ const SYSTEM_LIMITS = [
     { key: 'propertiesSale', label: { en: 'Max Properties (For Sale)', ar: 'أقصى عدد عقارات للبيع' } },
     { key: 'propertiesRent', label: { en: 'Max Properties (For Rent)', ar: 'أقصى عدد عقارات للإيجار' } },
     { key: 'portfolio', label: { en: 'Max Portfolio Items', ar: 'أقصى عدد أعمال المعرض' } },
+    { key: 'services', label: { en: 'Max Marketplace Services', ar: 'أقصى عدد خدمات بالسوق' } },
 ];
 
 const AdminPlanEditPage: React.FC = () => {
@@ -31,22 +32,37 @@ const AdminPlanEditPage: React.FC = () => {
     const queryClient = useQueryClient();
 
     const isCreateMode = !routeKey;
-    const initialCategory = routeCategory || searchParams.get('category') || 'developer';
+    // Handle complex category strings from URL (e.g. finishing-engineer)
+    const initialCategoryParam = routeCategory || searchParams.get('category') || 'developer';
 
     const { data: plans, isLoading } = useQuery({ queryKey: ['plans'], queryFn: getPlans, enabled: !isCreateMode });
     
     const t_page = t.adminDashboard.plans;
     const t_shared = t.adminShared;
 
+    // --- Helper to parse category slug into DB Category & SubCategory ---
+    const parseCategory = (catSlug: string) => {
+        if (catSlug === 'individual-sale') return { realPlanType: 'individual' as PlanCategory, subCategory: 'sale' };
+        if (catSlug === 'individual-rent') return { realPlanType: 'individual' as PlanCategory, subCategory: 'rent' };
+        
+        // New Finishing Sub-categories
+        if (catSlug === 'finishing-engineer') return { realPlanType: 'finishing' as PlanCategory, subCategory: 'engineer' };
+        if (catSlug === 'finishing-office') return { realPlanType: 'finishing' as PlanCategory, subCategory: 'office' };
+        if (catSlug === 'finishing-company') return { realPlanType: 'finishing' as PlanCategory, subCategory: 'company' };
+        
+        return { realPlanType: catSlug as PlanCategory, subCategory: undefined };
+    };
+
+    const { realPlanType, subCategory } = useMemo(() => parseCategory(initialCategoryParam), [initialCategoryParam]);
+
     // --- State ---
-    const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+    const [selectedCategory, setSelectedCategory] = useState(initialCategoryParam);
     const [newPlanSlug, setNewPlanSlug] = useState('');
     const [newPlanName, setNewPlanName] = useState({ en: '', ar: '' });
 
     const [arData, setArData] = useState({ price: '', description: '', features: '' });
     const [enData, setEnData] = useState({ price: '', description: '', features: '' });
     
-    // Updated State for Advanced Commissions
     const [saleCommission, setSaleCommission] = useState<CommissionDisplayConfig>({ type: 'hidden', value: '' });
     const [rentCommission, setRentCommission] = useState<CommissionDisplayConfig>({ type: 'hidden', value: '' });
     
@@ -58,14 +74,6 @@ const AdminPlanEditPage: React.FC = () => {
 
     const [loadingSave, setLoadingSave] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-    // Determine context
-    const { realPlanType, subCategory } = useMemo(() => {
-        const cat = isCreateMode ? selectedCategory : routeCategory;
-        if (cat === 'individual-sale') return { realPlanType: 'individual' as PlanCategory, subCategory: 'sale' as 'sale' };
-        if (cat === 'individual-rent') return { realPlanType: 'individual' as PlanCategory, subCategory: 'rent' as 'rent' };
-        return { realPlanType: cat as PlanCategory, subCategory: undefined };
-    }, [routeCategory, selectedCategory, isCreateMode]);
 
     // Load Data on Edit
     useEffect(() => {
@@ -89,39 +97,17 @@ const AdminPlanEditPage: React.FC = () => {
                 const techData = typedPlan.en;
                 setBillingCycle(techData.billingCycle || 'monthly');
 
-                // Load Commission Data safely (Handle legacy format vs new format via Service normalization, but double check here if we access raw rows elsewhere)
-                // Since service normalizes it into `commission` object on the plan detail, we might need to look deeper if we want separate sale/rent config
-                // Ideally, we should fetch raw config to populate the form correctly.
-                // Assuming `plans` from service already did normalization:
-                
-                // Note: The service returns normalized plan objects. We need to handle how we stored the full config.
-                // The current service `buildPlansObject` doesn't expose the full raw config JSON easily.
-                // For simplicity, let's assume we fetch the raw row or we patch the service to return 'fullConfig'.
-                // Or we infer from what we have.
-                
-                // Better approach: Rely on the service returning the specific `commission` object for the current plan context
-                // But for the Admin Editor, we might want to edit BOTH Sale and Rent configs regardless of current subCategory context.
-                
-                // Let's rely on `commissionRateSale` and `commissionRateRent` being present as fallbacks in `techData` if needed,
-                // but preferably we should have the `commissionConfig` object.
-                // Since we haven't updated `SubscriptionPlanDetails` to include `commissionConfig` explicitly in previous steps (only `commission`),
-                // let's assume for now we initialize based on `commission` prop if available, or fallbacks.
-                
-                // To support full editing, let's try to infer or default.
-                
                 if (subCategory === 'sale') {
                      setSaleCommission(techData.commission || { type: 'percentage', value: techData.commissionRateSale || '' });
                 } else if (subCategory === 'rent') {
                      setRentCommission(techData.commission || { type: 'percentage', value: techData.commissionRateRent || '' });
                 } else {
-                     // Default behavior for generic plans
                      setSaleCommission(techData.commission || { type: 'hidden', value: '' });
                 }
 
-                // Convert Limits Object to Array for Dynamic Editing
                 if (techData.limits) {
                     const loadedLimits = Object.entries(techData.limits)
-                        .filter(([_, val]) => val !== undefined && val !== null) // Only active limits
+                        .filter(([_, val]) => val !== undefined && val !== null) 
                         .map(([key, val]) => ({ key, value: Number(val) }));
                     setActiveLimits(loadedLimits);
                 }
@@ -129,15 +115,13 @@ const AdminPlanEditPage: React.FC = () => {
         }
     }, [isCreateMode, realPlanType, routeKey, subCategory, plans]);
 
-    // --- Limit Management Handlers ---
-
+    // --- Handlers ---
     const handleAddLimit = () => {
         if (!limitToAdd) return;
         if (activeLimits.find(l => l.key === limitToAdd)) {
             showToast('This limit is already added.', 'error');
             return;
         }
-        // Default to -1 (Unlimited) or 10
         setActiveLimits([...activeLimits, { key: limitToAdd, value: -1 }]);
         setLimitToAdd('');
     };
@@ -151,13 +135,10 @@ const AdminPlanEditPage: React.FC = () => {
         setActiveLimits(activeLimits.map(l => l.key === key ? { ...l, value: isNaN(numValue) ? 0 : numValue } : l));
     };
 
-    // --- Save Handler ---
-
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoadingSave(true);
         
-        // Construct Limits Object from Array
         const limitsObject: any = {};
         activeLimits.forEach(item => {
             limitsObject[item.key] = item.value;
@@ -184,19 +165,22 @@ const AdminPlanEditPage: React.FC = () => {
             billingCycle: billingCycle
         };
 
-        let success = false;
-        
+        // When saving, re-calculate real category types from the selected dropdown in Create Mode
+        const { realPlanType: saveCategory, subCategory: saveSub } = isCreateMode ? parseCategory(selectedCategory) : { realPlanType, subCategory };
+
         try {
+            let success = false;
             if (isCreateMode) {
                  if (!newPlanSlug || !newPlanName.en || !newPlanName.ar) {
                      showToast('Please fill in Plan ID and Names.', 'error');
                      setLoadingSave(false);
                      return;
                  }
-                 success = await createPlan(realPlanType, newPlanSlug, payload, subCategory);
+                 success = await createPlan(saveCategory, newPlanSlug, payload, saveSub);
             } else {
                  if (!routeKey) return;
-                 success = await apiUpdatePlan(realPlanType, routeKey as SubscriptionPlan, payload, subCategory);
+                 // @ts-ignore
+                 success = await apiUpdatePlan(saveCategory, routeKey as SubscriptionPlan, payload, saveSub);
             }
             
             setLoadingSave(false);
@@ -204,9 +188,10 @@ const AdminPlanEditPage: React.FC = () => {
             if (success) {
                 showToast(`Plan ${isCreateMode ? 'created' : 'updated'} successfully`, 'success');
                 await queryClient.invalidateQueries({ queryKey: ['plans'] });
+                // Redirect back to the correct tab
                 navigate('/admin/partners/plans');
             } else {
-                showToast('Operation failed. Please check console.', 'error');
+                showToast('Operation failed.', 'error');
             }
         } catch (e: any) {
              setLoadingSave(false);
@@ -226,19 +211,9 @@ const AdminPlanEditPage: React.FC = () => {
         }
     };
 
-    // Filter available limits to add (exclude already added)
     const availableLimitsToAdd = SYSTEM_LIMITS.filter(sl => !activeLimits.find(al => al.key === sl.key));
     
-    // Component to render Commission Input
-    const CommissionInput = ({ 
-        label, 
-        config, 
-        onChange 
-    }: { 
-        label: string, 
-        config: CommissionDisplayConfig, 
-        onChange: (c: CommissionDisplayConfig) => void 
-    }) => (
+    const CommissionInput = ({ label, config, onChange }: any) => (
         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{label}</label>
             <div className="flex gap-2 mb-2">
@@ -247,10 +222,10 @@ const AdminPlanEditPage: React.FC = () => {
                     onChange={(e) => onChange({ ...config, type: e.target.value as CommissionType })}
                     className={selectClasses + " w-1/3"}
                 >
-                    <option value="hidden">{language === 'ar' ? 'إخفاء' : 'Hidden'}</option>
-                    <option value="percentage">{language === 'ar' ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
-                    <option value="fixed">{language === 'ar' ? 'رقم ثابت' : 'Fixed Number'}</option>
-                    <option value="text">{language === 'ar' ? 'نص' : 'Text'}</option>
+                    <option value="hidden">Hidden</option>
+                    <option value="percentage">%</option>
+                    <option value="fixed">Fixed</option>
+                    <option value="text">Text</option>
                 </select>
                 <div className="flex-grow">
                      <input 
@@ -259,17 +234,10 @@ const AdminPlanEditPage: React.FC = () => {
                         onChange={(e) => onChange({ ...config, value: e.target.value })}
                         disabled={config.type === 'hidden'}
                         className={inputClasses}
-                        placeholder={config.type === 'percentage' ? '2.5' : (config.type === 'text' ? 'e.g. Month Rent' : '0')}
+                        placeholder="Value"
                     />
                 </div>
             </div>
-            {config.type !== 'hidden' && (
-                <p className="text-xs text-gray-500">
-                    {config.type === 'percentage' && 'Value will be shown as %. Example: 2.5%'}
-                    {config.type === 'fixed' && 'Value will be shown as currency number.'}
-                    {config.type === 'text' && 'Value will be shown as text.'}
-                </p>
-            )}
         </div>
     );
 
@@ -283,7 +251,7 @@ const AdminPlanEditPage: React.FC = () => {
                     onClose={() => setShowDeleteModal(false)}
                     onConfirm={handleDelete}
                     title="Delete Plan"
-                    message="Are you sure you want to delete this plan? This action cannot be undone."
+                    message="Are you sure you want to delete this plan?"
                     confirmText="Delete"
                 />
             )}
@@ -307,7 +275,6 @@ const AdminPlanEditPage: React.FC = () => {
 
             <form onSubmit={handleSave} className="space-y-8">
                 
-                {/* 1. Basic Config (Create Mode) */}
                 {isCreateMode && (
                      <Card className="border-l-4 border-l-blue-500">
                         <CardHeader><CardTitle>Plan Configuration</CardTitle></CardHeader>
@@ -321,34 +288,29 @@ const AdminPlanEditPage: React.FC = () => {
                                 >
                                     <option value="developer">Developer</option>
                                     <option value="agency">Agency</option>
-                                    <option value="finishing">Finishing</option>
+                                    <option value="finishing-engineer">Finishing (Engineer)</option>
+                                    <option value="finishing-office">Finishing (Office)</option>
+                                    <option value="finishing-company">Finishing (Company)</option>
                                     <option value="individual-sale">Individual (Sale)</option>
                                     <option value="individual-rent">Individual (Rent)</option>
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Unique Slug (ID)</label>
-                                <input 
-                                    type="text" 
-                                    value={newPlanSlug} 
-                                    onChange={(e) => setNewPlanSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
-                                    className={inputClasses} 
-                                    placeholder="e.g. platinum-plus" 
-                                />
+                                <input type="text" value={newPlanSlug} onChange={(e) => setNewPlanSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} className={inputClasses} placeholder="e.g. platinum" />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium mb-1">Name (EN)</label>
-                                <input value={newPlanName.en} onChange={e => setNewPlanName({...newPlanName, en: e.target.value})} className={inputClasses} placeholder="Platinum Plus" />
+                                <input value={newPlanName.en} onChange={e => setNewPlanName({...newPlanName, en: e.target.value})} className={inputClasses} placeholder="Platinum" />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium mb-1">Name (AR)</label>
-                                <input value={newPlanName.ar} onChange={e => setNewPlanName({...newPlanName, ar: e.target.value})} className={inputClasses} dir="rtl" placeholder="بلاتينيوم بلس" />
+                                <input value={newPlanName.ar} onChange={e => setNewPlanName({...newPlanName, ar: e.target.value})} className={inputClasses} dir="rtl" placeholder="بلاتينيوم" />
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* 2. Display Content */}
                 <Card>
                     <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
                          <div className="flex items-center gap-3">
@@ -388,23 +350,19 @@ const AdminPlanEditPage: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                {/* 3. DYNAMIC LIMITS (Field-Level Management) */}
                 <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-900/10">
                     <CardHeader className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-                         <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                    <AdjustmentsHorizontalIcon className="w-6 h-6 text-blue-600 dark:text-blue-500" />
-                                </div>
-                                <div>
-                                    <CardTitle>{t_page.limitsTitle}</CardTitle>
-                                    <p className="text-sm text-gray-500">{t_page.limitsSubtitle}</p>
-                                </div>
+                         <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                <AdjustmentsHorizontalIcon className="w-6 h-6 text-blue-600 dark:text-blue-500" />
+                            </div>
+                            <div>
+                                <CardTitle>{t_page.limitsTitle}</CardTitle>
+                                <p className="text-sm text-gray-500">{t_page.limitsSubtitle}</p>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {/* Active Limits List */}
                         <div className="space-y-3 mb-6">
                             {activeLimits.length > 0 ? (
                                 activeLimits.map((limit, idx) => {
@@ -434,7 +392,6 @@ const AdminPlanEditPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Add New Limit Control */}
                         <div className="flex gap-2 items-end pt-4 border-t border-gray-200 dark:border-gray-700">
                              <div className="flex-grow">
                                 <label className="block text-sm font-medium mb-1">Add Limitation Field</label>
@@ -456,7 +413,6 @@ const AdminPlanEditPage: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                 {/* 4. Financials (Commissions & Billing) */}
                  <Card>
                     <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
                         <div className="flex items-center gap-2">
@@ -481,22 +437,11 @@ const AdminPlanEditPage: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Sale Commission Configuration */}
                             {(!subCategory || subCategory === 'sale') && (
-                                <CommissionInput 
-                                    label={t_page.commissionSale} 
-                                    config={saleCommission} 
-                                    onChange={setSaleCommission} 
-                                />
+                                <CommissionInput label={t_page.commissionSale} config={saleCommission} onChange={setSaleCommission} />
                             )}
-                            
-                            {/* Rent Commission Configuration */}
                             {(!subCategory || subCategory === 'rent') && (
-                                <CommissionInput 
-                                    label={t_page.commissionRent} 
-                                    config={rentCommission} 
-                                    onChange={setRentCommission} 
-                                />
+                                <CommissionInput label={t_page.commissionRent} config={rentCommission} onChange={setRentCommission} />
                             )}
                         </div>
                     </CardContent>
@@ -504,9 +449,7 @@ const AdminPlanEditPage: React.FC = () => {
 
                 <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700 gap-3">
                     <Button type="button" variant="secondary" onClick={() => navigate('/admin/partners/plans')}>{t_shared.cancel}</Button>
-                    <Button type="submit" isLoading={loadingSave}>
-                        {t_shared.save}
-                    </Button>
+                    <Button type="submit" isLoading={loadingSave}>{t_shared.save}</Button>
                 </div>
             </form>
         </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -64,6 +65,7 @@ const RegisterPage: React.FC = () => {
     const [formSubmitted, setFormSubmitted] = useState(false);
     
     const [companyType, setCompanyType] = useState<PartnerType | ''>('');
+    const [subCategory, setSubCategory] = useState<string>(''); // New State for SubCategory
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | ''>('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [docFiles, setDocFiles] = useState<FileList | null>(null);
@@ -93,7 +95,14 @@ const RegisterPage: React.FC = () => {
 
     const nextStep = async () => {
         if (currentStep === 1) {
-            if (companyType && selectedPlan) setCurrentStep(2);
+            // Validate Step 1
+            if (!companyType || !selectedPlan) return;
+            // If finishing, ensure subCategory is selected
+            if (companyType === 'finishing' && !subCategory) {
+                 showToast(language === 'ar' ? 'يرجى اختيار التخصص' : 'Please select specialization', 'error');
+                 return;
+            }
+            setCurrentStep(2);
         } else if (currentStep === 2) {
             const isStepValid = await trigger(); // Validate Step 2 fields
             if (isStepValid) setCurrentStep(3);
@@ -121,6 +130,8 @@ const RegisterPage: React.FC = () => {
         
         const finalData = {
             companyType,
+            // Include subCategory if present (useful for backend logic or notes)
+            subCategory: subCategory || undefined,
             subscriptionPlan: selectedPlan,
             ...data,
             logo: logoBase64,
@@ -131,8 +142,14 @@ const RegisterPage: React.FC = () => {
         const typeKey = companyType as string;
         const planKey = selectedPlan as string;
         
-        // Get dynamic price from fetched plans - Using 'any' cast to resolve TS index error
-        const planDetails = (allPlans as any)?.[typeKey]?.[planKey]?.[language];
+        // Get dynamic price from fetched plans - Handle nested structure for finishing
+        let planDetails;
+        if (companyType === 'finishing' && subCategory) {
+             planDetails = (allPlans as any)?.[typeKey]?.[subCategory]?.[planKey]?.[language];
+        } else {
+             planDetails = (allPlans as any)?.[typeKey]?.[planKey]?.[language];
+        }
+
         const planPriceString = planDetails?.price || "0";
         const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
 
@@ -194,30 +211,56 @@ const RegisterPage: React.FC = () => {
                             <h2 className="text-2xl font-bold mb-2">{t_page.step1_title}</h2>
                             <p className="text-gray-500 mb-6">{t_page.step1_subtitle}</p>
                             
-                            <FormField label={t_page.companyType} id="companyType">
-                                <Select 
-                                    value={companyType} 
-                                    onChange={(e) => { setCompanyType(e.target.value as PartnerType); setSelectedPlan(''); }}
-                                >
-                                    <option value="" disabled>{t_page.selectType}</option>
-                                    <option value="developer">{t_page.developer}</option>
-                                    <option value="finishing">{t_page.finishing}</option>
-                                    <option value="agency">{t_page.agency}</option>
-                                </Select>
-                            </FormField>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField label={t_page.companyType} id="companyType">
+                                    <Select 
+                                        value={companyType} 
+                                        onChange={(e) => { 
+                                            setCompanyType(e.target.value as PartnerType); 
+                                            setSubCategory(''); 
+                                            setSelectedPlan(''); 
+                                        }}
+                                    >
+                                        <option value="" disabled>{t_page.selectType}</option>
+                                        <option value="developer">{t_page.developer}</option>
+                                        <option value="finishing">{t_page.finishing}</option>
+                                        <option value="agency">{t_page.agency}</option>
+                                    </Select>
+                                </FormField>
+
+                                {companyType === 'finishing' && (
+                                    <FormField label={language === 'ar' ? 'التخصص / الكيان' : 'Specialization / Entity'} id="subCategory">
+                                        <Select
+                                            value={subCategory}
+                                            onChange={(e) => {
+                                                setSubCategory(e.target.value);
+                                                setSelectedPlan('');
+                                            }}
+                                        >
+                                            <option value="" disabled>{t.forms.select}</option>
+                                            <option value="engineer">{language === 'ar' ? 'مهندس مستقل (Freelancer)' : 'Independent Engineer'}</option>
+                                            <option value="office">{language === 'ar' ? 'مكتب هندسي / استشاري' : 'Engineering Office'}</option>
+                                            <option value="company">{language === 'ar' ? 'شركة مقاولات / تشطيب' : 'Contracting Company'}</option>
+                                        </Select>
+                                    </FormField>
+                                )}
+                            </div>
                             
                             {companyType && (
-                                <div className="mt-8">
-                                    <SubscriptionPlanSelector 
-                                        partnerType={companyType as PlanCategory}
-                                        selectedPlan={selectedPlan}
-                                        onSelectPlan={(plan) => setSelectedPlan(plan)}
-                                    />
-                                </div>
+                                (companyType !== 'finishing' || subCategory) && (
+                                    <div className="mt-8">
+                                        <SubscriptionPlanSelector 
+                                            partnerType={companyType as PlanCategory}
+                                            subCategory={subCategory}
+                                            selectedPlan={selectedPlan}
+                                            onSelectPlan={(plan) => setSelectedPlan(plan)}
+                                        />
+                                    </div>
+                                )
                             )}
                             
                             <div className="mt-8 flex justify-end">
-                                <Button onClick={nextStep} disabled={!companyType || !selectedPlan}>
+                                <Button onClick={nextStep} disabled={!companyType || !selectedPlan || (companyType === 'finishing' && !subCategory)}>
                                     {t_page.next}
                                 </Button>
                             </div>
@@ -282,8 +325,13 @@ const RegisterPage: React.FC = () => {
                                 {selectedPlan && companyType && (
                                      // Quick display of selected plan price to inform user before submit
                                     (() => {
-                                        // Using any cast to resolve TS index error
-                                        const planDetails = (allPlans as any)?.[companyType as string]?.[selectedPlan as string]?.[language];
+                                        let planDetails;
+                                        if (companyType === 'finishing' && subCategory) {
+                                             planDetails = (allPlans as any)?.[companyType as string]?.[subCategory]?.[selectedPlan as string]?.[language];
+                                        } else {
+                                             planDetails = (allPlans as any)?.[companyType as string]?.[selectedPlan as string]?.[language];
+                                        }
+                                        
                                         const planPriceString = planDetails?.price || "0";
                                         const price = parseInt(planPriceString.replace(/[^0-9]/g, '')) || 0;
                                         

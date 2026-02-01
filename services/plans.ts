@@ -61,6 +61,7 @@ const buildPlansObject = (rows: any[]) => {
                 propertiesSale: limits.propertiesSale !== undefined ? limits.propertiesSale : -1,
                 propertiesRent: limits.propertiesRent !== undefined ? limits.propertiesRent : -1,
                 portfolio: limits.portfolio !== undefined ? limits.portfolio : -1,
+                services: limits.services !== undefined ? limits.services : -1, // Added: Ensure services limit is mapped
             },
             // Legacy props kept for backward compat if any other component relies on them directly
             commissionRateSale: row.commissionRateSale,

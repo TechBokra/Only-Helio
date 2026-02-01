@@ -10,9 +10,10 @@ interface SubscriptionPlanSelectorProps {
     selectedPlan: string;
     onSelectPlan: (plan: SubscriptionPlan) => void;
     partnerType: PlanCategory;
+    subCategory?: string; // Added optional subCategory prop
 }
 
-const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({ selectedPlan, onSelectPlan, partnerType }) => {
+const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({ selectedPlan, onSelectPlan, partnerType, subCategory }) => {
     const { language, t } = useLanguage();
     const t_plans = t.subscriptionPlans;
     const { data: allPlans, isLoading: loading } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
@@ -21,15 +22,28 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({ sel
         return <div className="text-center p-8">Loading plans...</div>;
     }
     
-    const plansForType = allPlans[partnerType];
+    // Determine the source object for plans based on subCategory existence
+    // If subCategory provided (e.g. 'engineer'), traverse deeper: allPlans['finishing']['engineer']
+    let plansForType = allPlans[partnerType];
+    
+    if (subCategory && plansForType[subCategory]) {
+        plansForType = plansForType[subCategory];
+    }
+
+    // Safety check if plans object is empty or malformed
+    const planKeys = Object.keys(plansForType || {});
+    if (planKeys.length === 0) {
+         return <div className="text-center p-8 text-gray-500">No plans available for this category.</div>;
+    }
 
     return (
         <div>
             <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-10">{t_plans.title}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {/* FIX: Removed invalid type assertion `as (keyof typeof plansForType)[]` from Object.keys. */}
-                {Object.keys(plansForType).map(planKey => {
-                    const plan = (plansForType as any)[planKey][language];
+                {planKeys.map(planKey => {
+                    const planData = (plansForType as any)[planKey];
+                    const plan = planData?.[language];
+                    
                     if (!plan) return null; // Defensive check
                     const isSelected = selectedPlan === planKey;
 

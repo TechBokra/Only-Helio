@@ -7,7 +7,7 @@ import type { SubscriptionPlan, PartnerType, SubscriptionPlanDetails } from '../
  */
 export const getLimitFromPlan = (
     planDetails: SubscriptionPlanDetails | undefined,
-    usageType: 'projects' | 'units' | 'properties' | 'portfolio' | 'propertiesSale' | 'propertiesRent'
+    usageType: 'projects' | 'units' | 'properties' | 'portfolio' | 'propertiesSale' | 'propertiesRent' | 'services'
 ): number => {
     if (!planDetails || !planDetails.limits) {
         return Infinity; // Fallback to unlimited if no config found (safe default for MVP, or restrict to 0 based on business need)
@@ -29,6 +29,8 @@ export const getLimitFromPlan = (
             return limits.propertiesRent ?? Infinity;
         case 'portfolio':
             return limits.portfolio ?? Infinity;
+        case 'services':
+            return limits.services ?? Infinity;
         default:
             return Infinity;
     }

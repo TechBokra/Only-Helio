@@ -321,6 +321,7 @@ export interface PlanLimits {
     propertiesSale?: number;
     propertiesRent?: number;
     portfolio?: number;
+    services?: number; // Added: Limit for Partner Services
 }
 
 export interface SubscriptionPlanDetails {
@@ -595,6 +596,7 @@ export interface PartnerService {
     partnerId: string;
     title: { ar: string; en: string };
     description: { ar: string; en: string };
+    category: string; // Added Category
     priceRange?: { ar: string; en: string };
     estimatedTime?: { ar: string; en: string };
     imageUrl?: string;

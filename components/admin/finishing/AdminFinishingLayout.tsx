@@ -5,7 +5,6 @@ import { useLanguage } from '../../shared/LanguageContext';
 
 const AdminFinishingLayout: React.FC = () => {
     const { language, t } = useLanguage();
-    const t_nav = t.adminDashboard.nav;
     const t_tabs = t.adminDashboard.finishingManagement.tabs;
     const t_page = t.adminDashboard.finishingManagement;
 
@@ -15,16 +14,15 @@ const AdminFinishingLayout: React.FC = () => {
             href: '/admin/platform-finishing', 
             exact: true 
         },
-        // 'requests' tab removed, now a sidebar item
-        { 
-            name: t_tabs.services, 
-            href: '/admin/platform-finishing/services', 
-            exact: false 
-        },
+        // "Plans" redirected to the main plans management view filtered by category
         { 
             name: t_tabs.plans, 
-            href: '/admin/platform-finishing/plans', 
-            exact: false 
+            href: '/admin/partners/plans', 
+            exact: false,
+            // Custom click behavior could be handled, but simple link is safer
+            // Note: Since this is outside the router context of the parent slightly, we use NavLink for visual consistency 
+            // but we might want it to point to a different route structure.
+            // If we want to keep it in the layout visual, we can make it external.
         },
     ];
 
@@ -45,16 +43,20 @@ const AdminFinishingLayout: React.FC = () => {
 
             <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
                  <div className="flex -mb-px" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-                    {tabs.map(tab => (
-                        <NavLink
-                            key={tab.href}
-                            to={tab.href}
-                            end={tab.exact}
-                            className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
-                        >
-                            {tab.name}
-                        </NavLink>
-                    ))}
+                    <NavLink
+                        to="/admin/platform-finishing"
+                        end
+                        className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+                    >
+                        {t_tabs.dashboard}
+                    </NavLink>
+                    {/* Direct link to unified plans management */}
+                    <NavLink
+                        to="/admin/partners/plans"
+                        className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+                    >
+                        {t_tabs.plans}
+                    </NavLink>
                 </div>
             </div>
             
