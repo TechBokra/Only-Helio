@@ -74,7 +74,7 @@ const UnifiedMap: React.FC<UnifiedMapProps> = ({
 
     // Pin styling helper
     const getPinColorClass = (color?: string, isActive?: boolean) => {
-        if (isActive) return 'text-amber-500 scale-125 z-30';
+        if (isActive) return 'text-amber-500 scale-125 z-50'; // Higher z-index for active
         switch (color) {
             case 'green': return 'text-green-600';
             case 'blue': return 'text-blue-600';
@@ -82,6 +82,14 @@ const UnifiedMap: React.FC<UnifiedMapProps> = ({
             default: return 'text-red-600';
         }
     };
+
+    // Sort markers by Latitude (Descending) to ensure Southern pins (Lower visual Y) 
+    // are rendered LAST (on top) in the DOM for correct overlap.
+    // Map Logic: High Lat = North (Top), Low Lat = South (Bottom).
+    // We want Bottom pins to cover Top pins.
+    const sortedMarkers = useMemo(() => {
+        return [...markers].sort((a, b) => b.lat - a.lat);
+    }, [markers]);
 
     return (
         <div className={`relative bg-gray-200 overflow-hidden rounded-lg ${className}`} style={{ height }}>
@@ -106,18 +114,21 @@ const UnifiedMap: React.FC<UnifiedMapProps> = ({
             )}
 
             {/* Render Markers */}
-            {markers.map(marker => {
+            {sortedMarkers.map((marker, index) => {
                 const pos = convertToPixel(marker.lat, marker.lng);
                 // Safety check to keep pins visually inside container mostly
                 if (pos.x < -5 || pos.x > 105 || pos.y < -5 || pos.y > 105) return null;
 
                 const isActive = activeMarkerId === marker.id;
+                
+                // Base Z-Index based on index (render order), plus boost for active
+                const zIndexStyle = { zIndex: isActive ? 100 : 10 + index };
 
                 return (
                     <div
                         key={marker.id}
-                        className="absolute transform -translate-x-1/2 -translate-y-full z-10 group"
-                        style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                        className="absolute transform -translate-x-1/2 -translate-y-full group transition-all duration-200"
+                        style={{ left: `${pos.x}%`, top: `${pos.y}%`, ...zIndexStyle }}
                         onMouseEnter={() => onMarkerHover?.(marker.id)}
                         onMouseLeave={() => onMarkerHover?.(null)}
                         onClick={(e) => {
@@ -131,7 +142,7 @@ const UnifiedMap: React.FC<UnifiedMapProps> = ({
                         
                         {/* Tooltip */}
                         {marker.tooltip && (isActive || mode === 'read') && (
-                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-max max-w-[200px] transition-opacity duration-200 ${isActive ? 'opacity-100 z-40' : 'opacity-0 group-hover:opacity-100 z-20 pointer-events-none'}`}>
+                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-max max-w-[200px] transition-opacity duration-200 ${isActive ? 'opacity-100 z-50' : 'opacity-0 group-hover:opacity-100 z-20 pointer-events-none'}`}>
                                 {marker.tooltip}
                             </div>
                         )}

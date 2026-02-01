@@ -62,7 +62,7 @@ const PropertyListItem: React.FC<Property> = (props) => {
                     )}
                    
                     <span 
-                        className={`absolute top-3 ${language === 'ar' ? 'right-3' : 'left-3'} text-white font-bold px-2 py-1 rounded text-[10px] shadow-sm ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`}
+                        className={`absolute top-3 ${language === 'ar' ? 'right-3' : 'left-3'} text-white font-bold px-2 py-1 rounded text-[10px] shadow-sm z-10 ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`}
                     >
                         {status[language]}
                     </span>

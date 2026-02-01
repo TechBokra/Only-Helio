@@ -74,9 +74,6 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
   };
 
   const displayImage = getImageSrc(imageUrl, '');
-  const displayImageSmall = getImageSrc(imageUrl, '&fm=webp&w=480');
-  const displayImageMedium = getImageSrc(imageUrl, '&fm=webp&w=800');
-  const displayImageLarge = getImageSrc(imageUrl, '&fm=webp&w=1200');
 
   // Helper for feature badges
   const FeatureBadge = ({ icon: Icon, label }: { icon: any, label: string }) => (
@@ -107,15 +104,15 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo((props) => {
                 />
             </Link>
            
-          {/* Status Badge: Top Start */}
+          {/* Status Badge: Top Start - High Z-Index */}
           <span 
-            className={`absolute top-3 ${language === 'ar' ? 'right-3' : 'left-3'} z-10 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`} 
+            className={`absolute top-3 ${language === 'ar' ? 'right-3' : 'left-3'} z-30 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm ${isForSale ? 'bg-green-600' : 'bg-sky-600'}`} 
           >
             {status[language]}
           </span>
 
-          {/* Favorite Button: Top End */}
-          <div className={`absolute top-3 ${language === 'ar' ? 'left-3' : 'right-3'} z-20`}>
+          {/* Favorite Button: Top End - High Z-Index */}
+          <div className={`absolute top-3 ${language === 'ar' ? 'left-3' : 'right-3'} z-30`}>
             <button
               onClick={handleFavoriteClick}
               className="p-2 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-red-500 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"

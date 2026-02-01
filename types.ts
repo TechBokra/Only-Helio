@@ -59,11 +59,11 @@ export type PartnerType = 'developer' | 'finishing' | 'agency' | 'admin' | 'deco
 
 export type PartnerStatus = 'active' | 'pending' | 'disabled' | 'pending_setup';
 
-export type SubscriptionPlan = 'basic' | 'professional' | 'elite' | 'commission' | 'paid_listing';
-
+// Dynamic Plans
+export type SubscriptionPlan = string; 
 export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
-
 export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
+export type BillingCycle = 'monthly' | 'yearly' | 'one_time';
 
 export interface ContactMethod {
     enabled: boolean;
@@ -97,9 +97,7 @@ export interface Partner {
     createdAt: string;
 }
 
-export interface AdminPartner extends Partner {
-    // Admin specific fields if any, otherwise alias
-}
+export interface AdminPartner extends Partner {}
 
 export type ListingStatus = 'active' | 'inactive' | 'draft' | 'sold';
 
@@ -115,7 +113,7 @@ export interface Property {
     address: { en: string; ar: string };
     location: { lat: number; lng: number };
     status: { en: 'For Sale' | 'For Rent'; ar: 'للبيع' | 'إيجار' };
-    type: { en: string; ar: string }; // e.g. Apartment, Villa
+    type: { en: string; ar: string };
     finishingStatus?: { en: string; ar: string };
     area: number;
     price: { en: string; ar: string };
@@ -155,7 +153,7 @@ export interface Project {
     imageUrl_large?: string;
     features: { icon: string; text: { en: string; ar: string } }[];
     createdAt: string;
-    projectType?: string; // Type like 'Residential', 'Commercial'
+    projectType?: string;
     unitCount?: number;
 }
 
@@ -186,15 +184,13 @@ export interface FilterOption {
     id: string;
     en: string;
     ar: string;
-    applicableTo?: string[]; // e.g. ['Apartment', 'Villa']
+    applicableTo?: string[];
 }
 
 export interface FavoriteItem {
     id: string;
     type: 'property' | 'service' | 'portfolio';
 }
-
-// Requests & Leads
 
 export type LeadStatus = 'new' | 'contacted' | 'site-visit' | 'quoted' | 'in-progress' | 'completed' | 'cancelled';
 
@@ -220,7 +216,7 @@ export interface Lead {
     contactTime?: string;
     customerNotes?: string;
     status: LeadStatus;
-    assignedTo?: string; // userId
+    assignedTo?: string;
     referenceImage?: string;
     messages?: LeadMessage[];
     createdAt: string;
@@ -255,7 +251,7 @@ export interface Request {
 
 export interface OfficialDocument {
     fileName: string;
-    fileContent: string; // Base64 or URL
+    fileContent: string;
 }
 
 export interface PartnerRequest {
@@ -281,7 +277,7 @@ export interface AddPropertyRequest {
     customerName: string;
     customerPhone: string;
     contactTime: string;
-    propertyDetails: any; // JSON with detailed specs
+    propertyDetails: any;
     images: string[];
     cooperationType: 'paid_listing' | 'commission';
     status: RequestStatus;
@@ -311,8 +307,6 @@ export interface PropertyInquiryRequest {
     createdAt: string;
 }
 
-// Configuration & Plans
-
 export interface PlanLimits {
     projects?: number;
     units?: number;
@@ -323,12 +317,15 @@ export interface PlanLimits {
 }
 
 export interface SubscriptionPlanDetails {
+    id?: string;
+    tier?: string;
     name: string;
     price: string;
     description: string;
     features: string[];
     commissionRateSale?: number;
     commissionRateRent?: number;
+    billingCycle: BillingCycle; // Added
     limits: PlanLimits;
 }
 
@@ -360,8 +357,6 @@ export interface FinishingService {
     description: { ar: string; en: string };
     pricingTiers: FinishingServicePricingTier[];
 }
-
-// Site Content (CMS)
 
 export interface SiteContent {
     logoUrl?: string;
@@ -477,8 +472,6 @@ export interface HeroImage {
     alt: { ar: string; en: string };
 }
 
-// AI Estimator
-
 export interface AIEstimatorItem {
     id: string;
     name: { ar: string; en: string };
@@ -514,8 +507,6 @@ export interface AIEstimatorConfig {
     lastUpdated?: string;
 }
 
-// Finance
-
 export type TransactionStatus = 'pending' | 'reviewing' | 'paid' | 'failed' | 'refunded';
 export type TransactionType = 'subscription_fee' | 'listing_fee' | 'service_payment' | 'product_purchase';
 export type PaymentMethod = 'instapay' | 'card' | 'wallet';
@@ -530,8 +521,8 @@ export interface Transaction {
     status: TransactionStatus;
     method: PaymentMethod;
     description: string;
-    relatedEntityId?: string; // ID of the related item (Lead ID, Property ID, etc.)
-    receiptUrl?: string; // For manual methods
+    relatedEntityId?: string;
+    receiptUrl?: string;
     referenceNumber?: string;
     createdAt: string;
     updatedAt: string;
@@ -544,8 +535,6 @@ export interface FinanceStats {
     pendingReviews: number;
 }
 
-// Forms
-
 export type FormFieldType = 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'select' | 'checkbox' | 'radio' | 'date' | 'file';
 export type ValidationRuleType = 'email' | 'phone_eg' | 'url' | 'number' | 'custom' | 'none';
 export type SubmissionDestination = 'crm_leads' | 'crm_messages' | 'crm_partners' | 'email';
@@ -553,16 +542,16 @@ export type FormCategory = 'public' | 'lead_gen' | 'partner_app' | 'admin_intern
 
 export interface FormFieldDefinition {
     id: string;
-    key: string; // The property name in data object
+    key: string;
     type: FormFieldType;
     label: { ar: string; en: string };
     placeholder?: { ar: string; en: string };
     required: boolean;
-    options?: string[] | string; // For select/radio (comma separated or array)
+    options?: string[] | string;
     width: 'full' | 'half' | 'third';
     validation?: {
         type: ValidationRuleType;
-        pattern?: string; // Regex string
+        pattern?: string;
         minLength?: number;
         maxLength?: number;
         errorMessage?: { ar: string; en: string };
@@ -572,7 +561,7 @@ export interface FormFieldDefinition {
 
 export interface FormDefinition {
     id: string;
-    slug: string; // Unique identifier for fetching
+    slug: string;
     title: { ar: string; en: string };
     description?: { ar: string; en: string };
     category: FormCategory;
@@ -584,7 +573,6 @@ export interface FormDefinition {
     updatedAt: string;
 }
 
-// Notifications
 export interface Notification {
     id: string;
     userId: string;
@@ -594,7 +582,6 @@ export interface Notification {
     createdAt: string;
 }
 
-// Partner Services (Managed by Partner)
 export interface PartnerService {
     id: string;
     partnerId: string;
@@ -607,7 +594,6 @@ export interface PartnerService {
     createdAt: string;
 }
 
-// UI
 export type Theme = 'light' | 'dark';
 
 export interface PropertyFiltersType {

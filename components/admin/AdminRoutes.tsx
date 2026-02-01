@@ -128,6 +128,7 @@ const AdminRoutes: React.FC = () => {
                     <Route path="edit/:partnerId" element={<AdminPartnerFormPage />} />
                     <Route path="inquiry-routing" element={<AdminInquiryManagementPage />} />
                     <Route path="plans" element={<AdminPlansPage availableCategories={['developer', 'agency', 'individual']} />} />
+                    <Route path="plans/new" element={<AdminPlanEditPage />} /> {/* New Route for Creating Plan */}
                     <Route path="plans/edit/:planCategory/:planKey" element={<AdminPlanEditPage />} />
                 </Route>
                 

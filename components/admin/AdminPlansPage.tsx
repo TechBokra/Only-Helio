@@ -2,10 +2,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SubscriptionPlan, SubscriptionPlanDetails, PlanCategory } from '../../types';
-import { CheckCircleIcon } from '../ui/Icons';
+import { CheckCircleIcon, PlusIcon } from '../ui/Icons';
 import { getPlans } from '../../services/plans';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../shared/LanguageContext';
+import { Button } from '../ui/Button';
 
 const PlanCard: React.FC<{ 
     plan: SubscriptionPlanDetails, 
@@ -18,12 +19,12 @@ const PlanCard: React.FC<{
         return <div className="bg-red-100 p-4 rounded-lg text-red-800">Error: Plan data is missing.</div>;
     }
     
-    // Encode planType if it contains slashes/special chars (though here it's usually simple strings like 'developer')
     const encodedType = encodeURIComponent(planType);
 
     return (
-        <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 flex flex-col">
+        <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 flex flex-col hover:border-amber-400 transition-colors">
             <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400">{plan.name}</h3>
+            <p className="text-xs text-gray-400 font-mono mt-1 mb-2">Slug: {planKey}</p>
             <p className="text-3xl font-extrabold text-gray-900 dark:text-white my-4">{plan.price}</p>
             
             {plan.commissionRateSale !== undefined && (
@@ -102,31 +103,55 @@ const AdminPlansPage: React.FC<{ availableCategories?: PlanCategory[] }> = ({ av
             plansToRender = (plans as any)?.[activeTab] || {};
         }
 
-        if (!plansToRender || Object.keys(plansToRender).length === 0) {
-            return <p className="text-gray-500">No plans found for this category.</p>;
-        }
+        const planKeys = Object.keys(plansToRender);
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {(Object.keys(plansToRender) as SubscriptionPlan[]).map(planKey => (
-                    <PlanCard 
-                        key={planKey}
-                        planKey={planKey}
-                        planType={activeTab}
-                        plan={plansToRender[planKey]?.[language]}
-                        language={language}
-                    />
-                ))}
+            <div>
+                 {planKeys.length === 0 ? (
+                     <div className="text-center py-16 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+                        <p className="text-gray-500 mb-4">No plans found for this category.</p>
+                        <Link to={`/admin/partners/plans/new?category=${activeTab}`}>
+                             <Button>Create First Plan</Button>
+                        </Link>
+                     </div>
+                 ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {(planKeys as string[]).map(planKey => (
+                            <PlanCard 
+                                key={planKey}
+                                planKey={planKey}
+                                planType={activeTab}
+                                plan={plansToRender[planKey]?.[language]}
+                                language={language}
+                            />
+                        ))}
+                         {/* Card to Add New */}
+                         <Link to={`/admin/partners/plans/new?category=${activeTab}`} className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 hover:border-amber-500 hover:text-amber-500 transition-all group min-h-[400px]">
+                            <PlusIcon className="w-16 h-16 mb-4 text-gray-300 group-hover:text-amber-500" />
+                            <span className="font-bold text-lg">Add New Plan</span>
+                         </Link>
+                    </div>
+                 )}
             </div>
         );
     };
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_plans.title}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t_plans.subtitle}</p>
+        <div className="animate-fadeIn">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t_plans.title}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{t_plans.subtitle}</p>
+                </div>
+                <Link to={`/admin/partners/plans/new?category=${activeTab}`}>
+                    <Button className="flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5"/>
+                        Create Plan
+                    </Button>
+                </Link>
+            </div>
             
-            <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="mb-8 border-b border-gray-200 dark:border-gray-700">
                 <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
                     {tabs.map(tab => (
                         <button
@@ -136,7 +161,7 @@ const AdminPlansPage: React.FC<{ availableCategories?: PlanCategory[] }> = ({ av
                                 activeTab === tab.key
                                     ? 'border-amber-500 text-amber-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600'
-                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors`}
                         >
                             {tab.name}
                         </button>
