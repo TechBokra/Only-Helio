@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { Language, SubscriptionPlanDetails } from '../../types';
+import type { Language, SubscriptionPlanDetails, CommissionDisplayConfig } from '../../types';
 import { CheckCircleIcon } from '../ui/Icons';
 import { useLanguage } from './LanguageContext';
 import { Card, CardContent } from '../ui/Card';
@@ -15,8 +15,33 @@ const CooperationCard: React.FC<CooperationCardProps> = ({ planDetails, isSelect
     const { language, t } = useLanguage();
     const t_page = t.addPropertyPage;
     
-    // Display either sale or rent commission if available
-    const commission = planDetails.commissionRateSale ?? planDetails.commissionRateRent;
+    // Helper to format commission display
+    const renderCommission = (commission?: CommissionDisplayConfig) => {
+        if (!commission || commission.type === 'hidden') return null;
+        
+        let displayValue = '';
+        const label = t.adminDashboard.plans.commissionRate.replace('(%)', '').trim(); // "Commission Rate" or "نسبة العمولة"
+
+        switch (commission.type) {
+            case 'percentage':
+                displayValue = `${commission.value}%`;
+                break;
+            case 'fixed':
+                displayValue = `${commission.value} ${language === 'ar' ? 'ج.م' : 'EGP'}`;
+                break;
+            case 'text':
+                displayValue = String(commission.value);
+                break;
+            default:
+                return null;
+        }
+
+        return (
+            <p className="text-lg font-semibold text-gray-700 mb-4">
+                {label}: {displayValue}
+            </p>
+        );
+    };
 
     return (
         <Card
@@ -31,11 +56,7 @@ const CooperationCard: React.FC<CooperationCardProps> = ({ planDetails, isSelect
                 <p className="text-gray-500 my-4 flex-grow">{planDetails.description}</p>
                 <p className="text-xl font-bold text-gray-800 mb-4">{planDetails.price}</p>
                 
-                {commission != null && (
-                        <p className="text-lg font-semibold text-gray-700 mb-4">
-                        {t.adminDashboard.plans.commissionRate.replace('(%)', '')}: {commission}%
-                    </p>
-                )}
+                {renderCommission(planDetails.commission)}
                 
                 <ul className="space-y-2 mb-6 text-sm text-left">
                     {planDetails.features.map((benefit: string, index: number) => (

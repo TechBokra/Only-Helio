@@ -65,6 +65,13 @@ export type PlanCategory = 'developer' | 'agency' | 'finishing' | 'individual';
 export type PartnerDisplayType = 'standard' | 'featured' | 'mega_project';
 export type BillingCycle = 'monthly' | 'yearly' | 'one_time';
 
+export type CommissionType = 'percentage' | 'fixed' | 'text' | 'hidden';
+
+export interface CommissionDisplayConfig {
+    type: CommissionType;
+    value: string | number; // Can be a number (2.5) or text ("Month Rent")
+}
+
 export interface ContactMethod {
     enabled: boolean;
     number?: string;
@@ -323,9 +330,10 @@ export interface SubscriptionPlanDetails {
     price: string;
     description: string;
     features: string[];
-    commissionRateSale?: number;
-    commissionRateRent?: number;
-    billingCycle: BillingCycle; // Added
+    commissionRateSale?: number; // Legacy, kept for typing compatibility
+    commissionRateRent?: number; // Legacy, kept for typing compatibility
+    commission?: CommissionDisplayConfig; // New flexible config
+    billingCycle: BillingCycle;
     limits: PlanLimits;
 }
 

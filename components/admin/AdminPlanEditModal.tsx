@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails } from '../../types';
+import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails, CommissionDisplayConfig } from '../../types';
 import FormField, { inputClasses } from '../ui/FormField';
 import { CloseIcon } from '../ui/Icons';
 import { getPlans, updatePlan as apiUpdatePlan } from '../../services/plans';
@@ -45,6 +44,7 @@ const AdminPlanEditModal: React.FC<AdminPlanEditModalProps> = ({ planType, planK
                 features: typedPlan.en.features.join('\n'),
             });
             // Handle split commission rates or prefer Sale if generic
+            // Note: This accesses legacy commission rate properties for backward compatibility display
             const comm = subCategory === 'rent' ? typedPlan.en.commissionRateRent : typedPlan.en.commissionRateSale;
             setCommissionRate(String(comm !== undefined ? comm : ''));
         }
@@ -55,10 +55,20 @@ const AdminPlanEditModal: React.FC<AdminPlanEditModalProps> = ({ planType, planK
         setLoading(true);
         const rate = commissionRate ? parseFloat(commissionRate) : undefined;
         
-        // Construct commissions object based on subCategory/context
-        const commissions: { sale?: number, rent?: number } = {};
-        if (subCategory === 'rent') commissions.rent = rate;
-        else commissions.sale = rate;
+        // Construct commissionConfig object
+        const commissionConfig: { sale: CommissionDisplayConfig, rent: CommissionDisplayConfig } = {
+            sale: { type: 'hidden', value: '' },
+            rent: { type: 'hidden', value: '' }
+        };
+
+        if (rate !== undefined) {
+             const commValue: CommissionDisplayConfig = { type: 'percentage', value: rate };
+             if (subCategory === 'rent') {
+                 commissionConfig.rent = commValue;
+             } else {
+                 commissionConfig.sale = commValue;
+             }
+        }
 
         await apiUpdatePlan(planType, planKey, {
             ar: {
@@ -72,7 +82,7 @@ const AdminPlanEditModal: React.FC<AdminPlanEditModalProps> = ({ planType, planK
                 features: enData.features.split('\n').filter(f => f.trim() !== ''),
             },
             limits: undefined, // Preserved in service if undefined
-            commissions: commissions
+            commissionConfig: commissionConfig
         }, subCategory);
         setLoading(false);
         onSave();

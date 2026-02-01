@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
-import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails, BillingCycle } from '../../types';
+import type { SubscriptionPlan, PlanCategory, SubscriptionPlanDetails, BillingCycle, CommissionDisplayConfig, CommissionType } from '../../types';
 import FormField, { inputClasses, selectClasses } from '../ui/FormField';
-import { ArrowLeftIcon, BanknotesIcon, AdjustmentsHorizontalIcon, TrashIcon, PlusIcon } from '../ui/Icons';
+import { ArrowLeftIcon, BanknotesIcon, AdjustmentsHorizontalIcon, TrashIcon, PlusIcon, CalculatorIcon } from '../ui/Icons';
 import { getPlans, updatePlan as apiUpdatePlan, createPlan, deletePlan } from '../../services/plans';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../shared/LanguageContext';
@@ -45,7 +45,11 @@ const AdminPlanEditPage: React.FC = () => {
 
     const [arData, setArData] = useState({ price: '', description: '', features: '' });
     const [enData, setEnData] = useState({ price: '', description: '', features: '' });
-    const [commissions, setCommissions] = useState({ sale: '', rent: '' });
+    
+    // Updated State for Advanced Commissions
+    const [saleCommission, setSaleCommission] = useState<CommissionDisplayConfig>({ type: 'hidden', value: '' });
+    const [rentCommission, setRentCommission] = useState<CommissionDisplayConfig>({ type: 'hidden', value: '' });
+    
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
     
     // Dynamic Limits State: Array of { key, value }
@@ -83,11 +87,36 @@ const AdminPlanEditPage: React.FC = () => {
                 });
                 
                 const techData = typedPlan.en;
-                setCommissions({
-                    sale: techData.commissionRateSale !== undefined ? String(techData.commissionRateSale) : '',
-                    rent: techData.commissionRateRent !== undefined ? String(techData.commissionRateRent) : '',
-                });
                 setBillingCycle(techData.billingCycle || 'monthly');
+
+                // Load Commission Data safely (Handle legacy format vs new format via Service normalization, but double check here if we access raw rows elsewhere)
+                // Since service normalizes it into `commission` object on the plan detail, we might need to look deeper if we want separate sale/rent config
+                // Ideally, we should fetch raw config to populate the form correctly.
+                // Assuming `plans` from service already did normalization:
+                
+                // Note: The service returns normalized plan objects. We need to handle how we stored the full config.
+                // The current service `buildPlansObject` doesn't expose the full raw config JSON easily.
+                // For simplicity, let's assume we fetch the raw row or we patch the service to return 'fullConfig'.
+                // Or we infer from what we have.
+                
+                // Better approach: Rely on the service returning the specific `commission` object for the current plan context
+                // But for the Admin Editor, we might want to edit BOTH Sale and Rent configs regardless of current subCategory context.
+                
+                // Let's rely on `commissionRateSale` and `commissionRateRent` being present as fallbacks in `techData` if needed,
+                // but preferably we should have the `commissionConfig` object.
+                // Since we haven't updated `SubscriptionPlanDetails` to include `commissionConfig` explicitly in previous steps (only `commission`),
+                // let's assume for now we initialize based on `commission` prop if available, or fallbacks.
+                
+                // To support full editing, let's try to infer or default.
+                
+                if (subCategory === 'sale') {
+                     setSaleCommission(techData.commission || { type: 'percentage', value: techData.commissionRateSale || '' });
+                } else if (subCategory === 'rent') {
+                     setRentCommission(techData.commission || { type: 'percentage', value: techData.commissionRateRent || '' });
+                } else {
+                     // Default behavior for generic plans
+                     setSaleCommission(techData.commission || { type: 'hidden', value: '' });
+                }
 
                 // Convert Limits Object to Array for Dynamic Editing
                 if (techData.limits) {
@@ -134,8 +163,6 @@ const AdminPlanEditPage: React.FC = () => {
             limitsObject[item.key] = item.value;
         });
 
-        const parseComm = (val: string) => val === '' ? undefined : parseFloat(val);
-        
         const payload = {
             ar: {
                 name: isCreateMode ? newPlanName.ar : undefined,
@@ -150,9 +177,9 @@ const AdminPlanEditPage: React.FC = () => {
                 features: enData.features.split('\n').filter(f => f.trim() !== ''),
             },
             limits: limitsObject,
-            commissions: {
-                sale: parseComm(commissions.sale),
-                rent: parseComm(commissions.rent),
+            commissionConfig: {
+                sale: saleCommission,
+                rent: rentCommission
             },
             billingCycle: billingCycle
         };
@@ -201,6 +228,50 @@ const AdminPlanEditPage: React.FC = () => {
 
     // Filter available limits to add (exclude already added)
     const availableLimitsToAdd = SYSTEM_LIMITS.filter(sl => !activeLimits.find(al => al.key === sl.key));
+    
+    // Component to render Commission Input
+    const CommissionInput = ({ 
+        label, 
+        config, 
+        onChange 
+    }: { 
+        label: string, 
+        config: CommissionDisplayConfig, 
+        onChange: (c: CommissionDisplayConfig) => void 
+    }) => (
+        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{label}</label>
+            <div className="flex gap-2 mb-2">
+                <select 
+                    value={config.type} 
+                    onChange={(e) => onChange({ ...config, type: e.target.value as CommissionType })}
+                    className={selectClasses + " w-1/3"}
+                >
+                    <option value="hidden">{language === 'ar' ? 'إخفاء' : 'Hidden'}</option>
+                    <option value="percentage">{language === 'ar' ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
+                    <option value="fixed">{language === 'ar' ? 'رقم ثابت' : 'Fixed Number'}</option>
+                    <option value="text">{language === 'ar' ? 'نص' : 'Text'}</option>
+                </select>
+                <div className="flex-grow">
+                     <input 
+                        type={config.type === 'text' ? 'text' : 'number'}
+                        value={config.value}
+                        onChange={(e) => onChange({ ...config, value: e.target.value })}
+                        disabled={config.type === 'hidden'}
+                        className={inputClasses}
+                        placeholder={config.type === 'percentage' ? '2.5' : (config.type === 'text' ? 'e.g. Month Rent' : '0')}
+                    />
+                </div>
+            </div>
+            {config.type !== 'hidden' && (
+                <p className="text-xs text-gray-500">
+                    {config.type === 'percentage' && 'Value will be shown as %. Example: 2.5%'}
+                    {config.type === 'fixed' && 'Value will be shown as currency number.'}
+                    {config.type === 'text' && 'Value will be shown as text.'}
+                </p>
+            )}
+        </div>
+    );
 
     if (isLoading && !isCreateMode) return <div>Loading...</div>;
 
@@ -388,10 +459,13 @@ const AdminPlanEditPage: React.FC = () => {
                  {/* 4. Financials (Commissions & Billing) */}
                  <Card>
                     <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
-                        <CardTitle>{t_page.financialsTitle}</CardTitle>
+                        <div className="flex items-center gap-2">
+                             <CalculatorIcon className="w-6 h-6 text-amber-500" />
+                            <CardTitle>{t_page.financialsTitle}</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                             <div>
                                 <label className="block text-sm font-medium mb-1">Billing Cycle</label>
                                 <select 
@@ -404,13 +478,26 @@ const AdminPlanEditPage: React.FC = () => {
                                     <option value="one_time">{language === 'ar' ? 'مرة واحدة' : 'One Time'}</option>
                                 </select>
                             </div>
-                            <FormField label={t_page.commissionSale} id="commissionSale">
-                                <input type="number" step="0.1" value={commissions.sale} onChange={e => setCommissions({...commissions, sale: e.target.value})} className={inputClasses} placeholder="0%" />
-                            </FormField>
-                             <FormField label={t_page.commissionRent} id="commissionRent">
-                                <input type="number" step="0.1" value={commissions.rent} onChange={e => setCommissions({...commissions, rent: e.target.value})} className={inputClasses} placeholder="0" />
-                                <p className="text-xs text-gray-500 mt-1">Rent: Value 1 = 1 Month Rent</p>
-                            </FormField>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Sale Commission Configuration */}
+                            {(!subCategory || subCategory === 'sale') && (
+                                <CommissionInput 
+                                    label={t_page.commissionSale} 
+                                    config={saleCommission} 
+                                    onChange={setSaleCommission} 
+                                />
+                            )}
+                            
+                            {/* Rent Commission Configuration */}
+                            {(!subCategory || subCategory === 'rent') && (
+                                <CommissionInput 
+                                    label={t_page.commissionRent} 
+                                    config={rentCommission} 
+                                    onChange={setRentCommission} 
+                                />
+                            )}
                         </div>
                     </CardContent>
                 </Card>

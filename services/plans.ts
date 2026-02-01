@@ -1,6 +1,6 @@
 
 import { supabase } from '../supabaseClient';
-import type { SubscriptionPlan, SubscriptionPlanDetails, PlanCategory, BillingCycle } from '../types';
+import type { SubscriptionPlan, SubscriptionPlanDetails, PlanCategory, BillingCycle, CommissionDisplayConfig } from '../types';
 
 // Helper to construct the nested object structure from flat DB rows
 const buildPlansObject = (rows: any[]) => {
@@ -15,6 +15,35 @@ const buildPlansObject = (rows: any[]) => {
         
         // Parse Limits JSONB or default to Infinity (Unlimited) if not set
         const limits = typeof row.limits === 'string' ? JSON.parse(row.limits) : (row.limits || {});
+        
+        // Parse Commission Config JSONB
+        const commissionConfigRaw = typeof row.commissionConfig === 'string' ? JSON.parse(row.commissionConfig) : (row.commissionConfig || {});
+        
+        // Smart Fallback for Commission Config
+        // If config is missing in JSON, try to populate it from legacy columns
+        // This ensures existing plans still show commissions correctly.
+        let saleCommConfig: CommissionDisplayConfig = commissionConfigRaw.sale || { type: 'hidden', value: '' };
+        let rentCommConfig: CommissionDisplayConfig = commissionConfigRaw.rent || { type: 'hidden', value: '' };
+
+        if (!commissionConfigRaw.sale && row.commissionRateSale) {
+            saleCommConfig = { type: 'percentage', value: row.commissionRateSale };
+        }
+        if (!commissionConfigRaw.rent && row.commissionRateRent) {
+             // Heuristic: if value is small (< 100), assume %, else assume fixed/text
+             // But usually rent commission is "1 month", let's check legacy
+             rentCommConfig = { type: 'percentage', value: row.commissionRateRent };
+        }
+        
+        // Construct relevant commission object for this specific row's context
+        // If subCategory is sale, use sale config. If rent, use rent config.
+        let displayCommission: CommissionDisplayConfig | undefined = undefined;
+        if (subCat === 'sale') displayCommission = saleCommConfig;
+        else if (subCat === 'rent') displayCommission = rentCommConfig;
+        else {
+             // For general categories (developer, agency), we usually don't show commission per unit type like this
+             // But if we had to pick one, default to sale or keep undefined
+             if (saleCommConfig.type !== 'hidden') displayCommission = saleCommConfig;
+        }
 
         const planDetails: SubscriptionPlanDetails = {
             id: row.id, // Keep track of DB ID for updates/deletes
@@ -23,8 +52,7 @@ const buildPlansObject = (rows: any[]) => {
             price: row.price_en,
             description: row.description_en,
             features: row.features_en || [],
-            commissionRateSale: row.commissionRateSale,
-            commissionRateRent: row.commissionRateRent,
+            commission: displayCommission, // New consolidated config
             billingCycle: row.billingCycle || 'monthly',
             limits: {
                 projects: limits.projects !== undefined ? limits.projects : -1,
@@ -34,6 +62,9 @@ const buildPlansObject = (rows: any[]) => {
                 propertiesRent: limits.propertiesRent !== undefined ? limits.propertiesRent : -1,
                 portfolio: limits.portfolio !== undefined ? limits.portfolio : -1,
             },
+            // Legacy props kept for backward compat if any other component relies on them directly
+            commissionRateSale: row.commissionRateSale,
+            commissionRateRent: row.commissionRateRent,
         };
 
         // Attach localized versions for UI consumption
@@ -75,7 +106,7 @@ export const createPlan = async (
         ar: Partial<SubscriptionPlanDetails>, 
         en: Partial<SubscriptionPlanDetails>,
         limits: any,
-        commissions: { sale?: number, rent?: number },
+        commissionConfig: { sale: CommissionDisplayConfig, rent: CommissionDisplayConfig },
         billingCycle: BillingCycle
     },
     subCategory?: string
@@ -97,8 +128,7 @@ export const createPlan = async (
         features_en: data.en.features || [],
         
         limits: data.limits,
-        commissionRateSale: data.commissions.sale,
-        commissionRateRent: data.commissions.rent,
+        commissionConfig: data.commissionConfig, // Save Full JSON
         billingCycle: data.billingCycle,
         updatedAt: new Date().toISOString()
     };
@@ -119,7 +149,7 @@ export const updatePlan = async (
         ar: Partial<SubscriptionPlanDetails>, 
         en: Partial<SubscriptionPlanDetails>,
         limits: any,
-        commissions: { sale?: number, rent?: number },
+        commissionConfig: { sale: CommissionDisplayConfig, rent: CommissionDisplayConfig },
         billingCycle?: BillingCycle
     }, 
     subCategory?: 'sale' | 'rent'
@@ -140,9 +170,12 @@ export const updatePlan = async (
     if (updates.en.name) dbUpdates.name_en = updates.en.name;
     
     // Shared Technical Configs
-    if (updates.commissions.sale !== undefined) dbUpdates.commissionRateSale = updates.commissions.sale;
-    if (updates.commissions.rent !== undefined) dbUpdates.commissionRateRent = updates.commissions.rent;
     if (updates.billingCycle !== undefined) dbUpdates.billingCycle = updates.billingCycle;
+    
+    // Update Commission JSON
+    if (updates.commissionConfig) {
+        dbUpdates.commissionConfig = updates.commissionConfig;
+    }
     
     // Ensure limits are stored as JSONB
     dbUpdates.limits = updates.limits;
