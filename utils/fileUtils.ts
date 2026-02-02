@@ -1,20 +1,20 @@
 
 // Cloudinary Configuration
+// TODO: Move these to .env file in production (VITE_CLOUDINARY_CLOUD_NAME, etc.)
 const CLOUDINARY_CLOUD_NAME = 'dwg0hr34g'; 
-const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; // Ensure this is created as "Unsigned" in Cloudinary Settings -> Upload
+const CLOUDINARY_UPLOAD_PRESET = 'onlyhelio_uploads'; // Unsigned preset
 const CLOUDINARY_API_KEY = '532568532962456'; 
 
 /**
  * Uploads a file to Cloudinary.
- * @param file The file to upload
- * @returns A Promise that resolves with the secure URL of the uploaded image
+ * Returns the secure URL.
  */
 const uploadToCloudinary = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('api_key', CLOUDINARY_API_KEY);
-    // Note: We do NOT send api_secret from the frontend for security reasons.
+    // Note: Do NOT send api_secret from frontend.
 
     try {
         const response = await fetch(
@@ -27,7 +27,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Upload failed');
+            throw new Error(errorData.error?.message || 'Cloudinary upload failed');
         }
 
         const data = await response.json();
@@ -39,9 +39,8 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 };
 
 /**
- * Converts a File object to a Base64 encoded string (Fallback method).
- * @param file The file to convert
- * @returns A Promise that resolves with the Base64 string
+ * Fallback: Converts a File object to a Base64 string.
+ * Used if Cloudinary is misconfigured or network fails.
  */
 const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -53,21 +52,17 @@ const convertToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * Main file handler. Tries to upload to Cloudinary first.
- * If Cloudinary fails (e.g. network error or bad config), falls back to Base64 to ensure the app keeps working.
- * 
- * @param file The file to process
- * @returns A Promise that resolves with the image URL (Cloudinary or Base64)
+ * Main file handler. 
+ * Strategy: Try Cloudinary -> Fallback to Base64.
  */
 export const fileToBase64 = async (file: File): Promise<string> => {
-    // Only attempt upload if config looks valid
+    // Check if Cloudinary is configured
     if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET) {
         try {
             const url = await uploadToCloudinary(file);
-            console.log("Image uploaded to Cloudinary successfully:", url);
             return url;
         } catch (error) {
-            console.warn('Cloudinary upload failed, falling back to Base64 local storage.', error);
+            console.warn('Cloudinary upload failed, falling back to Base64.', error);
         }
     } else {
         console.warn('Cloudinary configuration missing, falling back to Base64.');
